@@ -17,7 +17,7 @@ export default function QAPage() {
             // Redirect to login if not authenticated
             window.location.href = '/login';
             return;
-        } 
+        }
 
         try {
             const url = new URL('http://localhost:8000/api/contents/monthly-requests/');
@@ -124,290 +124,269 @@ export default function QAPage() {
         handleUpdateStatus('IN_REVISION', 'Denied');
     };
 
-    // Empty State
-    if (items.length === 0) {
-        return (
-            <div className="w-full flex flex-col px-0 py-2">
-                <div className="bg-[#595556] rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0 items-center justify-center text-center">
-                    <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-4 text-white">
-                        <Check size={40} />
-                    </div>
-                    <h1 className="text-3xl font-semibold text-white">All Caught Up!</h1>
-                    <p className="text-slate-300 mt-2">No items pending Quality Assurance review.</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="w-full flex flex-col px-0 py-2">
-            <div className="bg-[#595556] rounded-3xl p-2 flex flex-col h-[85vh] min-h-0 mx-0">
-
+        <div className="w-full h-full flex flex-col p-6 lg:p-8 animate-in fade-in duration-500">
+            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-7xl mx-auto">
                 {/* Header Area */}
-                <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0 ml-8 mt-8">
+                <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
                     <div>
-                        <h1 className="text-3xl font-semibold text-white">QA Review</h1>
-                        <p className="text-slate-300 mt-1 text-sm">Review content before sending to revision</p>
+                        <h1 className="text-4xl font-black text-foreground tracking-tight">QA Review</h1>
+                        <p className="text-muted-foreground mt-2 text-lg font-medium">Review content before sending to revision</p>
                     </div>
 
                     {/* Integrated Client Selector */}
-                    <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-slate-200">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Client</span>
-                        <div className="h-4 w-px bg-slate-200"></div>
+                    <div className="flex items-center gap-3 bg-card px-5 py-3 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow cursor-default">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Client</span>
+                        <div className="h-4 w-px bg-border"></div>
                         {activeItem && activeItem.originalData?.client_details?.client_profile?.logo ? (
                             <img
                                 src={`http://localhost:8000${activeItem.originalData.client_details.client_profile.logo}`}
                                 alt={clientName}
-                                className="w-6 h-6 rounded-full object-cover border border-slate-300"
+                                className="w-8 h-8 rounded-full object-cover border border-border ring-2 ring-background"
                             />
                         ) : activeItem ? (
-                            <div className="w-6 h-6 rounded-full bg-[#192853]/10 flex items-center justify-center text-[#192853] font-bold text-xs">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs border border-border">
                                 {clientName.charAt(0).toUpperCase()}
                             </div>
                         ) : null}
-                        <span className="text-[#192853] font-bold text-sm min-w-[100px] text-center truncate max-w-[200px]">
+                        <span className="text-foreground font-bold text-sm min-w-[120px] text-center truncate max-w-[200px]">
                             {clientName || "Select Item..."}
                         </span>
-                        <ChevronDown size={14} className="text-slate-400" />
+                        <ChevronDown size={14} className="text-muted-foreground" />
                     </div>
                 </div>
 
                 {/* Main Content Card */}
-                <div className="bg-[#595556] rounded-2xl p-6 flex-1 flex flex-col min-h-0">
+                <div className="bg-card/60 backdrop-blur-xl rounded-[2rem] border border-white/20 dark:border-border shadow-2xl flex-1 flex flex-col min-h-0 relative overflow-hidden">
 
-                    {/* Content Area Wrapper */}
-                    <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
-
-                        {/* Sidebar */}
-                        <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-500 ease-in-out bg-slate-50 rounded-2xl py-6 border border-slate-200 flex flex-col shrink-0`}>
-                            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center mb-6' : 'justify-between mb-4 px-6'}`}>
-                                {!isSidebarCollapsed && (
-                                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 whitespace-nowrap">
-                                        <span>Pending QA</span>
-                                        <span className="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
-                                            {items.length}
-                                        </span>
-                                    </h2>
-                                )}
-                                <button
-                                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                                    className="p-2 rounded-full hover:bg-slate-200 text-slate-600 transition-colors"
-                                >
-                                    {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-                                </button>
+                    {items.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-12 min-h-[400px]">
+                            <div className="relative mb-8">
+                                <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full"></div>
+                                <div className="w-32 h-32 bg-card rounded-full flex items-center justify-center border-4 border-primary/10 shadow-2xl relative z-10">
+                                    <Check className="w-16 h-16 text-primary" strokeWidth={4} />
+                                </div>
                             </div>
-
-                            <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-3 ${isSidebarCollapsed ? 'px-2 overflow-x-hidden' : 'px-6'}`}>
-                                {items.map((item, index) => {
-                                    const isActive = index === activeItemIndex;
-                                    const isRequest = item.type === 'adhoc_request';
-
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            onClick={() => setActiveItemIndex(index)}
-                                            className={`
-                                                group flex items-center transition-all cursor-pointer border
-                                                ${isSidebarCollapsed ? 'justify-center p-2 rounded-xl aspect-square' : 'gap-3 p-3 rounded-xl'}
-                                                ${isActive ? 'bg-[#192853] border-[#192853]' : 'bg-white border-slate-200 hover:bg-slate-50'}
-                                            `}
-                                        >
-                                            <div className={`
-                                                w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors
-                                                ${isActive ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-300'}
-                                            `}>
-                                                <span className="text-xs font-bold">{isRequest ? 'R' : index + 1}</span>
-                                            </div>
-
-                                            {!isSidebarCollapsed && (
-                                                <div className="flex flex-col min-w-0 overflow-hidden">
-                                                    <span className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-[#192853]'}`}>
-                                                        {item.name}
-                                                    </span>
-                                                    <span className={`text-[10px] font-medium truncate ${isActive ? 'text-white/60' : 'text-[#5B75A9]'}`}>
-                                                        {isRequest ? 'Request' : 'Monthly'}
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {!isSidebarCollapsed && isActive && (
-                                                <ChevronRight size={16} className="text-white/40 ml-auto" />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            <h3 className="text-3xl font-black text-foreground mb-3 tracking-tight">All Caught Up!</h3>
+                            <p className="text-muted-foreground max-w-sm mx-auto text-lg font-medium">No items pending Quality Assurance review.</p>
                         </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-secondary/20 lg:p-1">
 
-                        {/* Main Detail Area */}
-                        {activeItem && (
-                            <div className="flex-1 bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 flex flex-col lg:flex-row gap-8 min-w-0 overflow-hidden">
+                            {/* Sidebar - Pending List */}
+                            <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
 
-                                {/* Left Column: Visuals Layout */}
-                                <div className="lg:w-7/12 flex flex-col gap-6 min-h-0">
+                                <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center py-6' : 'justify-between py-6 px-6'}`}>
+                                    {!isSidebarCollapsed && (
+                                        <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                            Pending QA
+                                            <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
+                                                {items.length}
+                                            </span>
+                                        </h2>
+                                    )}
+                                    <button
+                                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                                        className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
+                                    >
+                                        {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                                    </button>
+                                </div>
 
-                                    {/* Info Header above Visualizer */}
-                                    <div className="flex justify-between items-center relative px-2 py-2 shrink-0">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                                <Sparkles size={20} />
+                                <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-2 pb-6 ${isSidebarCollapsed ? 'px-3 overflow-x-hidden' : 'px-4'}`}>
+                                    {items.map((item, index) => {
+                                        const isActive = index === activeItemIndex;
+                                        const isRequest = item.type === 'adhoc_request';
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => setActiveItemIndex(index)}
+                                                className={`
+                                                    group flex items-center transition-all cursor-pointer border relative overflow-hidden
+                                                    ${isSidebarCollapsed
+                                                        ? 'justify-center p-3 rounded-2xl aspect-square'
+                                                        : 'gap-4 p-4 rounded-2xl'}
+                                                    ${isActive
+                                                        ? 'bg-primary border-primary shadow-lg shadow-primary/25'
+                                                        : 'bg-card border-transparent hover:border-border hover:bg-muted/50'}
+                                                `}
+                                            >
+                                                <div className={`
+                                                    w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0 transition-all duration-300
+                                                    ${isActive
+                                                        ? 'border-white/20 bg-white/20 text-white'
+                                                        : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground group-hover:bg-white'}
+                                                `}>
+                                                    <span className="text-sm font-black">{isRequest ? 'R' : index + 1}</span>
+                                                </div>
+
+                                                {!isSidebarCollapsed && (
+                                                    <div className="flex flex-col min-w-0 z-10">
+                                                        <span className={`text-sm font-bold truncate leading-tight ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                                            {item.name}
+                                                        </span>
+                                                        <span className={`text-[11px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                            {isRequest ? 'Request' : 'Monthly'}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {!isSidebarCollapsed && isActive && (
+                                                    <ChevronRight size={18} className="text-primary-foreground/50 ml-auto" />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Main Interaction Area */}
+                            {activeItem && (
+                                <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-hidden bg-card/30">
+
+                                    {/* Left Column: Visualizer */}
+                                    <div className="lg:w-3/5 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
+
+                                        {/* Header */}
+                                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+                                                <Sparkles size={24} />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-bold text-[#192853]">Review Content</h3>
-                                                <p className="text-sm text-slate-500 font-medium">For {activeItem.name}</p>
+                                                <h3 className="text-lg font-bold text-foreground">Review Content</h3>
+                                                <p className="text-sm text-muted-foreground font-medium">For <span className="text-foreground">{activeItem.name}</span></p>
+                                            </div>
+                                        </div>
+
+                                        {/* Visualizer Frame */}
+                                        <div className="flex-1 bg-secondary/30 rounded-3xl border border-border/50 relative flex items-center justify-center overflow-hidden group min-h-[350px] shadow-inner">
+
+                                            {/* Pattern Overlay */}
+                                            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+                                            {/* ID Badge */}
+                                            <div className="absolute top-6 left-6 bg-card/80 backdrop-blur-md px-4 py-2 rounded-xl border border-border/50 shadow-sm z-20">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-0.5">ID</span>
+                                                <span className="text-sm font-black text-foreground">{currentId}</span>
+                                            </div>
+
+                                            {/* Content Placeholder */}
+                                            <div className="w-[85%] h-[85%] bg-card rounded-2xl border border-border shadow-2xl shadow-black/5 flex items-center justify-center relative overflow-hidden transition-all duration-700 group-hover:scale-[1.02] group-hover:shadow-xl">
+                                                <div className="text-center p-8">
+                                                    <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
+                                                        <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
+                                                    <p className="text-sm text-muted-foreground">Images/Video would appear here</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Visualizer Frame */}
-                                    <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 relative flex items-center justify-center overflow-hidden group min-h-[300px]">
+                                    {/* Right Column: Details & Actions */}
+                                    <div className="flex-1 flex flex-col gap-6 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
+                                        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
 
-                                        {/* ID Badge */}
-                                        <div className="absolute top-4 left-4 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm z-20">
-                                            <span className="text-[10px] font-bold text-[#5B75A9] uppercase tracking-wider block">ID</span>
-                                            <span className="text-sm font-black text-[#192853]">{currentId}</span>
-                                        </div>
-
-                                        {/* Content Placeholder */}
-                                        <div className="w-[80%] h-[80%] bg-white rounded-xl border border-slate-200 flex items-center justify-center relative overflow-hidden transition-transform duration-700 group-hover:scale-[1.02]">
-                                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
-                                            <div className="text-center">
-                                                <div className="w-20 h-20 bg-slate-50 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-300">
-                                                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
+                                            {/* Meta */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Type</label>
+                                                    <p className="font-bold text-foreground capitalize">{activeItem.contentType}</p>
                                                 </div>
-                                                <p className="text-slate-400 font-medium">Content Preview</p>
-                                                <p className="text-xs text-slate-300 mt-2">Images/Video would appear here</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Right Column: Details & Actions */}
-                                <div className="flex-1 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar min-h-0">
-                                    <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
-
-                                        {/* Meta */}
-                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                            <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                                <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-1">Type</label>
-                                                <p className="font-bold text-[#192853] capitalize">{activeItem.contentType}</p>
-                                            </div>
-                                            <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                                <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-1">Status</label>
-                                                <p className="font-bold text-purple-600">QA Review</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
-                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-2">Client Preferences</label>
-                                            <textarea
-                                                readOnly
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[#192853] text-xs font-mono mb-2 focus:outline-none resize-none"
-                                                rows={6}
-                                                value={(() => {
-                                                    const profile = activeItem.originalData?.client_details?.client_profile;
-                                                    if (!profile) return "No client preferences found.";
-
-                                                    const parts = [];
-
-                                                    if (profile.primary_brand_pillars) parts.push(`[BRAND PILLARS]\n${profile.primary_brand_pillars}`);
-
-                                                    const voice = [];
-                                                    if (profile.overall_voice) voice.push(`Voice: ${profile.overall_voice}`);
-                                                    if (profile.formality_level) voice.push(`Formality: ${profile.formality_level}`);
-                                                    if (profile.humor) voice.push(`Humor: ${profile.humor}`);
-                                                    if (profile.emojis) voice.push(`Emojis: ${profile.emojis}`);
-                                                    if (profile.words_to_use) voice.push(`Use: ${profile.words_to_use}`);
-                                                    if (profile.words_to_avoid) voice.push(`Avoid: ${profile.words_to_avoid}`);
-                                                    if (voice.length) parts.push(`[VOICE & TONE]\n${voice.join('\n')}`);
-
-                                                    const boundaries = [];
-                                                    if (profile.topics_to_emphasize) boundaries.push(`Emphasize: ${profile.topics_to_emphasize}`);
-                                                    if (profile.topics_to_avoid) boundaries.push(`Avoid: ${profile.topics_to_avoid}`);
-                                                    if (profile.faces_allowed) boundaries.push(`Faces Allowed: ${profile.faces_allowed}`);
-                                                    if (boundaries.length) parts.push(`[BOUNDARIES]\n${boundaries.join('\n')}`);
-
-                                                    if (profile.primary_goal) parts.push(`[GOALS]\n${profile.primary_goal}`);
-
-                                                    return parts.join('\n\n');
-                                                })()}
-                                            />
-                                        </div>
-
-                                        {/* Instructions */}
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
-                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-2">Instructions</label>
-                                            <p className="text-[#192853] text-sm leading-relaxed max-h-32 overflow-y-auto custom-scrollbar">
-                                                {activeItem.instructions || "No specific instructions."}
-                                            </p>
-                                        </div>
-
-                                        {/* Content Review - NEW */}
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
-                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-2">Developed Content</label>
-
-                                            {activeItem.content_text && (
-                                                <div className="mb-3">
-                                                    <span className="text-xs font-bold text-slate-400 block mb-1">Content Text</span>
-                                                    <p className="text-[#192853] text-sm leading-relaxed whitespace-pre-wrap">
-                                                        {activeItem.content_text}
-                                                    </p>
+                                                <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Status</label>
+                                                    <p className="font-bold text-primary">QA Review</p>
                                                 </div>
-                                            )}
+                                            </div>
 
-                                            {activeItem.ai_caption && (
-                                                <div>
-                                                    <span className="text-xs font-bold text-slate-400 block mb-1">Caption</span>
-                                                    <p className="text-[#192853] text-sm leading-relaxed whitespace-pre-wrap italic text-slate-600">
-                                                        {activeItem.ai_caption}
-                                                    </p>
-                                                </div>
-                                            )}
+                                            {/* Client Preferences */}
+                                            <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
+                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Client Preferences</label>
+                                                <textarea
+                                                    readOnly
+                                                    className="w-full bg-input/50 border border-input rounded-xl px-4 py-3 text-foreground text-xs font-mono mb-2 focus:outline-none resize-none"
+                                                    rows={4}
+                                                    value={(() => {
+                                                        const profile = activeItem.originalData?.client_details?.client_profile;
+                                                        if (!profile) return "No client preferences found.";
 
-                                            {!activeItem.content_text && !activeItem.ai_caption && (
-                                                <p className="text-slate-400 text-sm italic">No text content provided.</p>
-                                            )}
-                                        </div>
+                                                        // Simplified preference display for cleaner UI
+                                                        const voice = profile.overall_voice ? `Voice: ${profile.overall_voice}` : '';
+                                                        const goal = profile.primary_goal ? `Goal: ${profile.primary_goal}` : '';
 
-                                        {/* Feedback Input (NEW) */}
-                                        <div className="space-y-2 flex-1 min-h-[100px]">
-                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1 flex items-center gap-2">
-                                                <MessageSquare size={12} />
-                                                Feedback for Creator
-                                            </label>
-                                            <textarea
-                                                rows={5}
-                                                value={feedback}
-                                                onChange={(e) => setFeedback(e.target.value)}
-                                                className="w-full h-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[#192853] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/5 transition-all resize-none text-sm leading-relaxed"
-                                                placeholder="Enter feedback rationale here (required for denial)..."
-                                            />
-                                        </div>
+                                                        return [voice, goal].filter(Boolean).join('\n') || "Preferences available in full profile.";
+                                                    })()}
+                                                />
+                                            </div>
 
-                                        {/* Action Buttons */}
-                                        <div className="pt-4 flex gap-3 mt-auto">
-                                            <button
-                                                onClick={handleDeny}
-                                                className="flex-1 py-4 bg-white hover:bg-red-50 text-red-600 border border-slate-200 hover:border-red-200 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2"
-                                            >
-                                                <X size={20} />
-                                                <span>Denegar</span>
-                                            </button>
-                                            <button
-                                                onClick={handleApprove}
-                                                className="flex-1 py-4 bg-[#192853] hover:bg-[#203262] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#192853]/30 hover:shadow-[#192853]/40 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                                            >
-                                                <Check size={20} />
-                                                <span>Aprobar</span>
-                                            </button>
+                                            {/* Developed Content */}
+                                            <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
+                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-3">Developed Content</label>
+
+                                                {activeItem.content_text ? (
+                                                    <div className="mb-4">
+                                                        <span className="text-[10px] font-bold text-muted-foreground block mb-1">Content Text</span>
+                                                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                                            {activeItem.content_text}
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+
+                                                {activeItem.ai_caption ? (
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-muted-foreground block mb-1">Caption</span>
+                                                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap italic text-muted-foreground">
+                                                            {activeItem.ai_caption}
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+
+                                                {!activeItem.content_text && !activeItem.ai_caption && (
+                                                    <p className="text-muted-foreground text-sm italic">No text content provided.</p>
+                                                )}
+                                            </div>
+
+                                            {/* Feedback Input */}
+                                            <div className="space-y-2 flex-1 min-h-[100px]">
+                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1 flex items-center gap-2">
+                                                    <MessageSquare size={12} />
+                                                    Feedback for Creator
+                                                </label>
+                                                <textarea
+                                                    rows={4}
+                                                    value={feedback}
+                                                    onChange={(e) => setFeedback(e.target.value)}
+                                                    className="w-full h-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none text-sm leading-relaxed"
+                                                    placeholder="Enter feedback rationale here (required for denial)..."
+                                                />
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="pt-4 flex gap-4 mt-auto">
+                                                <button
+                                                    onClick={handleDeny}
+                                                    className="flex-1 py-4 bg-background hover:bg-destructive/5 text-destructive border border-border hover:border-destructive/20 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <X size={20} />
+                                                    <span>Denegar</span>
+                                                </button>
+                                                <button
+                                                    onClick={handleApprove}
+                                                    className="flex-[2] py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <Check size={20} />
+                                                    <span>Aprobar</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

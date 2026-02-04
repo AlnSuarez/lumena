@@ -66,10 +66,10 @@ export default function SubmitStoryPage() {
     }, []);
 
     const contentTypes = [
-        { id: 'story', label: 'Story', icon: Type, color: 'text-orange-500', bg: 'bg-orange-50' },
-        { id: 'image', label: 'Image', icon: ImageIcon, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 'carousel', label: 'Carousel', icon: Layers, color: 'text-purple-500', bg: 'bg-purple-50' },
-        { id: 'video', label: 'Video', icon: Video, color: 'text-pink-500', bg: 'bg-pink-50' },
+        { id: 'story', label: 'Story', icon: Type, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+        { id: 'image', label: 'Image', icon: ImageIcon, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+        { id: 'carousel', label: 'Carousel', icon: Layers, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+        { id: 'video', label: 'Video', icon: Video, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
     ];
 
     const handleFileChange = (e) => {
@@ -140,6 +140,7 @@ export default function SubmitStoryPage() {
             assigned_to: assignedUser,
             request_type: 'CONTENT_REQUEST', // or map contentType if needed, but 'CONTENT_REQUEST' covers adhoc
             month: dueDate || new Date().toISOString().split('T')[0], // Fallback to today if no due date
+            linked_image: searchedImage ? searchedImage.id : null,
             notes: `${instructions}\n\n[Meta]\nContent Type: ${contentType}\nPost Date: ${postDate}${searchedImage ? `\nGallery Image: ${searchedImage.folio} - ${searchedImage.title}\nImage URL: ${searchedImage.image_url}` : ''}`,
             status: 'TO_DO'
         };
@@ -178,31 +179,31 @@ export default function SubmitStoryPage() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)] min-h-[600px] w-full max-w-7xl mx-auto animate-in fade-in zoom-in duration-500">
+        <div className="flex flex-col h-[calc(100vh-160px)] min-h-[600px] w-full max-w-7xl mx-auto animate-in fade-in zoom-in duration-500 p-6 lg:p-8">
             {/* Header - Compact */}
             <div className="flex items-end justify-between mb-6 shrink-0">
                 <div>
-                    <h1 className="text-3xl font-black text-[#192853] tracking-tight">New Request</h1>
-                    <p className="text-[#5B75A9] font-medium">Create a task for the content team</p>
+                    <h1 className="text-3xl font-black text-foreground tracking-tight">New Request</h1>
+                    <p className="text-muted-foreground font-medium">Create a task for the content team</p>
                 </div>
                 <div className="hidden md:block">
-                    <span className="px-4 py-1.5 rounded-full bg-[#192853]/5 text-[#192853] text-sm font-bold border border-[#192853]/10">
+                    <span className="px-4 py-1.5 rounded-full bg-primary/5 text-primary text-sm font-bold border border-primary/10">
                         Draft Mode
                     </span>
                 </div>
             </div>
 
             {/* Main Content Card */}
-            <div className="flex-1 bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-6 lg:p-8 shadow-2xl shadow-slate-200/50 border border-white/50 relative overflow-hidden flex flex-col lg:flex-row gap-8">
+            <div className="flex-1 bg-card/60 backdrop-blur-xl rounded-[2.5rem] p-6 lg:p-8 shadow-2xl shadow-black/5 border border-white/20 dark:border-border relative overflow-hidden flex flex-col lg:flex-row gap-8">
 
                 {/* Decorative Background */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-100/40 to-transparent rounded-full blur-3xl -z-10 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-gradient-to-tr from-orange-100/30 to-transparent rounded-full blur-3xl -z-10 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
                 {/* Left Column: Selection */}
                 <div className="lg:w-1/3 flex flex-col gap-6">
                     <div className="space-y-4 flex-1">
-                        <label className="text-sm font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Content Type</label>
+                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Content Type</label>
                         <div className="grid grid-cols-2 gap-3 h-full max-h-[400px]">
                             {contentTypes.map((type) => {
                                 const Icon = type.icon;
@@ -214,19 +215,19 @@ export default function SubmitStoryPage() {
                                         className={`
                                             relative flex flex-col items-center justify-center gap-3 p-4 rounded-3xl border-2 transition-all duration-300 group
                                             ${isSelected
-                                                ? 'border-[#192853] bg-[#192853] text-white shadow-xl shadow-[#192853]/20 scale-[1.02]'
-                                                : 'border-slate-100 bg-white hover:border-[#192853]/20 hover:bg-slate-50 text-slate-400 hover:text-[#192853]'}
+                                                ? 'border-primary bg-primary text-primary-foreground shadow-xl shadow-primary/20 scale-[1.02]'
+                                                : 'border-border bg-card hover:border-primary/20 hover:bg-muted/50 text-muted-foreground hover:text-primary'}
                                         `}
                                     >
                                         <div className={`
                                             p-3 rounded-2xl transition-all duration-300
-                                            ${isSelected ? 'bg-white/10 text-white' : type.bg + ' ' + type.color}
+                                            ${isSelected ? 'bg-white/20 text-white' : type.bg + ' ' + type.color}
                                         `}>
                                             <Icon size={24} strokeWidth={2.5} />
                                         </div>
                                         <span className="font-bold text-sm tracking-wide">{type.label}</span>
                                         {isSelected && (
-                                            <div className="absolute top-3 right-3 w-2 h-2 bg-[#FF6B4A] rounded-full animate-pulse" />
+                                            <div className="absolute top-3 right-3 w-2 h-2 bg-white rounded-full animate-pulse" />
                                         )}
                                     </button>
                                 );
@@ -234,21 +235,21 @@ export default function SubmitStoryPage() {
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100">
+                    <div className="pt-4 border-t border-border">
                         <button
                             type="button"
                             onClick={() => setShowFolioSearch(true)}
-                            className="w-full group flex items-center justify-between p-4 bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#FF6B4A]/50 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md"
+                            className="w-full group flex items-center justify-between p-4 bg-muted/30 hover:bg-card border border-border hover:border-primary/50 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md"
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#192853] flex items-center justify-center text-white shadow-lg shadow-[#192853]/20 group-hover:scale-110 transition-transform">
+                                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
                                     {searchedImage ? <Check size={20} /> : <Plus size={20} />}
                                 </div>
                                 <div className="text-left">
-                                    <span className="block font-bold text-[#192853] group-hover:text-[#FF6B4A] transition-colors">
+                                    <span className="block font-bold text-foreground group-hover:text-primary transition-colors">
                                         {searchedImage ? `Linked: ${searchedImage.folio}` : 'Link Photo ID'}
                                     </span>
-                                    <span className="text-xs text-slate-400 font-medium">
+                                    <span className="text-xs text-muted-foreground font-medium">
                                         {searchedImage ? searchedImage.title : 'Search from gallery'}
                                     </span>
                                 </div>
@@ -258,43 +259,43 @@ export default function SubmitStoryPage() {
                 </div>
 
                 {/* Vertical Divider (Desktop) */}
-                <div className="hidden lg:block w-px bg-slate-100 my-2"></div>
+                <div className="hidden lg:block w-px bg-border my-2"></div>
 
                 {/* Right Column: Form */}
                 <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
 
                     {/* Instructions */}
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Instructions</label>
+                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Instructions</label>
                         <div className="relative group">
                             <textarea
                                 value={instructions}
                                 onChange={(e) => setInstructions(e.target.value)}
-                                className="w-full h-24 px-5 py-4 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#192853] rounded-2xl text-[#192853] placeholder-slate-400 resize-none outline-none transition-all font-medium shadow-inner"
+                                className="w-full h-24 px-5 py-4 bg-input/50 border border-input focus:bg-card focus:border-primary rounded-2xl text-foreground placeholder-muted-foreground/50 resize-none outline-none transition-all font-medium shadow-sm"
                                 placeholder="Describe the requirements for this content piece..."
                             ></textarea>
                             <div className="absolute bottom-3 right-4">
-                                <span className="text-[10px] font-bold text-[#192853]/20 bg-slate-100 px-2 py-1 rounded-md">MD</span>
+                                <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md">MD</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Client Selection */}
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Client</label>
+                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Client</label>
                         <div className="relative">
                             <select
                                 value={selectedClient}
                                 onChange={(e) => setSelectedClient(e.target.value)}
-                                className="w-full px-5 py-4 pl-12 bg-white border border-slate-200 rounded-2xl text-[#192853] font-bold outline-none focus:border-[#192853] appearance-none"
+                                className="w-full px-5 py-4 pl-12 bg-input/50 border border-input rounded-2xl text-foreground font-bold outline-none focus:border-primary focus:bg-card appearance-none transition-all"
                             >
                                 <option value="">Select Client...</option>
                                 {clients.map(client => (
                                     <option key={client.id} value={client.id}>{client.name}</option>
                                 ))}
                             </select>
-                            <Users size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#192853] pointer-events-none">
+                            <Users size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                                 <Plus size={16} className="rotate-45" />
                             </div>
                         </div>
@@ -302,37 +303,37 @@ export default function SubmitStoryPage() {
 
                     {/* Assigned To - New Section */}
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Assign To</label>
+                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Assign To</label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="relative">
                                 <select
                                     value={assignedUser}
                                     onChange={(e) => setAssignedUser(e.target.value)}
-                                    className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[#192853] font-bold outline-none focus:border-[#192853] appearance-none"
+                                    className="w-full px-5 py-4 bg-input/50 border border-input rounded-2xl text-foreground font-bold outline-none focus:border-primary focus:bg-card appearance-none transition-all"
                                 >
                                     <option value="">Select Team Member...</option>
                                     {teamMembers.map(user => (
                                         <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
                                     ))}
                                 </select>
-                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[#192853] pointer-events-none">
+                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                                     <Plus size={16} className="rotate-45" />
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border border-border rounded-2xl">
                                 {assignedUser ? (
                                     <>
-                                        <div className="w-10 h-10 rounded-full bg-[#FF6B4A] flex items-center justify-center text-white font-bold">
+                                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                                             {teamMembers.find(u => u.id === assignedUser)?.name.charAt(0)}
                                         </div>
                                         <div>
-                                            <p className="text-xs font-bold text-[#192853]">{teamMembers.find(u => u.id === assignedUser)?.name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{teamMembers.find(u => u.id === assignedUser)?.role}</p>
+                                            <p className="text-xs font-bold text-foreground">{teamMembers.find(u => u.id === assignedUser)?.name}</p>
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase">{teamMembers.find(u => u.id === assignedUser)?.role}</p>
                                         </div>
                                     </>
                                 ) : (
-                                    <p className="text-xs text-slate-400 font-medium px-2">No user selected</p>
+                                    <p className="text-xs text-muted-foreground font-medium px-2">No user selected</p>
                                 )}
                             </div>
                         </div>
@@ -341,37 +342,37 @@ export default function SubmitStoryPage() {
                     {/* Dates Row */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Due Date</label>
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Due Date</label>
                             <div className="relative">
                                 <input
                                     type="date"
                                     value={dueDate}
                                     onChange={(e) => setDueDate(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-[#192853] outline-none focus:border-[#192853] focus:ring-1 focus:ring-[#192853]/10 font-bold text-sm transition-all"
+                                    className="w-full pl-11 pr-4 py-3 bg-input/50 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-sm transition-all"
                                 />
-                                <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1 flex items-center justify-between">
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1 flex items-center justify-between">
                                 <span>Post Date</span>
-                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Optional</span>
+                                <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Optional</span>
                             </label>
                             <div className="relative">
                                 <input
                                     type="date"
                                     value={postDate}
                                     onChange={(e) => setPostDate(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-[#192853] outline-none focus:border-[#192853] focus:ring-1 focus:ring-[#192853]/10 font-bold text-sm transition-all"
+                                    className="w-full pl-11 pr-4 py-3 bg-input/50 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-sm transition-all"
                                 />
-                                <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </div>
                         </div>
                     </div>
 
                     {/* Upload Area */}
                     <div className="space-y-3 flex-1">
-                        <label className="text-sm font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Attachments</label>
+                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Attachments</label>
                         <div className="relative h-full min-h-[140px] group">
                             <input
                                 type="file"
@@ -385,8 +386,8 @@ export default function SubmitStoryPage() {
                                 className={`
                                     w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all gap-2 relative overflow-hidden
                                     ${attachmentPreview
-                                        ? 'border-[#FF6B4A] bg-white'
-                                        : 'border-slate-200 hover:border-[#FF6B4A]/50 bg-slate-50/50 hover:bg-[#FF6B4A]/5'
+                                        ? 'border-primary bg-card'
+                                        : 'border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/5'
                                     }
                                 `}
                             >
@@ -394,21 +395,21 @@ export default function SubmitStoryPage() {
                                     <>
                                         <img src={attachmentPreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
                                         <div className="relative z-10 flex flex-col items-center">
-                                            <div className="w-12 h-12 rounded-full bg-[#FF6B4A] shadow-lg flex items-center justify-center text-white mb-2">
+                                            <div className="w-12 h-12 rounded-full bg-primary shadow-lg flex items-center justify-center text-primary-foreground mb-2">
                                                 <Upload size={20} />
                                             </div>
-                                            <p className="text-sm font-bold text-[#192853]">{attachment.name}</p>
-                                            <p className="text-xs text-[#FF6B4A] font-bold">Click to change</p>
+                                            <p className="text-sm font-bold text-foreground">{attachment.name}</p>
+                                            <p className="text-xs text-primary font-bold">Click to change</p>
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="w-12 h-12 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all">
-                                            <Upload size={20} className="text-[#5B75A9] group-hover:text-[#FF6B4A]" />
+                                        <div className="w-12 h-12 rounded-full bg-card shadow-sm border border-border flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all">
+                                            <Upload size={20} className="text-muted-foreground group-hover:text-primary" />
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-sm font-bold text-[#192853] group-hover:text-[#FF6B4A] transition-colors">Click to upload image</p>
-                                            <p className="text-xs text-slate-400">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+                                            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Click to upload image</p>
+                                            <p className="text-xs text-muted-foreground">SVG, PNG, JPG or GIF (max. 800x400px)</p>
                                         </div>
                                     </>
                                 )}
@@ -420,10 +421,10 @@ export default function SubmitStoryPage() {
                     <div className="pt-2">
                         <button
                             onClick={handleCreateRequest}
-                            className="w-full py-4 bg-[#192853] hover:bg-[#223670] text-white rounded-xl font-bold text-lg shadow-lg shadow-[#192853]/30 hover:shadow-[#192853]/40 active:scale-[0.99] transition-all flex items-center justify-center gap-2 group"
+                            className="w-full py-4 bg-foreground hover:bg-foreground/90 text-background rounded-xl font-bold text-lg shadow-lg shadow-black/10 hover:shadow-xl active:scale-[0.99] transition-all flex items-center justify-center gap-2 group"
                         >
                             <span>Create Request</span>
-                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                            <div className="w-6 h-6 rounded-full bg-background/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
                                 <Plus size={14} strokeWidth={3} />
                             </div>
                         </button>
@@ -434,21 +435,21 @@ export default function SubmitStoryPage() {
 
             {/* Folio Search Modal */}
             {showFolioSearch && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full animate-in zoom-in duration-300">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+                    <div className="bg-card rounded-3xl shadow-2xl p-8 max-w-2xl w-full animate-in zoom-in duration-300 border border-border">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-2xl font-bold text-[#192853]">Link Gallery Image</h3>
-                                <p className="text-sm text-slate-500 mt-1">Search by folio number (e.g., C5F12-001)</p>
+                                <h3 className="text-2xl font-bold text-foreground">Link Gallery Image</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Search by folio number (e.g., C5F12-001)</p>
                             </div>
                             <button
                                 onClick={() => {
                                     setShowFolioSearch(false);
                                     setFolioSearchError(null);
                                 }}
-                                className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                                className="w-10 h-10 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
                             >
-                                <X size={20} className="text-slate-600" />
+                                <X size={20} className="text-muted-foreground" />
                             </button>
                         </div>
 
@@ -456,53 +457,53 @@ export default function SubmitStoryPage() {
                         <div className="mb-6">
                             <div className="flex gap-3">
                                 <div className="flex-1 relative">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                                     <input
                                         type="text"
                                         value={folioSearch}
                                         onChange={(e) => setFolioSearch(e.target.value.toUpperCase())}
                                         onKeyPress={(e) => e.key === 'Enter' && handleSearchByFolio()}
                                         placeholder="Enter folio number..."
-                                        className="w-full pl-12 pr-4 py-4 border-2 border-slate-200 rounded-2xl text-[#192853] font-bold outline-none focus:border-[#192853] transition-all"
+                                        className="w-full pl-12 pr-4 py-4 border-2 border-border bg-input/50 rounded-2xl text-foreground font-bold outline-none focus:border-primary transition-all"
                                     />
                                 </div>
                                 <button
                                     onClick={handleSearchByFolio}
                                     disabled={folioSearchLoading}
-                                    className="px-6 py-4 bg-[#192853] hover:bg-[#223670] text-white rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-6 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {folioSearchLoading ? 'Searching...' : 'Search'}
                                 </button>
                             </div>
 
                             {folioSearchError && (
-                                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-                                    <p className="text-sm text-red-600 font-medium">{folioSearchError}</p>
+                                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                    <p className="text-sm text-red-500 font-medium">{folioSearchError}</p>
                                 </div>
                             )}
                         </div>
 
                         {/* Search Result */}
                         {searchedImage && (
-                            <div className="border-2 border-green-200 bg-green-50 rounded-2xl p-6">
+                            <div className="border-2 border-emerald-500/20 bg-emerald-500/5 rounded-2xl p-6">
                                 <div className="flex items-start gap-4">
                                     <img
                                         src={searchedImage.image_url}
                                         alt={searchedImage.title}
-                                        className="w-32 h-32 object-cover rounded-xl border-2 border-white shadow-lg"
+                                        className="w-32 h-32 object-cover rounded-xl border-2 border-background shadow-lg"
                                     />
                                     <div className="flex-1">
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
-                                                <p className="text-xs font-mono text-green-600 mb-1">{searchedImage.folio}</p>
-                                                <h4 className="text-lg font-bold text-[#192853] mb-1">{searchedImage.title}</h4>
-                                                <p className="text-sm text-slate-500">
+                                                <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 mb-1">{searchedImage.folio}</p>
+                                                <h4 className="text-lg font-bold text-foreground mb-1">{searchedImage.title}</h4>
+                                                <p className="text-sm text-muted-foreground">
                                                     Uploaded {new Date(searchedImage.uploaded_at).toLocaleDateString()}
                                                 </p>
                                             </div>
                                             <button
                                                 onClick={handleClearGalleryImage}
-                                                className="text-slate-400 hover:text-red-500 transition-colors"
+                                                className="text-muted-foreground hover:text-destructive transition-colors"
                                             >
                                                 <X size={20} />
                                             </button>
@@ -510,7 +511,7 @@ export default function SubmitStoryPage() {
                                         <div className="flex gap-2 mt-4">
                                             <button
                                                 onClick={() => setShowFolioSearch(false)}
-                                                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                                                className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
                                             >
                                                 <Check size={18} />
                                                 Confirm & Attach
@@ -523,9 +524,9 @@ export default function SubmitStoryPage() {
 
                         {/* Empty State */}
                         {!searchedImage && !folioSearchError && (
-                            <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl">
-                                <ImageIcon size={48} className="mx-auto text-slate-300 mb-3" />
-                                <p className="text-slate-400 font-medium">Enter a folio number to search</p>
+                            <div className="text-center py-12 border-2 border-dashed border-border rounded-2xl">
+                                <ImageIcon size={48} className="mx-auto text-muted-foreground mb-3 opacity-50" />
+                                <p className="text-muted-foreground font-medium">Enter a folio number to search</p>
                             </div>
                         )}
                     </div>

@@ -1,4 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework import permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from .permissions import IsSuperUser
 from .utils import compress_image
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def list_client_folders(request, client_id):
     """List all folders for a client"""
     folders = ClientFolder.objects.filter(client_id=client_id)
@@ -69,7 +70,7 @@ def delete_client_folder(request, folder_id):
     )
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def list_folder_images(request, folder_id):
     """List all images in a folder"""
     folder = get_object_or_404(ClientFolder, id=folder_id)
@@ -142,7 +143,7 @@ def delete_image(request, image_id):
     )
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def search_image_by_folio(request):
     """Search for an image by folio number"""
     folio = request.GET.get('folio', '').strip()

@@ -9,20 +9,20 @@ import {
 
 // Helper components moved OUTSIDE the main component to prevent re-rendering issues
 const SectionHeader = ({ icon: Icon, title, description }) => (
-    <div className="flex items-center gap-3 mb-6 pb-2 border-b border-indigo-100">
-        <div className="p-2 bg-indigo-50 rounded-lg text-[#192853]">
+    <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border">
+        <div className="p-2 bg-primary/10 rounded-lg text-primary">
             <Icon size={24} />
         </div>
         <div>
-            <h3 className="text-xl font-bold text-[#192853]">{title}</h3>
-            {description && <p className="text-sm text-slate-500">{description}</p>}
+            <h3 className="text-xl font-bold text-foreground">{title}</h3>
+            {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
     </div>
 );
 
 const InputGroup = ({ label, children }) => (
     <div className="space-y-2">
-        <label className="block text-sm font-semibold text-[#192853]/80">{label}</label>
+        <label className="block text-sm font-semibold text-foreground/80">{label}</label>
         {children}
     </div>
 );
@@ -32,7 +32,7 @@ const TextInput = ({ value, onChange, placeholder, type = "text" }) => (
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full p-3 bg-white/50 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-[#192853]/10 focus:border-[#192853] outline-none transition-all"
+        className="w-full p-3 bg-background/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
         placeholder={placeholder}
     />
 );
@@ -42,7 +42,7 @@ const TextArea = ({ value, onChange, placeholder, rows = 3 }) => (
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="w-full p-3 bg-white/50 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-[#192853]/10 focus:border-[#192853] outline-none transition-all resize-none"
+        className="w-full p-3 bg-background/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none"
         placeholder={placeholder}
     />
 );
@@ -52,12 +52,12 @@ const SelectInput = ({ value, onChange, options }) => (
         <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full p-3 bg-white/50 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-[#192853]/10 focus:border-[#192853] outline-none transition-all appearance-none cursor-pointer"
+            className="w-full p-3 bg-background/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
         >
             {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
         </select>
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
         </div>
     </div>
 );
@@ -202,8 +202,8 @@ export default function CreateClientPage() {
         <div className="w-full min-h-screen p-6 pb-20">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-4xl font-extrabold text-[#192853]">Client Preferences & Brand Profile</h1>
-                <p className="text-slate-500 mt-2 text-lg">Internal use only - Create a new client profile.</p>
+                <h1 className="text-4xl font-extrabold text-foreground">Client Preferences & Brand Profile</h1>
+                <p className="text-muted-foreground mt-2 text-lg">Internal use only - Create a new client profile.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-[1600px]">
@@ -212,7 +212,7 @@ export default function CreateClientPage() {
                 <div className="space-y-8">
 
                     {/* 0. Account Credentials */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Lock} title="Account Credentials" description="Login information for the client." />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <InputGroup label="Username">
@@ -230,7 +230,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 1. Client Basics */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={User} title="1. Client Basics" />
                         <div className="space-y-5">
                             <InputGroup label="Practice / Brand Name">
@@ -259,7 +259,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 2. Industry & Practice Details */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Briefcase} title="2. Industry & Practice Details" />
                         <div className="space-y-5">
                             <div className="grid grid-cols-2 gap-5">
@@ -288,17 +288,17 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 3. Brand Assets */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={ImageIcon} title="3. Brand Assets" />
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50/50 hover:bg-indigo-50 transition-colors">
+                            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl bg-primary/5 hover:bg-primary/10 transition-colors">
                                 {logoPreview ? (
                                     <img src={logoPreview} alt="Logo" className="h-20 object-contain mb-3" />
                                 ) : (
-                                    <Upload className="text-indigo-300 mb-3" size={32} />
+                                    <Upload className="text-muted-foreground mb-3" size={32} />
                                 )}
                                 <label className="cursor-pointer">
-                                    <span className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition">Upload Logo</span>
+                                    <span className="bg-primary/10 text-primary py-2 px-4 rounded-lg text-sm font-semibold hover:bg-primary/20 transition">Upload Logo</span>
                                     <input type="file" onChange={handleImageChange} className="hidden" accept="image/*" />
                                 </label>
                             </div>
@@ -327,7 +327,7 @@ export default function CreateClientPage() {
                 <div className="space-y-8">
 
                     {/* 4. Brand Pillars */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Target} title="4. Brand Pillars" />
                         <InputGroup label="Primary Brand Pillars">
                             <TextArea
@@ -339,7 +339,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 5. Voice & Tone */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={MessageSquare} title="5. Voice & Tone Preferences" />
                         <div className="space-y-5">
                             <InputGroup label="Overall Voice">
@@ -374,7 +374,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 6. Content Boundaries */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Shield} title="6. Content Boundaries & Compliance" />
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -405,7 +405,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 7. Goals & KPIs */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Target} title="7. Goals & KPIs" />
                         <div className="space-y-4">
                             <InputGroup label="Primary Goal">
@@ -421,7 +421,7 @@ export default function CreateClientPage() {
                     </div>
 
                     {/* 8. Communication */}
-                    <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-8 shadow-sm">
+                    <div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-3xl p-8 shadow-sm">
                         <SectionHeader icon={Mail} title="8. Communication Preferences" />
                         <div className="grid grid-cols-2 gap-5">
                             <InputGroup label="Preferred Channel">
@@ -438,11 +438,11 @@ export default function CreateClientPage() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-[#192853] text-white px-10 py-5 rounded-2xl font-bold shadow-xl shadow-[#192853]/20 hover:bg-[#203163] hover:scale-[1.02] transition-all flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="bg-primary text-primary-foreground px-10 py-5 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] transition-all flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? "Creating..." : (
                                 <>
-                                    <CheckCircle size={24} className="text-[#FFE14F]" />
+                                    <CheckCircle size={24} className="text-primary-foreground" />
                                     <span className="text-xl">Create Client Profile</span>
                                 </>
                             )}

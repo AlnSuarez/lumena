@@ -177,24 +177,24 @@ export default function ManageUsersPage() {
 
     return (
         <div className="w-full flex flex-col px-0 py-2">
-            <div className="bg-[#F3F0E9] rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
+            <div className="bg-secondary rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
                 {/* Header */}
                 <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
                     <div>
-                        <h1 className="text-3xl font-semibold text-black">Manage Users</h1>
-                        <p className="text-slate-600 mt-1 text-sm">Administer user accounts, roles, and permissions.</p>
+                        <h1 className="text-3xl font-semibold text-foreground">Manage Users</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">Administer user accounts, roles, and permissions.</p>
                     </div>
                     <button
                         onClick={handleAddClick}
-                        className="bg-[#192853] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#203163] transition-all flex items-center gap-2"
+                        className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center gap-2"
                     >
-                        <UserPlus size={20} className="text-[#FFE14F]" />
+                        <UserPlus size={20} className="text-primary-foreground" />
                         Add New User
                     </button>
                 </div>
 
                 {/* Main Content */}
-                <div className="bg-white rounded-2xl p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="bg-card rounded-2xl p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
 
                     {/* Search Bar */}
                     <div className="mb-4 relative max-w-md">
@@ -203,20 +203,20 @@ export default function ManageUsersPage() {
                             placeholder="Search by username or name..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#192853]/10 focus:border-[#192853] outline-none transition-all text-[#192853]"
+                            className="w-full pl-11 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all text-foreground"
                         />
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                     </div>
 
                     {/* Users Table */}
                     <div className="overflow-x-auto overflow-y-auto flex-1">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-[#5B75A9] uppercase tracking-wider">User</th>
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-[#5B75A9] uppercase tracking-wider">Role</th>
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-[#5B75A9] uppercase tracking-wider">Email</th>
-                                    <th className="text-right py-4 px-4 text-sm font-bold text-[#5B75A9] uppercase tracking-wider">Actions</th>
+                                <tr className="border-b border-border">
+                                    <th className="text-left py-4 px-4 text-sm font-bold text-muted-foreground uppercase tracking-wider">User</th>
+                                    <th className="text-left py-4 px-4 text-sm font-bold text-muted-foreground uppercase tracking-wider">Role</th>
+                                    <th className="text-left py-4 px-4 text-sm font-bold text-muted-foreground uppercase tracking-wider">Email</th>
+                                    <th className="text-right py-4 px-4 text-sm font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -229,17 +229,17 @@ export default function ManageUsersPage() {
                                         <tr key={user.id} className="group hover:bg-indigo-50/30 transition-colors">
                                             <td className="py-4 px-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-[#192853]/10 flex items-center justify-center text-[#192853] font-bold">
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                                                         {user.username.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <p className="font-bold text-[#192853]">{user.first_name} {user.last_name}</p>
+                                                            <p className="font-bold text-foreground">{user.first_name} {user.last_name}</p>
                                                             {currentUserId === user.id && (
                                                                 <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">You</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-sm text-slate-500">@{user.username}</p>
+                                                        <p className="text-sm text-muted-foreground">@{user.username}</p>
                                                     </div>
                                                 </div>
                                             </td>
@@ -258,7 +258,7 @@ export default function ManageUsersPage() {
                                                 <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => handleEditClick(user)}
-                                                        className="p-2 hover:bg-slate-100 rounded-lg text-[#192853] transition-colors"
+                                                        className="p-2 hover:bg-muted rounded-lg text-foreground transition-colors"
                                                         title="Edit User"
                                                     >
                                                         <Edit size={18} />
@@ -285,11 +285,11 @@ export default function ManageUsersPage() {
             {/* Modal Overlay */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="bg-card rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Modal Header */}
-                        <div className="bg-[#192853] p-6 flex items-center justify-between text-white">
+                        <div className="bg-primary p-6 flex items-center justify-between text-primary-foreground">
                             <h2 className="text-xl font-bold flex items-center gap-2">
-                                {modalMode === 'add' ? <UserPlus size={24} className="text-[#FFE14F]" /> : <Edit size={24} className="text-[#FFE14F]" />}
+                                {modalMode === 'add' ? <UserPlus size={24} className="text-primary-foreground" /> : <Edit size={24} className="text-primary-foreground" />}
                                 {modalMode === 'add' ? "Add New User" : "Edit User"}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/10 p-2 rounded-full transition-colors">
@@ -302,81 +302,81 @@ export default function ManageUsersPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">First Name</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase">First Name</label>
                                     <input
                                         type="text"
                                         value={formData.first_name}
                                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none"
+                                        className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none"
                                         placeholder="John"
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Last Name</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase">Last Name</label>
                                     <input
                                         type="text"
                                         value={formData.last_name}
                                         onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none"
+                                        className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none"
                                         placeholder="Doe"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Username *</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase">Username *</label>
                                 <input
                                     type="text"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none"
+                                    className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none"
                                     placeholder="johndoe"
                                     required
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Email</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase">Email</label>
                                 <input
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none"
+                                    className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none"
                                     placeholder="john@example.com"
                                 />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500 uppercase">Role *</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase">Role *</label>
                                 <div className="relative">
                                     <select
                                         value={formData.role}
                                         onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none appearance-none"
+                                        className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none appearance-none"
                                     >
                                         {roles.map(role => (
                                             <option key={role.value} value={role.value}>{role.label}</option>
                                         ))}
                                     </select>
-                                    <ShieldCheck size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <ShieldCheck size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                 </div>
                             </div>
 
                             {/* Sidebar Permissions */}
-                            <div className="space-y-3 pt-4 border-t border-slate-100">
-                                <h3 className="text-sm font-bold text-[#192853] uppercase flex items-center gap-2">
+                            <div className="space-y-3 pt-4 border-t border-border">
+                                <h3 className="text-sm font-bold text-foreground uppercase flex items-center gap-2">
                                     <Shield size={16} /> Sidebar Access Permissions
                                 </h3>
-                                <p className="text-xs text-slate-500 mb-2">Override default role-based access for specific sections.</p>
+                                <p className="text-xs text-muted-foreground mb-2">Override default role-based access for specific sections.</p>
 
                                 <div className="grid grid-cols-1 gap-3">
                                     {permissionSections.map(section => (
-                                        <div key={section.key} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                            <span className="text-sm font-medium text-slate-700">{section.label}</span>
+                                        <div key={section.key} className="flex items-center justify-between p-3 bg-muted rounded-xl border border-border">
+                                            <span className="text-sm font-medium text-foreground">{section.label}</span>
                                             <select
                                                 value={getPermissionValue(section.key)}
                                                 onChange={(e) => handlePermissionChange(section.key, e.target.value)}
-                                                className="bg-white border border-slate-200 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-[#192853]"
+                                                className="bg-card border border-border text-xs rounded-lg px-2 py-1.5 outline-none focus:border-primary"
                                             >
                                                 <option value="default">Inherit (Role Default)</option>
                                                 <option value="grant">Grant Access</option>
@@ -387,8 +387,8 @@ export default function ManageUsersPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-1 pt-2 border-t border-slate-100">
-                                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                            <div className="space-y-1 pt-2 border-t border-border">
+                                <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-2">
                                     <Lock size={12} />
                                     {modalMode === 'add' ? 'Password *' : 'Change Password (leave blank to keep)'}
                                 </label>
@@ -396,7 +396,7 @@ export default function ManageUsersPage() {
                                     type="password"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#192853] outline-none"
+                                    className="w-full p-3 bg-background border border-border rounded-xl focus:border-primary outline-none"
                                     placeholder="••••••••"
                                     required={modalMode === 'add'}
                                 />
@@ -407,15 +407,15 @@ export default function ManageUsersPage() {
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                                    className="px-6 py-3 font-bold text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-8 py-3 bg-[#192853] text-white rounded-xl font-bold shadow-lg shadow-[#192853]/20 hover:bg-[#203163] transition-colors flex items-center gap-2"
+                                    className="px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
                                 >
-                                    <Save size={18} className="text-[#FFE14F]" />
+                                    <Save size={18} className="text-primary-foreground" />
                                     Save User
                                 </button>
                             </div>

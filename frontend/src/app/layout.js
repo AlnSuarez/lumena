@@ -1,5 +1,7 @@
 import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "../context/ThemeContext";
+
 
 const montserrat = Montserrat({
   variable: "--font-geist-sans",
@@ -24,7 +26,10 @@ export default function RootLayout({ children }) {
         className={`${montserrat.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning={true}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
+
       </body>
     </html>
   );

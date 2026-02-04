@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft } from 'lucide-react';
+import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
 
 export default function MonthlyContentsPage() {
     const [clientName, setClientName] = useState("");
@@ -93,6 +93,17 @@ export default function MonthlyContentsPage() {
     const [contentText, setContentText] = useState("");
     const [aiCaption, setAiCaption] = useState("");
 
+    // Image Selection State
+    const [isImageSelectionOpen, setIsImageSelectionOpen] = useState(false);
+    const [imageSearchMode, setImageSearchMode] = useState('search'); // 'search' or 'gallery'
+    const [imageSearchQuery, setImageSearchQuery] = useState('');
+    const [foundImage, setFoundImage] = useState(null);
+    const [clientFolders, setClientFolders] = useState([]);
+    const [selectedFolderId, setSelectedFolderId] = useState(null);
+    const [folderImages, setFolderImages] = useState([]);
+    const [isLoadingImages, setIsLoadingImages] = useState(false);
+    const [searchError, setSearchError] = useState('');
+
     // Reset inputs when active item changes
     React.useEffect(() => {
         if (items[activeItemIndex]) {
@@ -100,6 +111,15 @@ export default function MonthlyContentsPage() {
             // For now, assuming we start fresh or from previous props if available
             setContentText(items[activeItemIndex].originalData?.content_text || "");
             setAiCaption(items[activeItemIndex].originalData?.ai_caption || "");
+
+            // Reset Image Selection State
+            setIsImageSelectionOpen(false);
+            setFoundImage(null);
+            setClientFolders([]);
+            setSelectedFolderId(null);
+            setFolderImages([]);
+            setImageSearchQuery('');
+            setSearchError('');
         }
     }, [activeItemIndex, items]);
 
@@ -118,9 +138,147 @@ export default function MonthlyContentsPage() {
                 },
                 body: JSON.stringify({ status: status, ...extraData })
             });
+
+            // If we updated the image, we should update the local state to reflect it immediately
+            if (extraData.linked_image) {
+                setItems(prev => prev.map(item => {
+                    if (item.id === id) {
+                        // We need the full image object to display it properly, 
+                        // but extraData only has the ID. 
+                        // For now, relying on the 'foundImage' state to update the view or fetching again would be better.
+                        // Let's manually patch the originalData.linked_image_details with foundImage if available.
+                        const newItem = { ...item };
+                        if (foundImage && foundImage.id === extraData.linked_image) {
+                            newItem.originalData = {
+                                ...item.originalData,
+                                linked_image: foundImage.id,
+                                linked_image_details: foundImage
+                            };
+                        }
+                        return newItem;
+                    }
+                    return item;
+                }));
+            }
+
         } catch (error) {
             console.error("Error updating status:", error);
         }
+    };
+
+    // Image Selection Functions
+    const handleSearchImage = async () => {
+        if (!imageSearchQuery.trim()) return;
+        setSearchError('');
+        setIsLoadingImages(true);
+        try {
+            const userId = localStorage.getItem('userId');
+            const userRole = localStorage.getItem('userRole');
+
+            const url = new URL(`http://localhost:8000/api/gallery/images/search/`);
+            url.searchParams.append('folio', imageSearchQuery);
+            if (userId) url.searchParams.append('user_id', userId);
+            if (userRole) url.searchParams.append('role', userRole);
+
+            const response = await fetch(url.toString());
+            if (response.ok) {
+                const data = await response.json();
+                setFoundImage(data);
+            } else {
+                setFoundImage(null);
+                setSearchError('Image not found with this ID');
+            }
+        } catch (error) {
+            console.error("Search error:", error);
+            setSearchError('Error searching for image');
+        } finally {
+            setIsLoadingImages(false);
+        }
+    };
+
+    const fetchClientFolders = async () => {
+        if (!activeItem?.originalData?.client) {
+            console.log("No client ID found for folders fetch");
+            return;
+        }
+        setIsLoadingImages(true);
+        try {
+            const userId = localStorage.getItem('userId');
+            const userRole = localStorage.getItem('userRole');
+
+            const url = new URL(`http://localhost:8000/api/gallery/clients/${activeItem.originalData.client}/folders/`);
+            if (userId) url.searchParams.append('user_id', userId);
+            if (userRole) url.searchParams.append('role', userRole);
+
+            const response = await fetch(url.toString());
+            if (response.ok) {
+                const data = await response.json();
+                // Ensure data is array
+                if (Array.isArray(data)) {
+                    setClientFolders(data);
+                } else {
+                    console.error("Folders data is not an array:", data);
+                    setClientFolders([]);
+                }
+            } else {
+                console.error("Failed to fetch folders:", response.status);
+            }
+        } catch (error) {
+            console.error("Error fetching folders:", error);
+        } finally {
+            setIsLoadingImages(false);
+        }
+    };
+
+    const fetchFolderImages = async (folderId) => {
+        setIsLoadingImages(true);
+        setSelectedFolderId(folderId);
+        try {
+            const userId = localStorage.getItem('userId');
+            const userRole = localStorage.getItem('userRole');
+
+            const url = new URL(`http://localhost:8000/api/gallery/folders/${folderId}/images/`);
+            if (userId) url.searchParams.append('user_id', userId);
+            if (userRole) url.searchParams.append('role', userRole);
+
+            const response = await fetch(url.toString());
+            if (response.ok) {
+                const data = await response.json();
+                setFolderImages(Array.isArray(data) ? data : []);
+            }
+        } catch (error) {
+            console.error("Error fetching images:", error);
+        } finally {
+            setIsLoadingImages(false);
+        }
+    };
+
+    const handleSelectImage = async (image) => {
+        // Update the request with the new image ID
+        await updateRequestStatus(activeItem.id, activeItem.status, { linked_image: image.id });
+
+        // Update local state manually to reflect change immediately without full reload
+        setItems(prev => prev.map(item => {
+            if (item.id === activeItem.id) {
+                return {
+                    ...item,
+                    originalData: {
+                        ...item.originalData,
+                        linked_image: image.id,
+                        linked_image_details: image
+                    }
+                };
+            }
+            return item;
+        }));
+
+        setIsImageSelectionOpen(false);
+        // Reset selection state
+        setFoundImage(null);
+        setSelectedFolderId(null);
+        setFolderImages([]);
+
+        alert("Image updated successfully!");
     };
 
     const handleNext = () => {
@@ -222,65 +380,67 @@ export default function MonthlyContentsPage() {
     };
 
     return (
-        <div className="w-full flex flex-col px-0 py-2">
-            <div className="bg-[#595556] rounded-3xl p-2 flex flex-col h-[85vh] min-h-0 mx-0">
-
+        <div className="w-full h-full flex flex-col p-6 lg:p-8 animate-in fade-in duration-500">
+            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-7xl mx-auto">
                 {/* Header Area */}
-                <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0 ml-8 mt-8">
+                <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
                     <div>
-                        <h1 className="text-3xl font-semibold text-white">Monthly Content</h1>
-                        <p className="text-slate-300 mt-1 text-sm">Customize and approve monthly assets</p>
+                        <h1 className="text-4xl font-black text-foreground tracking-tight">Monthly Content</h1>
+                        <p className="text-muted-foreground mt-2 text-lg font-medium">Customize and approve monthly assets</p>
                     </div>
 
                     {/* Integrated Client Selector */}
-                    <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-slate-200">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Client</span>
-                        <div className="h-4 w-px bg-slate-200"></div>
+                    <div className="flex items-center gap-3 bg-card px-5 py-3 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow cursor-default">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Client</span>
+                        <div className="h-4 w-px bg-border"></div>
                         {activeItem && activeItem.originalData?.client_details?.client_profile?.logo ? (
                             <img
                                 src={`http://localhost:8000${activeItem.originalData.client_details.client_profile.logo}`}
                                 alt={clientName}
-                                className="w-6 h-6 rounded-full object-cover border border-slate-300"
+                                className="w-8 h-8 rounded-full object-cover border border-border ring-2 ring-background"
                             />
                         ) : activeItem ? (
-                            <div className="w-6 h-6 rounded-full bg-[#192853]/10 flex items-center justify-center text-[#192853] font-bold text-xs">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs border border-border">
                                 {clientName.charAt(0).toUpperCase()}
                             </div>
                         ) : null}
-                        <span className="text-[#192853] font-bold text-sm min-w-[100px] text-center truncate max-w-[200px]">
+                        <span className="text-foreground font-bold text-sm min-w-[120px] text-center truncate max-w-[200px]">
                             {clientName || "Select Item..."}
                         </span>
-                        <ChevronDown size={14} className="text-slate-400" />
+                        <ChevronDown size={14} className="text-muted-foreground" />
                     </div>
                 </div>
 
                 {/* Main Content Card */}
-                <div className="bg-[#595556] rounded-2xl p-6 flex-1 flex flex-col min-h-0">
+                <div className="bg-card/60 backdrop-blur-xl rounded-[2rem] border border-white/20 dark:border-border shadow-2xl flex-1 flex flex-col min-h-0 relative overflow-hidden">
+                    {/* Decorative Gradients */}
+                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -z-10 disabled:hidden"></div>
+                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px] -z-10 disabled:hidden"></div>
 
                     {/* Content Area Wrapper */}
-                    <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                    <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-secondary/20 lg:p-1">
 
                         {/* Sidebar - Client Checklist */}
-                        <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-500 ease-in-out bg-slate-50 rounded-2xl py-6 border border-slate-200 flex flex-col shrink-0`}>
+                        <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
 
-                            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center mb-6' : 'justify-between mb-4 px-6'}`}>
+                            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center py-6' : 'justify-between py-6 px-6'}`}>
                                 {!isSidebarCollapsed && (
-                                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 whitespace-nowrap">
-                                        <span>Pending</span>
-                                        <span className="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                                    <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
+                                        Pending
+                                        <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
                                             {items.length}
                                         </span>
                                     </h2>
                                 )}
                                 <button
                                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                                    className="p-2 rounded-full hover:bg-slate-200 text-slate-600 transition-colors"
+                                    className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
                                 >
-                                    {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                                    {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                                 </button>
                             </div>
 
-                            <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-3 ${isSidebarCollapsed ? 'px-2 overflow-x-hidden' : 'px-6'}`}>
+                            <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-2 pb-6 ${isSidebarCollapsed ? 'px-3 overflow-x-hidden' : 'px-4'}`}>
                                 {items.map((item, index) => {
                                     const isActive = index === activeItemIndex;
                                     const isRequest = item.type === 'adhoc_request';
@@ -295,50 +455,44 @@ export default function MonthlyContentsPage() {
                                                 }
                                             }}
                                             className={`
-                                        group flex items-center transition-all cursor-pointer border
+                                        group flex items-center transition-all cursor-pointer border relative overflow-hidden
                                         ${isSidebarCollapsed
-                                                    ? 'justify-center p-2 rounded-xl aspect-square'
-                                                    : 'gap-3 p-3 rounded-xl'}
+                                                    ? 'justify-center p-3 rounded-2xl aspect-square'
+                                                    : 'gap-4 p-4 rounded-2xl'}
                                         ${isActive
-                                                    ? 'bg-[#192853] border-[#192853]'
-                                                    : item.completed
-                                                        ? 'bg-emerald-50 border-emerald-200 opacity-60 hover:opacity-100'
-                                                        : isReturned
-                                                            ? 'bg-red-50 border-red-200 hover:bg-red-100' // Red style for returned
-                                                            : isRequest
-                                                                ? 'bg-orange-50 border-orange-200 hover:bg-orange-100'
-                                                                : 'bg-white border-slate-200 hover:bg-slate-50'}
+                                                    ? 'bg-primary border-primary shadow-lg shadow-primary/25'
+                                                    : 'bg-card border-transparent hover:border-border hover:bg-muted/50'}
                                     `}
                                             title={isSidebarCollapsed ? item.name : ''}
                                         >
                                             <div className={`
-                                        w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors
+                                        w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0 transition-all duration-300
                                         ${isActive
-                                                    ? 'border-white/20 bg-white/10 text-white'
+                                                    ? 'border-white/20 bg-white/20 text-white'
                                                     : item.completed
-                                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
                                                         : isReturned
-                                                            ? 'bg-red-500 border-red-500 text-white' // Red icon
+                                                            ? 'bg-destructive/10 border-destructive/20 text-destructive'
                                                             : isRequest
-                                                                ? 'bg-orange-500 border-orange-500 text-white'
-                                                                : 'border-slate-200 bg-white text-slate-300 group-hover:border-slate-300'}
+                                                                ? 'bg-orange-500/10 border-orange-500/20 text-orange-600'
+                                                                : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground group-hover:bg-white'}
                                     `}>
-                                                {item.completed ? <Check size={14} strokeWidth={3} /> : <span className="text-xs font-bold">{isReturned ? '!' : (isRequest ? 'R' : index + 1)}</span>}
+                                                {item.completed ? <Check size={16} strokeWidth={3} /> : <span className="text-sm font-black">{isReturned ? '!' : (isRequest ? 'R' : index + 1)}</span>}
                                             </div>
 
                                             {!isSidebarCollapsed && (
-                                                <div className="flex flex-col min-w-0 overflow-hidden">
-                                                    <span className={`text-sm font-bold truncate ${isActive ? 'text-white' : item.completed ? 'text-emerald-700' : isReturned ? 'text-red-700' : 'text-[#192853]'}`}>
+                                                <div className="flex flex-col min-w-0 z-10">
+                                                    <span className={`text-sm font-bold truncate leading-tight ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
                                                         {item.name}
                                                     </span>
-                                                    <span className={`text-[10px] font-medium truncate ${isActive ? 'text-white/60' : item.completed ? 'text-emerald-600/60' : isReturned ? 'text-red-600/80' : 'text-[#5B75A9]'}`}>
+                                                    <span className={`text-[11px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                                         {item.completed ? 'Completed' : isActive ? 'Reviewing' : isReturned ? 'Returned by QA' : isRequest ? 'Adhoc Request' : 'Monthly Plan'}
                                                     </span>
                                                 </div>
                                             )}
 
                                             {!isSidebarCollapsed && isActive && (
-                                                <ChevronRight size={16} className="text-white/40 ml-auto" />
+                                                <ChevronRight size={18} className="text-primary-foreground/50 ml-auto" />
                                             )}
                                         </div>
                                     );
@@ -346,54 +500,66 @@ export default function MonthlyContentsPage() {
                             </div>
                         </div>
 
-                        {/* Main Card */}
-                        <div className="flex-1 bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 flex flex-col lg:flex-row gap-8 min-w-0 overflow-hidden">
+                        {/* Main Interaction Area */}
+                        <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-hidden bg-card/30">
 
                             {items.length === 0 ? (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 animate-in fade-in duration-500 min-h-[400px]">
-                                    <div className="w-32 h-32 bg-emerald-50 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-xl">
-                                        <Sparkles className="w-16 h-16 text-emerald-400" />
+                                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 min-h-[400px]">
+                                    <div className="relative mb-8">
+                                        <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full"></div>
+                                        <div className="w-32 h-32 bg-card rounded-full flex items-center justify-center border-4 border-emerald-500/10 shadow-2xl relative z-10">
+                                            <Sparkles className="w-16 h-16 text-emerald-500" />
+                                        </div>
                                     </div>
-                                    <h3 className="text-3xl font-bold text-[#192853] mb-3">
+                                    <h3 className="text-3xl font-black text-foreground mb-3 tracking-tight">
                                         All Caught Up!
                                     </h3>
-                                    <p className="text-slate-500 max-w-sm mx-auto text-lg">
-                                        There are no pending content requests for this month. Great job!
+                                    <p className="text-muted-foreground max-w-sm mx-auto text-lg font-medium">
+                                        There are no pending content requests for this month.
                                     </p>
                                 </div>
                             ) : (
                                 <>
                                     {/* Left Column: Visualizer & Progress */}
-                                    <div className="lg:w-7/12 flex flex-col gap-6 min-h-0">
+                                    <div className="lg:w-3/5 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
 
-                                        {/* Conditional Header: Stepper or Request Info */}
+                                        {/* Header: Stepper or Request Info */}
                                         {isAdhoc ? (
-                                            <div className="flex items-center gap-4 px-2 py-2">
-                                                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                                                    <Sparkles size={20} />
+                                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-orange-500/5 border border-orange-500/10">
+                                                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shadow-sm">
+                                                    <Sparkles size={24} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-lg font-bold text-[#192853]">Adhoc Request</h3>
-                                                    <p className="text-sm text-slate-500 font-medium">Requested by {activeItem.name || 'Unknown'}</p>
+                                                    <h3 className="text-lg font-bold text-foreground">Adhoc Request</h3>
+                                                    <p className="text-sm text-muted-foreground font-medium">Requested by <span className="text-foreground">{activeItem.name || 'Unknown'}</span></p>
                                                 </div>
                                             </div>
                                         ) : (
-                                            /* Compact Stepper */
-                                            <div className="flex justify-between items-center relative px-2 py-2 shrink-0">
-                                                <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-slate-100 -z-10"></div>
+                                            /* Modern Stepper */
+                                            <div className="flex justify-between items-center relative px-4 py-2 shrink-0">
+                                                {/* Track Line */}
+                                                <div className="absolute left-6 right-6 top-1/2 h-1 bg-muted rounded-full -z-10"></div>
+
                                                 {steps.map((step, index) => {
                                                     const isActive = index === currentStepIndex;
                                                     const isCompleted = index < currentStepIndex;
+
                                                     return (
-                                                        <div key={step.id} className="flex flex-col items-center gap-2 bg-transparent z-10 transition-all duration-300">
+                                                        <div key={step.id} className="relative flex flex-col items-center gap-3 bg-transparent z-10 group cursor-default">
                                                             <div className={`
-                                                        w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300
-                                                        ${isActive ? 'bg-[#FF6B4A] border-[#FF6B4A] text-white scale-110 shadow-lg shadow-[#FF6B4A]/30' :
-                                                                    isCompleted ? 'bg-[#192853] border-[#192853] text-white' : 'bg-white border-slate-200 text-slate-300'}
-                                                    `}>
-                                                                {isCompleted ? <Check size={14} strokeWidth={3} /> : step.count}
+                                                                w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border-[3px] transition-all duration-500 ease-out
+                                                                ${isActive
+                                                                    ? 'bg-primary border-primary text-primary-foreground scale-125 shadow-xl shadow-primary/30 rotate-3'
+                                                                    : isCompleted
+                                                                        ? 'bg-foreground border-foreground text-background'
+                                                                        : 'bg-card border-input text-muted-foreground'}
+                                                            `}>
+                                                                {isCompleted ? <Check size={16} strokeWidth={4} /> : step.count}
                                                             </div>
-                                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-[#192853]' : 'text-slate-300'}`}>
+                                                            <span className={`
+                                                                absolute -bottom-6 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-300
+                                                                ${isActive ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'}
+                                                            `}>
                                                                 {step.label}
                                                             </span>
                                                         </div>
@@ -402,93 +568,283 @@ export default function MonthlyContentsPage() {
                                             </div>
                                         )}
 
-                                        {/* Image/Video Visualizer Frame */}
-                                        <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 relative flex items-center justify-center overflow-hidden group min-h-[300px]">
+                                        {/* Visualizer Frame */}
+                                        <div className="flex-1 bg-secondary/30 rounded-3xl border border-border/50 relative flex items-center justify-center overflow-hidden group min-h-[350px] shadow-inner">
+
+                                            {/* Pattern Overlay */}
+                                            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
                                             {/* ID Badge */}
-                                            <div className="absolute top-4 left-4 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm z-20">
-                                                <span className="text-[10px] font-bold text-[#5B75A9] uppercase tracking-wider block">Asset ID</span>
-                                                <span className="text-sm font-black text-[#192853]">{currentId}</span>
+                                            <div className="absolute top-6 left-6 bg-card/80 backdrop-blur-md px-4 py-2 rounded-xl border border-border/50 shadow-sm z-20">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-0.5">Asset ID</span>
+                                                <span className="text-sm font-black text-foreground">{currentId}</span>
                                             </div>
 
-                                            {/* Content Placeholder */}
-                                            <div className="w-[80%] h-[80%] bg-white rounded-xl border border-slate-200 flex items-center justify-center relative overflow-hidden transition-transform duration-700 group-hover:scale-[1.02]">
-                                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
-                                                <div className="text-center">
-                                                    <div className="w-20 h-20 bg-slate-50 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-300">
-                                                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
+                                            {/* Content Container */}
+                                            <div className="w-[85%] h-[85%] bg-card rounded-2xl border border-border shadow-2xl shadow-black/5 flex items-center justify-center relative overflow-hidden transition-all duration-700 group-hover:scale-[1.02] group-hover:shadow-xl">
+                                                {activeItem.originalData?.linked_image_details?.image_url ? (
+                                                    <img
+                                                        src={activeItem.originalData.linked_image_details.image_url}
+                                                        alt={activeItem.originalData.linked_image_details.title || "Reference Image"}
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <div className="text-center p-8">
+                                                        <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
+                                                            <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
+                                                        <p className="text-sm text-muted-foreground">Linked media will appear here</p>
                                                     </div>
-                                                    <p className="text-slate-400 font-medium">Content Preview</p>
-                                                </div>
+                                                )}
+
+                                                {/* Change Image Button Overlay for Requests */}
+                                                {isAdhoc && (
+                                                    <div className="absolute top-4 right-4 z-30">
+                                                        <button
+                                                            onClick={() => {
+                                                                setIsImageSelectionOpen(true);
+                                                                // Fetch folders initially just in case they want to switch mode
+                                                                fetchClientFolders();
+                                                            }}
+                                                            className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
+                                                        >
+                                                            <RefreshCw size={12} />
+                                                            Change Image
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
 
+                                            {/* Image Selection Modal/Overlay */}
+                                            {isImageSelectionOpen && (
+                                                <div className="absolute inset-0 z-50 bg-card/95 backdrop-blur-xl flex flex-col p-6 animate-in fade-in duration-300">
+                                                    <div className="flex justify-between items-center mb-6">
+                                                        <h3 className="text-xl font-black text-foreground">Select Image</h3>
+                                                        <button
+                                                            onClick={() => setIsImageSelectionOpen(false)}
+                                                            className="p-2 hover:bg-muted rounded-full transition-colors"
+                                                        >
+                                                            <X size={20} />
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex gap-2 mb-6">
+                                                        <button
+                                                            onClick={() => setImageSearchMode('search')}
+                                                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${imageSearchMode === 'search' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
+                                                        >
+                                                            <Search size={14} />
+                                                            By ID
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setImageSearchMode('gallery');
+                                                                if (clientFolders.length === 0) fetchClientFolders();
+                                                            }}
+                                                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${imageSearchMode === 'gallery' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
+                                                        >
+                                                            <Folder size={14} />
+                                                            Browse Gallery
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                                                        {imageSearchMode === 'search' ? (
+                                                            <div className="space-y-6">
+                                                                <div className="relative">
+                                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                                                        <Search size={16} />
+                                                                    </div>
+                                                                    <input
+                                                                        autoFocus
+                                                                        type="text"
+                                                                        placeholder="Enter Image Folio ID (e.g. C5F12-001)"
+                                                                        className="w-full bg-secondary/50 border border-border rounded-xl pl-11 pr-14 py-4 text-foreground text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                                        value={imageSearchQuery}
+                                                                        onChange={(e) => setImageSearchQuery(e.target.value)}
+                                                                        onKeyDown={(e) => e.key === 'Enter' && handleSearchImage()}
+                                                                    />
+                                                                    <button
+                                                                        onClick={handleSearchImage}
+                                                                        disabled={isLoadingImages || !imageSearchQuery.trim()}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+                                                                    >
+                                                                        <ChevronRight size={16} />
+                                                                    </button>
+                                                                </div>
+
+                                                                {searchError && (
+                                                                    <div className="p-4 bg-destructive/10 text-destructive rounded-xl text-sm font-bold text-center">
+                                                                        {searchError}
+                                                                    </div>
+                                                                )}
+
+                                                                {foundImage && (
+                                                                    <div className="bg-secondary/20 border border-border rounded-xl overflow-hidden">
+                                                                        <div className="aspect-square w-full bg-slate-950/5 relative">
+                                                                            <img
+                                                                                src={foundImage.image_url}
+                                                                                alt={foundImage.title}
+                                                                                className="w-full h-full object-contain"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="p-4 flex items-center justify-between gap-4">
+                                                                            <div className="min-w-0">
+                                                                                <p className="font-bold text-foreground text-sm truncate">{foundImage.title}</p>
+                                                                                <p className="text-xs text-muted-foreground font-mono mt-0.5">{foundImage.folio}</p>
+                                                                            </div>
+                                                                            <button
+                                                                                onClick={() => handleSelectImage(foundImage)}
+                                                                                className="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-colors shrink-0"
+                                                                            >
+                                                                                Select
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            /* Gallery Browser */
+                                                            <div className="h-full flex flex-col">
+                                                                {selectedFolderId ? (
+                                                                    <div className="space-y-4">
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setSelectedFolderId(null);
+                                                                                setFolderImages([]);
+                                                                            }}
+                                                                            className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mb-2"
+                                                                        >
+                                                                            <ChevronLeft size={14} />
+                                                                            Back to Folders
+                                                                        </button>
+
+                                                                        {isLoadingImages ? (
+                                                                            <div className="py-12 text-center text-muted-foreground">Loading images...</div>
+                                                                        ) : folderImages.length === 0 ? (
+                                                                            <div className="py-12 text-center text-muted-foreground text-sm">No images in this folder</div>
+                                                                        ) : (
+                                                                            <div className="grid grid-cols-2 gap-3">
+                                                                                {folderImages.map(img => (
+                                                                                    <div
+                                                                                        key={img.id}
+                                                                                        onClick={() => handleSelectImage(img)}
+                                                                                        className="group relative aspect-square rounded-xl overflow-hidden border border-border bg-secondary/10 cursor-pointer hover:border-primary transition-all"
+                                                                                    >
+                                                                                        <img
+                                                                                            src={img.image_url}
+                                                                                            alt={img.title}
+                                                                                            className="w-full h-full object-cover"
+                                                                                        />
+                                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                                            <span className="bg-white text-black text-[10px] font-bold px-2 py-1 rounded-md">Select</span>
+                                                                                        </div>
+                                                                                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                                                                                            <p className="text-[10px] text-white truncate font-medium">{img.title}</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-full">
+                                                                        {isLoadingImages && clientFolders.length === 0 ? (
+                                                                            <div className="py-12 text-center text-muted-foreground">Loading folders...</div>
+                                                                        ) : clientFolders.length === 0 ? (
+                                                                            <div className="py-12 text-center text-muted-foreground text-sm">No folders found for this client</div>
+                                                                        ) : (
+                                                                            <div className="grid grid-cols-1 gap-3">
+                                                                                {clientFolders.map(folder => (
+                                                                                    <div
+                                                                                        key={folder.id}
+                                                                                        onClick={() => fetchFolderImages(folder.id)}
+                                                                                        className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/10 hover:bg-secondary/30 hover:border-primary/20 cursor-pointer transition-all"
+                                                                                    >
+                                                                                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                                                                                            <Folder size={20} />
+                                                                                        </div>
+                                                                                        <div className="min-w-0">
+                                                                                            <p className="text-sm font-bold text-foreground truncate">{folder.folder_name}</p>
+                                                                                            <p className="text-[10px] text-muted-foreground">Click to view images</p>
+                                                                                        </div>
+                                                                                        <ChevronRight size={16} className="ml-auto text-muted-foreground" />
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
-                                    {/* Vertical Divider (Desktop only) */}
-                                    <div className="hidden lg:block w-px bg-slate-100 my-4 shrink-0"></div>
-
                                     {/* Right Column: Form Inputs */}
-                                    <div className="flex-1 flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar min-h-0">
+                                    <div className="flex-1 flex flex-col gap-6 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
+
                                         {isAdhoc ? (
                                             /* --- Adhoc Request Form --- */
-                                            <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
-                                                <div className="pb-2">
-                                                    <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded uppercase tracking-wider">
-                                                        Request Review
+                                            <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                                <div className="pb-4">
+                                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded-md uppercase tracking-wider inline-block mb-3">
+                                                        Reviewing Request
                                                     </span>
-                                                    <h3 className="text-2xl font-bold text-[#192853] mt-2">Request Details</h3>
+                                                    <h3 className="text-2xl font-black text-foreground">Request Details</h3>
                                                 </div>
 
                                                 <div className="space-y-6 flex-1">
-                                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                                        <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-2">Instructions</label>
-                                                        <p className="text-[#192853] text-sm leading-relaxed">
+                                                    <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
+                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Instructions</label>
+                                                        <p className="text-foreground text-sm leading-relaxed font-medium">
                                                             {activeItem.instructions || "No specific instructions provided."}
                                                         </p>
-
                                                     </div>
 
                                                     {/* QA Feedback Display */}
                                                     {activeItem.feedback && (
-                                                        <div className="bg-red-50 p-4 rounded-2xl border border-red-100 mb-2">
-                                                            <label className="text-xs font-bold text-red-500 uppercase tracking-wider block mb-2">QA Feedback</label>
-                                                            <p className="text-red-700 text-sm leading-relaxed font-medium">
+                                                        <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
+                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-2">QA Feedback</label>
+                                                            <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
                                                             </p>
                                                         </div>
                                                     )}
 
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-1">Type</label>
-                                                            <p className="font-bold text-[#192853] capitalize">{activeItem.contentType || "General"}</p>
+                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Type</label>
+                                                            <p className="font-bold text-foreground capitalize">{activeItem.contentType || "General"}</p>
                                                         </div>
-                                                        <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider block mb-1">Status</label>
+                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Status</label>
                                                             <p className="font-bold text-orange-500">Pending Review</p>
                                                         </div>
                                                     </div>
 
                                                     {/* Content Text */}
                                                     <div className="space-y-2">
-                                                        <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Content Text</label>
+                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Content Text</label>
                                                         <textarea
-                                                            rows={5}
+                                                            rows={6}
                                                             value={contentText}
                                                             onChange={(e) => setContentText(e.target.value)}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[#192853] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 transition-all resize-none text-sm leading-relaxed"
+                                                            className="w-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all resize-none text-sm leading-relaxed"
                                                             placeholder="Enter the content text here..."
                                                         />
                                                     </div>
 
                                                     {/* AI Caption */}
                                                     <div className="space-y-2">
-                                                        <div className="flex justify-between items-center">
-                                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1">AI Caption</label>
-                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-orange-500 bg-white px-2 py-1 rounded-md shadow-sm border border-orange-500/20 hover:bg-orange-500/5 transition-colors">
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">AI Caption</label>
+                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-orange-500 bg-orange-500/5 px-2 py-1 rounded-lg border border-orange-500/20 hover:bg-orange-500/10 transition-colors">
                                                                 <Sparkles size={12} />
                                                                 Generate
                                                             </button>
@@ -497,79 +853,80 @@ export default function MonthlyContentsPage() {
                                                             rows={4}
                                                             value={aiCaption}
                                                             onChange={(e) => setAiCaption(e.target.value)}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[#192853] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all resize-none text-sm leading-relaxed"
+                                                            className="w-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all resize-none text-sm leading-relaxed"
                                                             placeholder="AI generated caption..."
                                                         />
                                                     </div>
                                                 </div>
 
-                                                <div className="pt-4 flex gap-3">
+                                                <div className="pt-6 mt-auto">
                                                     <button
                                                         onClick={handleNext}
-                                                        className="w-full py-4 bg-[#192853] hover:bg-[#203262] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#192853]/30 transition-all flex items-center justify-center gap-2"
+                                                        className="w-full py-4 bg-foreground hover:bg-foreground/90 text-background font-bold text-lg rounded-xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
                                                     >
-                                                        <Check size={20} />
+                                                        <Check size={20} className="text-background" />
                                                         <span>Submit to QA</span>
                                                     </button>
                                                 </div>
                                             </div>
                                         ) : (
                                             /* --- Standard Monthly Form --- */
-                                            <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
-                                                <div className="pb-2 shrink-0">
-                                                    <span className="text-xs font-bold text-[#FF6B4A] bg-[#FF6B4A]/10 px-2 py-1 rounded uppercase tracking-wider">
+                                            <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                                <div className="pb-4 shrink-0">
+                                                    <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-md uppercase tracking-wider inline-block mb-3">
                                                         Editing {steps[currentStepIndex].label.slice(0, -1)}
                                                     </span>
-                                                    <h3 className="text-2xl font-bold text-[#192853] mt-2">Customize Details</h3>
+                                                    <h3 className="text-2xl font-black text-foreground">Customize Details</h3>
                                                 </div>
 
-                                                <div className="space-y-4 flex-1">
+                                                <div className="space-y-5 flex-1">
 
                                                     {/* QA Feedback Display for Monthly Content */}
                                                     {activeItem.feedback && (
-                                                        <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                                                            <label className="text-xs font-bold text-red-500 uppercase tracking-wider block mb-2">QA Feedback</label>
-                                                            <p className="text-red-700 text-sm leading-relaxed font-medium">
+                                                        <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
+                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-1">QA Feedback</label>
+                                                            <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
                                                             </p>
                                                         </div>
                                                     )}
+
                                                     {/* AI Content */}
                                                     <div className="space-y-2">
-                                                        <div className="flex justify-between items-center">
-                                                            <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1">AI Generated Content</label>
-                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-[#FF6B4A] bg-white px-2 py-1 rounded-md shadow-sm border border-[#FF6B4A]/20 hover:bg-[#FF6B4A]/5 transition-colors">
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">AI Generated Content</label>
+                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
                                                                 <Sparkles size={12} />
                                                                 Regenerate
                                                             </button>
                                                         </div>
                                                         <textarea
-                                                            rows={5}
+                                                            rows={6}
                                                             value={contentText}
                                                             onChange={(e) => setContentText(e.target.value)}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[#192853] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#FF6B4A] focus:ring-4 focus:ring-[#FF6B4A]/5 transition-all resize-none text-sm leading-relaxed"
+                                                            className="w-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none text-sm leading-relaxed"
                                                             placeholder="AI content will appear here..."
                                                         />
                                                     </div>
 
                                                     {/* Caption */}
                                                     <div className="space-y-2">
-                                                        <label className="text-xs font-bold text-[#5B75A9] uppercase tracking-wider ml-1">Caption</label>
+                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Caption</label>
                                                         <textarea
                                                             rows={4}
                                                             value={aiCaption}
                                                             onChange={(e) => setAiCaption(e.target.value)}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[#192853] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#192853] focus:ring-4 focus:ring-[#192853]/5 transition-all resize-none text-sm leading-relaxed"
+                                                            className="w-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none text-sm leading-relaxed"
                                                             placeholder="Refine the caption..."
                                                         />
                                                     </div>
                                                 </div>
 
                                                 {/* Next Button */}
-                                                <div className="pt-2 shrink-0">
+                                                <div className="pt-6 shrink-0 mt-auto">
                                                     <button
                                                         onClick={handleNext}
-                                                        className="w-full py-4 bg-[#192853] hover:bg-[#203262] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#192853]/30 hover:shadow-[#192853]/40 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 group"
+                                                        className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 group"
                                                     >
                                                         <span>{currentStepIndex === steps.length - 1 && counts.stories <= 1 ? "Finish All" : "Approve & Next"}</span>
                                                         <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -587,4 +944,3 @@ export default function MonthlyContentsPage() {
         </div>
     );
 }
-

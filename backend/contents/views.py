@@ -14,11 +14,14 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
 
         queryset = MonthlyRequest.objects.all()
 
+        if role == "SUPERUSER":
+            return queryset
+
         if not user_id or not role:
             return MonthlyRequest.objects.none()
 
-        # SUPERUSER y CONTENT_CREATOR: solo ven lo asignado a ellos
-        if role in ["SUPERUSER", "CONTENT_CREATOR"]:
+        # CONTENT_CREATOR: solo ven lo asignado a ellos
+        if role == "CONTENT_CREATOR":
             return queryset.filter(assigned_to_id=user_id)
 
         # CLIENT: solo ve lo que creó

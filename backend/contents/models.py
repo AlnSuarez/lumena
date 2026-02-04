@@ -55,6 +55,14 @@ class MonthlyRequest(models.Model):
     content_text = models.TextField(blank=True, null=True, verbose_name=_("Content Text"))
     ai_caption = models.TextField(blank=True, null=True, verbose_name=_("AI Caption"))
     feedback = models.TextField(blank=True, null=True, verbose_name=_("Feedback"))
+    linked_image = models.ForeignKey(
+        'gallery.ClientImage',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='linked_requests',
+        verbose_name=_("Linked Gallery Image")
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
