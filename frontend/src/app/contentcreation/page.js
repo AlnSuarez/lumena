@@ -197,13 +197,13 @@ export default function ContentBoardPage() {
                                                     <div
                                                         key={req.id}
                                                         onClick={() => setSelectedRequest(req)}
-                                                        className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden"
+                                                        className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col max-h-[280px]"
                                                     >
                                                         {/* Priority Stripe */}
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeDetails.color.split(' ')[0]}`}></div>
 
                                                         {/* Card Header */}
-                                                        <div className="flex justify-between items-start mb-3 pl-2">
+                                                        <div className="flex justify-between items-start mb-3 pl-2 shrink-0">
                                                             <span className={`px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full flex items-center gap-1.5 ${typeDetails.color} border border-transparent`}>
                                                                 <TypeIcon size={10} />
                                                                 {typeDetails.label}
@@ -213,20 +213,22 @@ export default function ContentBoardPage() {
                                                             </button>
                                                         </div>
 
-                                                        {/* Card Title */}
-                                                        <div className="flex items-start gap-3 mb-3 pl-2">
-                                                            <h3 className="font-bold text-foreground text-sm line-clamp-3 leading-relaxed">
-                                                                {req.client_details && (
-                                                                    <span className="block text-xs font-black text-primary mb-1 uppercase tracking-wide">
-                                                                        {req.client_details.client_profile?.practice_name || req.client_details.username}
-                                                                    </span>
-                                                                )}
-                                                                {req.notes || "Untitled Request"}
-                                                            </h3>
+                                                        {/* Card Title & Content - Scrollable Area */}
+                                                        <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent min-h-0 mb-3 pl-2">
+                                                            <div className="flex items-start gap-3">
+                                                                <h3 className="font-bold text-foreground text-sm leading-relaxed">
+                                                                    {req.client_details && (
+                                                                        <span className="block text-xs font-black text-primary mb-1 uppercase tracking-wide">
+                                                                            {req.client_details.client_profile?.practice_name || req.client_details.username}
+                                                                        </span>
+                                                                    )}
+                                                                    {req.notes || "Untitled Request"}
+                                                                </h3>
+                                                            </div>
                                                         </div>
 
                                                         {/* Card Footer */}
-                                                        <div className="flex items-center justify-between border-t border-border pt-3 mt-2 pl-2">
+                                                        <div className="flex items-center justify-between border-t border-border pt-3 mt-auto shrink-0 pl-2">
 
                                                             {/* Date */}
                                                             <div className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
