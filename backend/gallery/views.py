@@ -123,9 +123,16 @@ def upload_folder_images(request, folder_id):
         response_data['errors'] = errors
         response_data['message'] = f'{len(created_images)} images uploaded successfully, {len(errors)} failed'
 
+    if created_images:
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
     return Response(
-        response_data if created_images else {'error': 'All uploads failed', 'details': errors},
-        status=status.HTTP_201_CREATED if created_images else status.HTTP_400_BAD_REQUEST
+        {
+            'error': 'All uploads failed',
+            'message': 'No image could be processed. Check file type/format and try again.',
+            'details': errors
+        },
+        status=status.HTTP_400_BAD_REQUEST
     )
 
 @api_view(['DELETE'])

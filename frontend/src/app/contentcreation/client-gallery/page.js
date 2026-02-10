@@ -260,9 +260,26 @@ export default function ClientGalleryPage() {
                 }
             );
 
-            if (!response.ok) throw new Error("Failed to upload images");
+            const responseData = await response.json().catch(() => null);
+            if (!response.ok) {
+                let errorMessage =
+                    responseData?.error ||
+                    responseData?.message ||
+                    `Failed to upload images (HTTP ${response.status})`;
 
-            const responseData = await response.json();
+                const details = responseData?.details || responseData?.errors;
+                if (Array.isArray(details) && details.length > 0) {
+                    const first = details[0];
+                    if (first?.filename && first?.error) {
+                        errorMessage += ` First failure: ${first.filename} - ${first.error}`;
+                    } else if (first?.error) {
+                        errorMessage += ` First failure: ${first.error}`;
+                    }
+                }
+
+                throw new Error(errorMessage);
+            }
+
             const uploadedImages = responseData.images || responseData;
 
             setImages([...uploadedImages, ...images]);
@@ -583,9 +600,13 @@ export default function ClientGalleryPage() {
                                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                                 />
                                                 {/* Image info overlay */}
-                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent pt-10 pb-3 px-3 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                    <p className="text-[10px] font-mono text-primary-foreground/80 mb-0.5">{image.folio}</p>
-                                                    <p className="text-xs font-bold truncate text-white" title={image.title}>{image.title}</p>
+                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-14 pb-3 px-3 text-white opacity-100">
+                                                    <p className="text-[10px] font-mono font-bold tracking-wide text-white/90 mb-1 drop-shadow-sm">
+                                                        {image.folio}
+                                                    </p>
+                                                    <p className="text-xs font-black truncate text-white drop-shadow-sm" title={image.title}>
+                                                        {image.title}
+                                                    </p>
                                                 </div>
                                                 {/* Hover actions */}
                                                 <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -713,6 +734,4 @@ export default function ClientGalleryPage() {
         </div>
     );
 }
-
-
 

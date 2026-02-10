@@ -63,6 +63,7 @@ class MonthlyRequest(models.Model):
         related_name='linked_requests',
         verbose_name=_("Linked Gallery Image")
     )
+    available_from = models.DateField(blank=True, null=True, verbose_name=_("Available From"), help_text="Date when this request becomes active/visible")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

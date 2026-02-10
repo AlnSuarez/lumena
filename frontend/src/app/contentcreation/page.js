@@ -9,12 +9,17 @@ import {
 export default function ContentBoardPage() {
     const [requests, setRequests] = useState([]);
     const [users, setUsers] = useState([]);
+    const [contentCreators, setContentCreators] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const [assignmentMenu, setAssignmentMenu] = useState(null);
 
     // Filters
     const [filterType, setFilterType] = useState("ALL");
     const [filterUser, setFilterUser] = useState("ALL");
+
+    // TODO: Get from auth context in production
+    const userRole = "SUPERUSER";
 
     // Board Columns Configuration
     const columns = [
@@ -34,9 +39,10 @@ export default function ContentBoardPage() {
         try {
             // Fetch Requests (assuming an admin view or similar that returns everything)
             // In a real app, you'd pass role=SUPERUSER or similar to see all
-            const [reqResponse, userResponse] = await Promise.all([
+            const [reqResponse, userResponse, creatorsResponse] = await Promise.all([
                 fetch('http://localhost:8000/api/contents/monthly-requests/?role=SUPERUSER'),
-                fetch('http://localhost:8000/api/users/manage/') // Fetch all users for filter
+                fetch('http://localhost:8000/api/users/manage/'), // Fetch all users for filter
+                fetch('http://localhost:8000/api/users/content-creators/') // Fetch content creators
             ]);
 
             if (reqResponse.ok) {
@@ -46,6 +52,10 @@ export default function ContentBoardPage() {
             if (userResponse.ok) {
                 const userData = await userResponse.json();
                 setUsers(userData);
+            }
+            if (creatorsResponse.ok) {
+                const creatorsData = await creatorsResponse.json();
+                setContentCreators(creatorsData);
             }
         } catch (error) {
             console.error("Error fetching board data:", error);
@@ -99,17 +109,62 @@ export default function ContentBoardPage() {
         }
     };
 
+    // Check if a request has a pending suggestion
+    const isPendingSuggestion = (req) => {
+        return req.notes && req.notes.includes("Suggested assignment");
+    };
+
+    // Confirm the suggested assignment
+    const handleConfirmAssignment = async (requestId) => {
+        try {
+            const response = await fetch(
+                `http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            if (response.ok) {
+                fetchData(); // Refresh board
+            }
+        } catch (error) {
+            console.error("Error confirming assignment:", error);
+        }
+    };
+
+    // Reassign to a different creator
+    const handleReassign = async (requestId, creatorId) => {
+        try {
+            const response = await fetch(
+                `http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creator_id: creatorId })
+                }
+            );
+            if (response.ok) {
+                fetchData();
+                setAssignmentMenu(null);
+            }
+        } catch (error) {
+            console.error("Error reassigning:", error);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-secondary/30 p-4 md:p-8 animate-in fade-in duration-500">
             <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 mx-auto">
                 {/* Header & Filters */}
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 flex-shrink-0">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 flex-shrink-0 z-20">
                     <div className="pl-1 border-l-4 border-primary">
                         <h1 className="text-4xl font-black text-foreground tracking-tight">Content Pipeline</h1>
                         <p className="mt-2 text-muted-foreground text-lg">Visualize and manage your content workflow.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+
+
                         {/* Type Filter */}
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -197,7 +252,7 @@ export default function ContentBoardPage() {
                                                     <div
                                                         key={req.id}
                                                         onClick={() => setSelectedRequest(req)}
-                                                        className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col max-h-[280px]"
+                                                        className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col"
                                                     >
                                                         {/* Priority Stripe */}
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeDetails.color.split(' ')[0]}`}></div>
@@ -213,8 +268,8 @@ export default function ContentBoardPage() {
                                                             </button>
                                                         </div>
 
-                                                        {/* Card Title & Content - Scrollable Area */}
-                                                        <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent min-h-0 mb-3 pl-2">
+                                                        {/* Card Title & Content */}
+                                                        <div className="mb-3 pl-2">
                                                             <div className="flex items-start gap-3">
                                                                 <h3 className="font-bold text-foreground text-sm leading-relaxed">
                                                                     {req.client_details && (
@@ -253,6 +308,15 @@ export default function ContentBoardPage() {
                                                                     >
                                                                         {req.assigned_to_details.username.charAt(0).toUpperCase()}
                                                                         <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border border-card"></div>
+                                                                    </div>
+                                                                )}
+                                                                {req.qa_assigned_to_details && (
+                                                                    <div
+                                                                        className="w-7 h-7 rounded-full bg-purple-100 border-2 border-card flex items-center justify-center text-[10px] font-bold text-purple-700 shadow-sm relative -ml-2"
+                                                                        title={`QA: ${req.qa_assigned_to_details.username}`}
+                                                                    >
+                                                                        {req.qa_assigned_to_details.username.charAt(0).toUpperCase()}
+                                                                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-card"></div>
                                                                     </div>
                                                                 )}
                                                             </div>

@@ -179,7 +179,7 @@ export default function SubmitStoryPage() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)] min-h-[600px] w-full max-w-7xl mx-auto animate-in fade-in zoom-in duration-500 p-6 lg:p-8">
+        <div className="flex flex-col h-[calc(100vh-160px)] min-h-[600px] w-full max-w-[1800px] mx-auto animate-in fade-in zoom-in duration-500 p-6 lg:p-8">
             {/* Header - Compact */}
             <div className="flex items-end justify-between mb-6 shrink-0">
                 <div>
@@ -201,7 +201,7 @@ export default function SubmitStoryPage() {
                 <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
                 {/* Left Column: Selection */}
-                <div className="lg:w-1/3 flex flex-col gap-6">
+                <div className="lg:w-[30%] xl:w-[28%] flex flex-col gap-6">
                     <div className="space-y-4 flex-1">
                         <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Content Type</label>
                         <div className="grid grid-cols-2 gap-3 h-full max-h-[400px]">
@@ -262,7 +262,7 @@ export default function SubmitStoryPage() {
                 <div className="hidden lg:block w-px bg-border my-2"></div>
 
                 {/* Right Column: Form */}
-                <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="lg:w-[70%] xl:w-[72%] flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
 
                     {/* Instructions */}
                     <div className="space-y-3">

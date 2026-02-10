@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+import re
 
 User = get_user_model()
 
@@ -42,10 +43,28 @@ class ClientImage(models.Model):
     def save(self, *args, **kwargs):
         """Generate folio if not exists"""
         if not self.folio:
-            # Generate folio format: C{client_id}F{folder_id}-{count}
-            # Example: C5F12-001
-            image_count = ClientImage.objects.filter(folder=self.folder).count() + 1
-            self.folio = f"C{self.folder.client.id}F{self.folder.id}-{image_count:03d}"
+            # Generate folio format: C{client_id}F{folder_id}-{seq}
+            # Uses max existing seq (not count) to avoid collisions after deletions.
+            prefix = f"C{self.folder.client.id}F{self.folder.id}-"
+            existing_folios = ClientImage.objects.filter(folder=self.folder).values_list('folio', flat=True)
+
+            max_seq = 0
+            for folio in existing_folios:
+                if not folio:
+                    continue
+                match = re.match(rf"^{re.escape(prefix)}(\d+)$", folio)
+                if match:
+                    max_seq = max(max_seq, int(match.group(1)))
+
+            next_seq = max_seq + 1
+            candidate = f"{prefix}{next_seq:03d}"
+
+            # Defensive loop in case of unexpected pre-existing collision.
+            while ClientImage.objects.filter(folio=candidate).exists():
+                next_seq += 1
+                candidate = f"{prefix}{next_seq:03d}"
+
+            self.folio = candidate
 
         # Set title from filename if not provided
         if not self.title and self.image:

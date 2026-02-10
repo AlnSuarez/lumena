@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
+import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2 } from 'lucide-react';
 
 export default function MonthlyContentsPage() {
     const [clientName, setClientName] = useState("");
@@ -26,6 +26,25 @@ export default function MonthlyContentsPage() {
     ];
 
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+    // Get CSRF Token
+    React.useEffect(() => {
+        const getCookie = (name) => {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        };
+        setCsrfToken(getCookie('csrftoken') || '');
+    }, []);
 
     // Initialize Data
     React.useEffect(() => {
@@ -104,6 +123,14 @@ export default function MonthlyContentsPage() {
     const [isLoadingImages, setIsLoadingImages] = useState(false);
     const [searchError, setSearchError] = useState('');
 
+    // Upload functionality
+    const [uploadSelectedFiles, setUploadSelectedFiles] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [contentFolderId, setContentFolderId] = useState(null);
+    const CREATED_CONTENT_FOLDER_NAME = "Contenido Creado";
+    const API_BASE = 'http://localhost:8000/api';
+    const [csrfToken, setCsrfToken] = useState('');
+
     // Reset inputs when active item changes
     React.useEffect(() => {
         if (items[activeItemIndex]) {
@@ -120,6 +147,9 @@ export default function MonthlyContentsPage() {
             setFolderImages([]);
             setImageSearchQuery('');
             setSearchError('');
+            setUploadSelectedFiles([]);
+            setIsUploading(false);
+            setImageSearchMode('search');
         }
     }, [activeItemIndex, items]);
 
@@ -281,6 +311,151 @@ export default function MonthlyContentsPage() {
         alert("Image updated successfully!");
     };
 
+    const findOrCreateContentFolder = async (clientId) => {
+        // Si ya está cacheado, retornar
+        if (contentFolderId) return contentFolderId;
+
+        try {
+            // Buscar carpetas del cliente
+            const response = await fetch(
+                `${API_BASE}/gallery/clients/${clientId}/folders/`,
+                { credentials: 'include' }
+            );
+            const folders = await response.json();
+
+            // Buscar "Contenido Creado"
+            const contentFolder = folders.find(
+                f => f.folder_name === CREATED_CONTENT_FOLDER_NAME
+            );
+
+            if (contentFolder) {
+                setContentFolderId(contentFolder.id);
+                return contentFolder.id;
+            }
+
+            // Crear si no existe
+            const createResponse = await fetch(
+                `${API_BASE}/gallery/clients/${clientId}/folders/create/`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({ folder_name: CREATED_CONTENT_FOLDER_NAME }),
+                }
+            );
+
+            const newFolder = await createResponse.json();
+            setContentFolderId(newFolder.id);
+            return newFolder.id;
+        } catch (error) {
+            console.error('Error finding/creating folder:', error);
+            throw error;
+        }
+    };
+
+    const handleUploadFileSelect = (e) => {
+        const files = Array.from(e.target.files);
+        setUploadSelectedFiles(files);
+    };
+
+    const handleUploadNewImage = async () => {
+        if (uploadSelectedFiles.length === 0) {
+            alert('Por favor selecciona al menos una imagen');
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            // 1. Obtener o crear carpeta "Contenido Creado"
+            const folderId = await findOrCreateContentFolder(activeItem.originalData.client);
+
+            // 2. Preparar FormData con las imágenes
+            const formData = new FormData();
+            uploadSelectedFiles.forEach(file => {
+                formData.append('images', file);
+            });
+
+            // 3. Subir imágenes
+            const uploadResponse = await fetch(
+                `${API_BASE}/gallery/folders/${folderId}/images/upload/`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: formData,
+                }
+            );
+
+            if (!uploadResponse.ok) {
+                throw new Error('Upload failed');
+            }
+
+            const uploadResult = await uploadResponse.json();
+            const uploadedImages = uploadResult.images || [uploadResult];
+
+            // 4. Vincular primera imagen al request
+            if (uploadedImages.length > 0) {
+                const firstImage = uploadedImages[0];
+
+                // Actualizar request con imagen vinculada
+                const updateResponse = await fetch(
+                    `${API_BASE}/contents/monthly-requests/${activeItem.id}/`,
+                    {
+                        method: 'PATCH',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            status: activeItem.originalData.status,
+                            linked_image: firstImage.id,
+                        }),
+                    }
+                );
+
+                if (!updateResponse.ok) {
+                    throw new Error('Failed to link image');
+                }
+
+                // Actualizar estado local
+                setItems(prevItems =>
+                    prevItems.map(itm =>
+                        itm.id === activeItem.id
+                            ? {
+                                ...itm,
+                                originalData: {
+                                    ...itm.originalData,
+                                    linked_image: firstImage.id,
+                                    linked_image_details: firstImage,
+                                },
+                            }
+                            : itm
+                    )
+                );
+            }
+
+            // 5. Limpiar y cerrar
+            setUploadSelectedFiles([]);
+            const fileInput = document.getElementById('uploadImageInput');
+            if (fileInput) fileInput.value = '';
+            setIsImageSelectionOpen(false);
+
+            alert(`${uploadedImages.length} imagen(es) subida(s) y vinculada(s) exitosamente`);
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Error al subir la imagen. Por favor intenta de nuevo.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleNext = () => {
         const dataToUpdate = {
             content_text: contentText,
@@ -381,7 +556,7 @@ export default function MonthlyContentsPage() {
 
     return (
         <div className="w-full h-full flex flex-col p-6 lg:p-8 animate-in fade-in duration-500">
-            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-7xl mx-auto">
+            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-[1800px] mx-auto">
                 {/* Header Area */}
                 <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
                     <div>
@@ -421,7 +596,7 @@ export default function MonthlyContentsPage() {
                     <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-secondary/20 lg:p-1">
 
                         {/* Sidebar - Client Checklist */}
-                        <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
+                        <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-72 xl:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
 
                             <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center py-6' : 'justify-between py-6 px-6'}`}>
                                 {!isSidebarCollapsed && (
@@ -521,7 +696,7 @@ export default function MonthlyContentsPage() {
                             ) : (
                                 <>
                                     {/* Left Column: Visualizer & Progress */}
-                                    <div className="lg:w-3/5 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
+                                    <div className="lg:w-[52%] xl:w-1/2 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
 
                                         {/* Header: Stepper or Request Info */}
                                         {isAdhoc ? (
@@ -600,22 +775,20 @@ export default function MonthlyContentsPage() {
                                                     </div>
                                                 )}
 
-                                                {/* Change Image Button Overlay for Requests */}
-                                                {isAdhoc && (
-                                                    <div className="absolute top-4 right-4 z-30">
-                                                        <button
-                                                            onClick={() => {
-                                                                setIsImageSelectionOpen(true);
-                                                                // Fetch folders initially just in case they want to switch mode
-                                                                fetchClientFolders();
-                                                            }}
-                                                            className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
-                                                        >
-                                                            <RefreshCw size={12} />
-                                                            Change Image
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                {/* Change Image Button Overlay */}
+                                                <div className="absolute top-4 right-4 z-30">
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsImageSelectionOpen(true);
+                                                            // Fetch folders initially just in case they want to switch mode
+                                                            fetchClientFolders();
+                                                        }}
+                                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
+                                                    >
+                                                        <RefreshCw size={12} />
+                                                        {activeItem.originalData?.linked_image_details ? 'Change Image' : 'Select Image'}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {/* Image Selection Modal/Overlay */}
@@ -648,6 +821,17 @@ export default function MonthlyContentsPage() {
                                                         >
                                                             <Folder size={14} />
                                                             Browse Gallery
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setImageSearchMode('upload')}
+                                                            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                                                                imageSearchMode === 'upload'
+                                                                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                                                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                                            }`}
+                                                        >
+                                                            <Upload size={14} />
+                                                            Subir Nueva
                                                         </button>
                                                     </div>
 
@@ -780,6 +964,65 @@ export default function MonthlyContentsPage() {
                                                                 )}
                                                             </div>
                                                         )}
+
+                                                        {imageSearchMode === 'upload' && (
+                                                            <div className="space-y-6">
+                                                                <div className="p-8 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors">
+                                                                    <input
+                                                                        id="uploadImageInput"
+                                                                        type="file"
+                                                                        multiple
+                                                                        accept="image/*"
+                                                                        onChange={handleUploadFileSelect}
+                                                                        className="hidden"
+                                                                    />
+                                                                    <label htmlFor="uploadImageInput" className="cursor-pointer block">
+                                                                        <div className="text-center">
+                                                                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                                                <Upload className="text-primary" size={32} />
+                                                                            </div>
+                                                                            <p className="font-bold text-foreground">Haz clic para seleccionar imágenes</p>
+                                                                            <p className="text-sm text-muted-foreground mt-1">Las imágenes se guardarán en la carpeta "Contenido Creado"</p>
+                                                                        </div>
+                                                                    </label>
+
+                                                                    {uploadSelectedFiles.length > 0 && (
+                                                                        <div className="mt-6 pt-6 border-t border-primary/10">
+                                                                            <p className="text-sm font-bold mb-3">
+                                                                                Seleccionadas: {uploadSelectedFiles.length} imagen(es)
+                                                                            </p>
+                                                                            <div className="space-y-1 mb-4 max-h-32 overflow-y-auto">
+                                                                                {uploadSelectedFiles.map((file, idx) => (
+                                                                                    <div
+                                                                                        key={idx}
+                                                                                        className="text-xs bg-secondary/50 px-3 py-2 rounded-lg flex items-center justify-between"
+                                                                                    >
+                                                                                        <span className="truncate flex-1">{file.name}</span>
+                                                                                        <span className="text-muted-foreground ml-2">
+                                                                                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                                                        </span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                            <button
+                                                                                onClick={handleUploadNewImage}
+                                                                                disabled={isUploading}
+                                                                                className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                                                            >
+                                                                                {isUploading ? (
+                                                                                    <span className="flex items-center justify-center gap-2">
+                                                                                        <Loader2 className="animate-spin" size={16} />
+                                                                                        Subiendo...
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    'Subir y Vincular al Request'
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -787,7 +1030,7 @@ export default function MonthlyContentsPage() {
                                     </div>
 
                                     {/* Right Column: Form Inputs */}
-                                    <div className="flex-1 flex flex-col gap-6 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
+                                    <div className="lg:w-[48%] xl:w-1/2 flex flex-col gap-6 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
 
                                         {isAdhoc ? (
                                             /* --- Adhoc Request Form --- */

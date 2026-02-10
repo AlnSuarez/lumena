@@ -126,7 +126,7 @@ export default function QAPage() {
 
     return (
         <div className="w-full h-full flex flex-col p-6 lg:p-8 animate-in fade-in duration-500">
-            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-7xl mx-auto">
+            <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-[1800px] mx-auto">
                 {/* Header Area */}
                 <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
                     <div>
@@ -174,7 +174,7 @@ export default function QAPage() {
                         <div className="flex-1 flex flex-col lg:flex-row min-h-0 bg-secondary/20 lg:p-1">
 
                             {/* Sidebar - Pending List */}
-                            <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
+                            <div className={`${isSidebarCollapsed ? 'w-20 items-center' : 'w-full lg:w-72 xl:w-80'} transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-card/50 lg:bg-transparent border-b lg:border-b-0 lg:border-r border-border flex flex-col shrink-0 lg:ml-1`}>
 
                                 <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center py-6' : 'justify-between py-6 px-6'}`}>
                                     {!isSidebarCollapsed && (
@@ -246,7 +246,7 @@ export default function QAPage() {
                                 <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-hidden bg-card/30">
 
                                     {/* Left Column: Visualizer */}
-                                    <div className="lg:w-3/5 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
+                                    <div className="lg:w-[52%] xl:w-1/2 flex flex-col gap-6 min-h-0 border-b lg:border-b-0 lg:border-r border-border p-6 lg:p-8">
 
                                         {/* Header */}
                                         <div className="flex items-center gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
@@ -287,99 +287,105 @@ export default function QAPage() {
                                     </div>
 
                                     {/* Right Column: Details & Actions */}
-                                    <div className="flex-1 flex flex-col gap-6 overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
-                                        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
+                                    <div className="lg:w-[48%] xl:w-1/2 flex flex-col overflow-y-auto px-6 lg:px-8 py-6 custom-scrollbar min-h-0 bg-card">
+                                        <div className="flex flex-col h-full w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-right-8 duration-500">
+                                            <div className="mb-5 pb-4 border-b border-border/60">
+                                                <h3 className="text-xl font-black text-foreground tracking-tight">QA Review Panel</h3>
+                                                <p className="text-sm text-muted-foreground font-medium">Validate content, add feedback and complete review.</p>
+                                            </div>
 
                                             {/* Meta */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                                                <div className="p-4 rounded-2xl border border-border bg-secondary/20 shadow-sm">
                                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Type</label>
                                                     <p className="font-bold text-foreground capitalize">{activeItem.contentType}</p>
                                                 </div>
-                                                <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                <div className="p-4 rounded-2xl border border-border bg-secondary/20 shadow-sm">
                                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Status</label>
                                                     <p className="font-bold text-primary">QA Review</p>
                                                 </div>
                                             </div>
 
-                                            {/* Client Preferences */}
-                                            <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
-                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Client Preferences</label>
-                                                <textarea
-                                                    readOnly
-                                                    className="w-full bg-input/50 border border-input rounded-xl px-4 py-3 text-foreground text-xs font-mono mb-2 focus:outline-none resize-none"
-                                                    rows={4}
-                                                    value={(() => {
-                                                        const profile = activeItem.originalData?.client_details?.client_profile;
-                                                        if (!profile) return "No client preferences found.";
+                                            {/* Content Sections */}
+                                            <div className="space-y-5 flex-1">
+                                                <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
+                                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Client Preferences</label>
+                                                    <textarea
+                                                        readOnly
+                                                        className="w-full bg-input/50 border border-input rounded-xl px-4 py-3 text-foreground text-xs font-mono focus:outline-none resize-none"
+                                                        rows={4}
+                                                        value={(() => {
+                                                            const profile = activeItem.originalData?.client_details?.client_profile;
+                                                            if (!profile) return "No client preferences found.";
 
-                                                        // Simplified preference display for cleaner UI
-                                                        const voice = profile.overall_voice ? `Voice: ${profile.overall_voice}` : '';
-                                                        const goal = profile.primary_goal ? `Goal: ${profile.primary_goal}` : '';
+                                                            // Simplified preference display for cleaner UI
+                                                            const voice = profile.overall_voice ? `Voice: ${profile.overall_voice}` : '';
+                                                            const goal = profile.primary_goal ? `Goal: ${profile.primary_goal}` : '';
 
-                                                        return [voice, goal].filter(Boolean).join('\n') || "Preferences available in full profile.";
-                                                    })()}
-                                                />
+                                                            return [voice, goal].filter(Boolean).join('\n') || "Preferences available in full profile.";
+                                                        })()}
+                                                    />
+                                                </div>
+
+                                                <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
+                                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-3">Developed Content</label>
+
+                                                    {activeItem.content_text ? (
+                                                        <div className="mb-4 p-3 rounded-xl border border-border/50 bg-card/70">
+                                                            <span className="text-[10px] font-bold text-muted-foreground block mb-1">Content Text</span>
+                                                            <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                                                {activeItem.content_text}
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {activeItem.ai_caption ? (
+                                                        <div className="p-3 rounded-xl border border-border/50 bg-card/70">
+                                                            <span className="text-[10px] font-bold text-muted-foreground block mb-1">Caption</span>
+                                                            <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap italic text-muted-foreground">
+                                                                {activeItem.ai_caption}
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {!activeItem.content_text && !activeItem.ai_caption && (
+                                                        <p className="text-muted-foreground text-sm italic">No text content provided.</p>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {/* Developed Content */}
-                                            <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
-                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-3">Developed Content</label>
+                                            {/* Feedback + Actions */}
+                                            <div className="mt-5 pt-5 border-t border-border/60 space-y-4">
+                                                <div className="space-y-2 min-h-[120px]">
+                                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1 flex items-center gap-2">
+                                                        <MessageSquare size={12} />
+                                                        Feedback for Creator
+                                                    </label>
+                                                    <textarea
+                                                        rows={4}
+                                                        value={feedback}
+                                                        onChange={(e) => setFeedback(e.target.value)}
+                                                        className="w-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none text-sm leading-relaxed"
+                                                        placeholder="Enter feedback rationale here (required for denial)..."
+                                                    />
+                                                </div>
 
-                                                {activeItem.content_text ? (
-                                                    <div className="mb-4">
-                                                        <span className="text-[10px] font-bold text-muted-foreground block mb-1">Content Text</span>
-                                                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap font-medium">
-                                                            {activeItem.content_text}
-                                                        </p>
-                                                    </div>
-                                                ) : null}
-
-                                                {activeItem.ai_caption ? (
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-muted-foreground block mb-1">Caption</span>
-                                                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap italic text-muted-foreground">
-                                                            {activeItem.ai_caption}
-                                                        </p>
-                                                    </div>
-                                                ) : null}
-
-                                                {!activeItem.content_text && !activeItem.ai_caption && (
-                                                    <p className="text-muted-foreground text-sm italic">No text content provided.</p>
-                                                )}
-                                            </div>
-
-                                            {/* Feedback Input */}
-                                            <div className="space-y-2 flex-1 min-h-[100px]">
-                                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1 flex items-center gap-2">
-                                                    <MessageSquare size={12} />
-                                                    Feedback for Creator
-                                                </label>
-                                                <textarea
-                                                    rows={4}
-                                                    value={feedback}
-                                                    onChange={(e) => setFeedback(e.target.value)}
-                                                    className="w-full h-full bg-input/50 border border-input rounded-2xl px-5 py-4 text-foreground placeholder-muted-foreground/50 focus:outline-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none text-sm leading-relaxed"
-                                                    placeholder="Enter feedback rationale here (required for denial)..."
-                                                />
-                                            </div>
-
-                                            {/* Action Buttons */}
-                                            <div className="pt-4 flex gap-4 mt-auto">
-                                                <button
-                                                    onClick={handleDeny}
-                                                    className="flex-1 py-4 bg-background hover:bg-destructive/5 text-destructive border border-border hover:border-destructive/20 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2"
-                                                >
-                                                    <X size={20} />
-                                                    <span>Denegar</span>
-                                                </button>
-                                                <button
-                                                    onClick={handleApprove}
-                                                    className="flex-[2] py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
-                                                >
-                                                    <Check size={20} />
-                                                    <span>Aprobar</span>
-                                                </button>
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        onClick={handleDeny}
+                                                        className="flex-1 py-4 bg-background hover:bg-destructive/5 text-destructive border border-border hover:border-destructive/20 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <X size={20} />
+                                                        <span>Denegar</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={handleApprove}
+                                                        className="flex-[2] py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Check size={20} />
+                                                        <span>Aprobar</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
