@@ -78,9 +78,13 @@ export default function QAPage() {
         if (!activeItem) return;
 
         try {
+            const userId = localStorage.getItem('userId');
+            const updateUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${activeItem.id}/`);
+            if (userId) updateUrl.searchParams.append('user_id', userId);
+
             // Optimistic update for demo purposes if backend isn't fully ready
             // But we try to call the API
-            const response = await fetch(`http://localhost:8000/api/contents/monthly-requests/${activeItem.id}/`, {
+            const response = await fetch(updateUrl.toString(), {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

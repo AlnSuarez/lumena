@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8000/api";
+const CREATED_FOLDER_NAME = "Created";
 
 export default function ClientGalleryPage() {
     const router = useRouter();
@@ -151,7 +152,42 @@ export default function ClientGalleryPage() {
                 throw new Error(errorMessage);
             }
             const data = await response.json();
-            setFolders(data);
+            let nextFolders = data;
+
+            // Ensure the default "Created" folder exists and is visible in Client Gallery.
+            const hasCreated = data.some(
+                (folder) => folder.folder_name?.trim().toLowerCase() === CREATED_FOLDER_NAME.toLowerCase()
+            );
+
+            if (!hasCreated) {
+                const createResponse = await fetch(
+                    `${API_BASE}/gallery/clients/${clientId}/folders/create/`,
+                    {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken || getCsrfToken(),
+                        },
+                        body: JSON.stringify({ folder_name: CREATED_FOLDER_NAME }),
+                    }
+                );
+
+                if (createResponse.ok) {
+                    const createdFolder = await createResponse.json();
+                    nextFolders = [createdFolder, ...data];
+                } else {
+                    // If concurrent request created it, refetch once.
+                    const retryResponse = await fetch(`${API_BASE}/gallery/clients/${clientId}/folders/`, {
+                        credentials: "include",
+                    });
+                    if (retryResponse.ok) {
+                        nextFolders = await retryResponse.json();
+                    }
+                }
+            }
+
+            setFolders(nextFolders);
             setSelectedFolder(null);
             setImages([]);
         } catch (err) {
@@ -734,4 +770,3 @@ export default function ClientGalleryPage() {
         </div>
     );
 }
-

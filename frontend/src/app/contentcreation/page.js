@@ -117,8 +117,12 @@ export default function ContentBoardPage() {
     // Confirm the suggested assignment
     const handleConfirmAssignment = async (requestId) => {
         try {
+            const userId = localStorage.getItem('userId');
+            const confirmUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
+            if (userId) confirmUrl.searchParams.append('user_id', userId);
+
             const response = await fetch(
-                `http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`,
+                confirmUrl.toString(),
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
@@ -135,8 +139,12 @@ export default function ContentBoardPage() {
     // Reassign to a different creator
     const handleReassign = async (requestId, creatorId) => {
         try {
+            const userId = localStorage.getItem('userId');
+            const reassignUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`);
+            if (userId) reassignUrl.searchParams.append('user_id', userId);
+
             const response = await fetch(
-                `http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`,
+                reassignUrl.toString(),
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -434,7 +442,12 @@ export default function ContentBoardPage() {
 
                                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                     {selectedRequest.history && selectedRequest.history.length > 0 ? (
-                                        selectedRequest.history.map((hist, idx) => (
+                                        selectedRequest.history.map((hist, idx) => {
+                                            const actorUsername = hist.changed_by_details?.username || (hist.changed_by ? `user-${hist.changed_by}` : null);
+                                            const actorLabel = actorUsername ? `@${actorUsername}` : 'Sistema';
+                                            const actorInitial = actorUsername ? actorUsername[0].toUpperCase() : 'S';
+
+                                            return (
                                             <div key={hist.id || idx} className="relative pl-8 pb-0 border-l-2 border-border/60 last:border-l-0 group">
                                                 <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-transform shadow-[0_0_0_4px_var(--color-background)]"></div>
 
@@ -451,14 +464,12 @@ export default function ContentBoardPage() {
                                                         Status changed to <span className="font-black text-primary">{hist.new_status.replace('_', ' ')}</span>
                                                     </div>
 
-                                                    {hist.changed_by_details && (
-                                                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                                                            <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-bold text-[9px] text-foreground border border-border">
-                                                                {hist.changed_by_details.username[0].toUpperCase()}
-                                                            </div>
-                                                            <span className="font-semibold">@{hist.changed_by_details.username}</span>
+                                                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                                                        <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-bold text-[9px] text-foreground border border-border">
+                                                            {actorInitial}
                                                         </div>
-                                                    )}
+                                                        <span className="font-semibold">{actorLabel}</span>
+                                                    </div>
 
                                                     {hist.notes && (
                                                         <div className="bg-secondary/30 border border-border/50 p-3 rounded-xl mt-2 text-xs text-muted-foreground italic relative">
@@ -468,7 +479,8 @@ export default function ContentBoardPage() {
                                                     )}
                                                 </div>
                                             </div>
-                                        ))
+                                        );
+                                    })
                                     ) : (
                                         <div className="text-center py-16 opacity-50 flex flex-col items-center">
                                             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">

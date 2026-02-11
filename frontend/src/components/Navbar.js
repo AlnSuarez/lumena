@@ -70,8 +70,12 @@ export function Navbar() {
 
     const handleConfirmAssignment = async (requestId) => {
         try {
+            const userId = localStorage.getItem('userId');
+            const confirmUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
+            if (userId) confirmUrl.searchParams.append('user_id', userId);
+
             const response = await fetch(
-                `http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`,
+                confirmUrl.toString(),
                 { method: 'POST', headers: { 'Content-Type': 'application/json' } }
             );
             if (response.ok) {
@@ -85,8 +89,12 @@ export function Navbar() {
 
     const handleReassign = async (requestId, creatorId) => {
         try {
+            const userId = localStorage.getItem('userId');
+            const reassignUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`);
+            if (userId) reassignUrl.searchParams.append('user_id', userId);
+
             const response = await fetch(
-                `http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`,
+                reassignUrl.toString(),
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -112,7 +120,7 @@ export function Navbar() {
 
     return (
         <nav className="w-full bg-transparent px-8 py-4 sticky top-0 z-50">
-            <div className="flex justify-end items-center max-w-7xl mx-auto gap-4">
+            <div className="flex justify-end items-center w-full gap-4">
 
                 {/* Admin Notifications */}
                 {isAdmin && (
@@ -236,15 +244,15 @@ export function Navbar() {
                 <div className="relative">
                     <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#EFF8FF] border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 group"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#EFF8FF] border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 group dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700"
                     >
                         <div className="h-8 w-8 bg-[#192853] rounded-full flex items-center justify-center group-hover:bg-[#FFE14F] transition-colors">
                             <User size={18} className="text-white group-hover:text-[#192853] transition-colors" />
                         </div>
 
                         <div className="flex flex-col items-start min-w-[80px]">
-                            <span className="text-sm font-bold text-[#192853] leading-none">{userInfo.name || "Loading..."}</span>
-                            <span className="text-xs text-gray-500 font-medium">{displayRole}</span>
+                            <span className="text-sm font-bold text-[#192853] leading-none dark:text-slate-100">{userInfo.name || "Loading..."}</span>
+                            <span className="text-xs text-gray-500 font-medium dark:text-slate-400">{displayRole}</span>
                         </div>
 
                         <ChevronDown

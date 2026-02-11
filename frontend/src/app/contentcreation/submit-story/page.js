@@ -146,7 +146,11 @@ export default function SubmitStoryPage() {
         };
 
         try {
-            const response = await fetch('http://localhost:8000/api/contents/monthly-requests/', {
+            const userId = localStorage.getItem('userId');
+            const createUrl = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            if (userId) createUrl.searchParams.append('user_id', userId);
+
+            const response = await fetch(createUrl.toString(), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

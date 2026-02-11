@@ -126,8 +126,9 @@ export default function MonthlyContentsPage() {
     // Upload functionality
     const [uploadSelectedFiles, setUploadSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
     const [contentFolderId, setContentFolderId] = useState(null);
-    const CREATED_CONTENT_FOLDER_NAME = "Contenido Creado";
+    const CREATED_CONTENT_FOLDER_NAME = "Created";
     const API_BASE = 'http://localhost:8000/api';
     const [csrfToken, setCsrfToken] = useState('');
 
@@ -149,6 +150,7 @@ export default function MonthlyContentsPage() {
             setSearchError('');
             setUploadSelectedFiles([]);
             setIsUploading(false);
+            setIsGeneratingCaption(false);
             setImageSearchMode('search');
         }
     }, [activeItemIndex, items]);
@@ -161,7 +163,11 @@ export default function MonthlyContentsPage() {
 
     const updateRequestStatus = async (id, status, extraData = {}) => {
         try {
-            await fetch(`http://localhost:8000/api/contents/monthly-requests/${id}/`, {
+            const userId = localStorage.getItem('userId');
+            const updateUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${id}/`);
+            if (userId) updateUrl.searchParams.append('user_id', userId);
+
+            await fetch(updateUrl.toString(), {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -323,7 +329,7 @@ export default function MonthlyContentsPage() {
             );
             const folders = await response.json();
 
-            // Buscar "Contenido Creado"
+            // Buscar carpeta "Created"
             const contentFolder = folders.find(
                 f => f.folder_name === CREATED_CONTENT_FOLDER_NAME
             );
@@ -369,7 +375,7 @@ export default function MonthlyContentsPage() {
 
         setIsUploading(true);
         try {
-            // 1. Obtener o crear carpeta "Contenido Creado"
+            // 1. Obtener o crear carpeta "Created"
             const folderId = await findOrCreateContentFolder(activeItem.originalData.client);
 
             // 2. Preparar FormData con las imágenes
@@ -446,13 +452,84 @@ export default function MonthlyContentsPage() {
             if (fileInput) fileInput.value = '';
             setIsImageSelectionOpen(false);
 
-            alert(`${uploadedImages.length} imagen(es) subida(s) y vinculada(s) exitosamente`);
+            const folios = uploadedImages.map(img => img.folio).filter(Boolean);
+            const folioMsg = folios.length ? ` Folio(s): ${folios.join(', ')}` : '';
+            alert(`${uploadedImages.length} image(s) uploaded and linked successfully.${folioMsg}`);
 
         } catch (error) {
             console.error('Upload error:', error);
             alert('Error al subir la imagen. Por favor intenta de nuevo.');
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleGenerateCaption = async () => {
+        if (!activeItem?.id) {
+            alert('No hay request seleccionado.');
+            return;
+        }
+
+        if (!activeItem.originalData?.linked_image_details?.id) {
+            alert('Primero vincula una imagen para poder generar el caption con AI.');
+            return;
+        }
+
+        setIsGeneratingCaption(true);
+        try {
+            const requirements =
+                activeItem.instructions ||
+                activeItem.originalData?.notes ||
+                '';
+            const userId = localStorage.getItem('userId');
+            const captionUrl = new URL(`${API_BASE}/contents/monthly-requests/${activeItem.id}/generate-caption/`);
+            if (userId) captionUrl.searchParams.append('user_id', userId);
+
+            const response = await fetch(
+                captionUrl.toString(),
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        requirements,
+                        content_text: contentText,
+                    }),
+                }
+            );
+
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(data?.error || data?.details || `Error generating caption (${response.status})`);
+            }
+
+            const generatedCaption = data?.caption || '';
+            setAiCaption(generatedCaption);
+            setItems(prevItems =>
+                prevItems.map(itm =>
+                    itm.id === activeItem.id
+                        ? {
+                            ...itm,
+                            originalData: {
+                                ...itm.originalData,
+                                ai_caption: generatedCaption,
+                            },
+                        }
+                        : itm
+                )
+            );
+        } catch (error) {
+            console.error('Caption generation error:', error);
+            if (error?.message === 'Failed to fetch') {
+                alert('Could not reach backend/Ollama. Verify Django is running on http://localhost:8000 and try again.');
+            } else {
+                alert(error.message || 'No se pudo generar el caption.');
+            }
+        } finally {
+            setIsGeneratingCaption(false);
         }
     };
 
@@ -831,12 +908,12 @@ export default function MonthlyContentsPage() {
                                                             }`}
                                                         >
                                                             <Upload size={14} />
-                                                            Subir Nueva
+                                                            Upload New
                                                         </button>
                                                     </div>
 
                                                     <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-                                                        {imageSearchMode === 'search' ? (
+                                                        {imageSearchMode === 'search' && (
                                                             <div className="space-y-6">
                                                                 <div className="relative">
                                                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -890,8 +967,9 @@ export default function MonthlyContentsPage() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        ) : (
-                                                            /* Gallery Browser */
+                                                        )}
+
+                                                        {imageSearchMode === 'gallery' && (
                                                             <div className="h-full flex flex-col">
                                                                 {selectedFolderId ? (
                                                                     <div className="space-y-4">
@@ -981,15 +1059,15 @@ export default function MonthlyContentsPage() {
                                                                             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                                                                 <Upload className="text-primary" size={32} />
                                                                             </div>
-                                                                            <p className="font-bold text-foreground">Haz clic para seleccionar imágenes</p>
-                                                                            <p className="text-sm text-muted-foreground mt-1">Las imágenes se guardarán en la carpeta "Contenido Creado"</p>
+                                                                            <p className="font-bold text-foreground">Click to select images</p>
+                                                                            <p className="text-sm text-muted-foreground mt-1">Images will be saved in the client's \"Created\" folder</p>
                                                                         </div>
                                                                     </label>
 
                                                                     {uploadSelectedFiles.length > 0 && (
                                                                         <div className="mt-6 pt-6 border-t border-primary/10">
                                                                             <p className="text-sm font-bold mb-3">
-                                                                                Seleccionadas: {uploadSelectedFiles.length} imagen(es)
+                                                                                Selected: {uploadSelectedFiles.length} image(s)
                                                                             </p>
                                                                             <div className="space-y-1 mb-4 max-h-32 overflow-y-auto">
                                                                                 {uploadSelectedFiles.map((file, idx) => (
@@ -1012,10 +1090,10 @@ export default function MonthlyContentsPage() {
                                                                                 {isUploading ? (
                                                                                     <span className="flex items-center justify-center gap-2">
                                                                                         <Loader2 className="animate-spin" size={16} />
-                                                                                        Subiendo...
+                                                                                        Uploading...
                                                                                     </span>
                                                                                 ) : (
-                                                                                    'Subir y Vincular al Request'
+                                                                                    'Upload and Link to Request'
                                                                                 )}
                                                                             </button>
                                                                         </div>
@@ -1087,9 +1165,14 @@ export default function MonthlyContentsPage() {
                                                     <div className="space-y-2">
                                                         <div className="flex justify-between items-center px-1">
                                                             <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">AI Caption</label>
-                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-orange-500 bg-orange-500/5 px-2 py-1 rounded-lg border border-orange-500/20 hover:bg-orange-500/10 transition-colors">
-                                                                <Sparkles size={12} />
-                                                                Generate
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleGenerateCaption}
+                                                                disabled={isGeneratingCaption}
+                                                                className="flex items-center gap-1.5 text-[10px] font-bold text-orange-500 bg-orange-500/5 px-2 py-1 rounded-lg border border-orange-500/20 hover:bg-orange-500/10 transition-colors disabled:opacity-60"
+                                                            >
+                                                                {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                                                {isGeneratingCaption ? 'Generating...' : 'Generate'}
                                                             </button>
                                                         </div>
                                                         <textarea
@@ -1154,7 +1237,18 @@ export default function MonthlyContentsPage() {
 
                                                     {/* Caption */}
                                                     <div className="space-y-2">
-                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Caption</label>
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Caption</label>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleGenerateCaption}
+                                                                disabled={isGeneratingCaption}
+                                                                className="flex items-center gap-1.5 text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors disabled:opacity-60"
+                                                            >
+                                                                {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                                                {isGeneratingCaption ? 'Generating...' : 'Generate Caption'}
+                                                            </button>
+                                                        </div>
                                                         <textarea
                                                             rows={4}
                                                             value={aiCaption}

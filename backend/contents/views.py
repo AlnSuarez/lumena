@@ -1,12 +1,230 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Q, Count
+import base64
+import json
+import os
+import socket
+from urllib import request as urlrequest
+from urllib.error import URLError, HTTPError
 from .models import MonthlyRequest
 from .serializers import MonthlyRequestSerializer
 from .utils import suggest_content_creator, assign_to_least_busy_qa
 from users.models import User
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b")
+OLLAMA_FALLBACK_MODEL = os.getenv("OLLAMA_FALLBACK_MODEL", "qwen2.5vl:3b")
+OLLAMA_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "240"))
+
+
+def _get_actor_from_request(request):
+    if request.user and request.user.is_authenticated:
+        return request.user
+
+    user_id = request.query_params.get('user_id') or request.data.get('user_id')
+    if not user_id:
+        return None
+
+    try:
+        return User.objects.get(id=user_id)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return None
+
+
+def _to_abs_url(django_request, maybe_relative_url):
+    if not maybe_relative_url:
+        return None
+    if maybe_relative_url.startswith("http://") or maybe_relative_url.startswith("https://"):
+        return maybe_relative_url
+    return django_request.build_absolute_uri(maybe_relative_url)
+
+
+def _download_image_b64(image_url):
+    with urlrequest.urlopen(image_url, timeout=20) as response:
+        return base64.b64encode(response.read()).decode("utf-8")
+
+
+def _build_client_context(client):
+    profile = getattr(client, "client_profile", None)
+    if not profile:
+        return "Client profile not available."
+
+    context_bits = [
+        f"Practice: {profile.practice_name or 'N/A'}",
+        f"Specialty: {profile.medical_specialty or 'N/A'}",
+        f"Voice: {profile.overall_voice or 'N/A'}",
+        f"Formality: {profile.formality_level or 'N/A'}",
+        f"Primary goal: {profile.primary_goal or 'N/A'}",
+        f"Words to use: {profile.words_to_use or 'N/A'}",
+        f"Words to avoid: {profile.words_to_avoid or 'N/A'}",
+        f"Topics to emphasize: {profile.topics_to_emphasize or 'N/A'}",
+        f"Topics to avoid: {profile.topics_to_avoid or 'N/A'}",
+        f"Medical claim limitations: {profile.medical_claims_limitations or 'N/A'}",
+    ]
+    return "\n".join(context_bits)
+
+
+@api_view(['POST'])
+def generate_caption(request, pk):
+    """
+    Generate a social caption using local Ollama model with:
+    - linked image
+    - request requirements/instructions
+    - client profile context
+    """
+    try:
+        monthly_request = MonthlyRequest.objects.select_related('client', 'linked_image').get(pk=pk)
+    except MonthlyRequest.DoesNotExist:
+        return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if not monthly_request.linked_image:
+        return Response(
+            {"error": "No linked image found for this request. Link an image first."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    incoming_requirements = (request.data.get('requirements') or '').strip()
+    incoming_content_text = (request.data.get('content_text') or '').strip()
+
+    requirements = incoming_requirements or monthly_request.notes or monthly_request.content_text or ""
+    content_text = incoming_content_text or monthly_request.content_text or ""
+    if not requirements and not content_text:
+        return Response(
+            {"error": "Provide requirements or content text to generate a caption."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    image_obj = monthly_request.linked_image
+    image_url = _to_abs_url(
+        request,
+        image_obj.image_compressed.url if getattr(image_obj, "image_compressed", None) else image_obj.image.url
+    )
+
+    try:
+        image_b64 = _download_image_b64(image_url)
+    except (URLError, HTTPError, ValueError) as exc:
+        return Response(
+            {"error": f"Unable to load linked image for AI generation: {exc}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    client_context = _build_client_context(monthly_request.client)
+
+    system_prompt = (
+        "You are an expert social media copywriter for healthcare and professional service brands. "
+        "Write one high-quality caption in Spanish based on the provided image and requirements. "
+        "Use a clear hook, value-focused body, and soft CTA. Keep it natural and human. "
+        "Respect compliance constraints (no risky medical claims, no guaranteed outcomes). "
+        "Output only the caption text, no markdown, no quotes, no labels."
+    )
+
+    user_prompt = (
+        f"Client context:\n{client_context}\n\n"
+        f"Requirements:\n{requirements or 'N/A'}\n\n"
+        f"Draft content/context:\n{content_text or 'N/A'}\n\n"
+        "Task:\n"
+        "- Analyze the attached image and align the caption with what is visually happening.\n"
+        "- Keep it concise: 70 to 140 words.\n"
+        "- Include at most 1 emoji.\n"
+        "- End with a subtle CTA.\n"
+    )
+
+    def call_ollama(model_name):
+        payload = {
+            "model": model_name,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt, "images": [image_b64]},
+            ],
+            "options": {
+                "temperature": 0.6,
+                "num_predict": 220,
+                "num_ctx": 1536,
+            },
+        }
+
+        req = urlrequest.Request(
+            f"{OLLAMA_BASE_URL}/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlrequest.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    used_model = OLLAMA_MODEL
+    try:
+        ollama_data = call_ollama(OLLAMA_MODEL)
+    except (socket.timeout, TimeoutError):
+        if OLLAMA_FALLBACK_MODEL and OLLAMA_FALLBACK_MODEL != OLLAMA_MODEL:
+            try:
+                used_model = OLLAMA_FALLBACK_MODEL
+                ollama_data = call_ollama(OLLAMA_FALLBACK_MODEL)
+            except Exception as fallback_exc:
+                return Response(
+                    {
+                        "error": "AI generation timed out on primary model and fallback failed.",
+                        "details": str(fallback_exc),
+                    },
+                    status=status.HTTP_504_GATEWAY_TIMEOUT
+                )
+        else:
+            return Response(
+                {"error": "AI generation timed out. Try again or use a lighter model."},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        return Response(
+            {"error": f"Ollama error ({exc.code})", "details": error_body},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+    except URLError as exc:
+        reason = str(getattr(exc, "reason", exc))
+        if "timed out" in reason.lower() and OLLAMA_FALLBACK_MODEL and OLLAMA_FALLBACK_MODEL != OLLAMA_MODEL:
+            try:
+                used_model = OLLAMA_FALLBACK_MODEL
+                ollama_data = call_ollama(OLLAMA_FALLBACK_MODEL)
+            except Exception as fallback_exc:
+                return Response(
+                    {
+                        "error": "AI generation timed out on primary model and fallback failed.",
+                        "details": str(fallback_exc),
+                    },
+                    status=status.HTTP_504_GATEWAY_TIMEOUT
+                )
+        else:
+            return Response(
+                {"error": f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {reason}"},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+    except Exception as exc:
+        return Response(
+            {"error": f"Unexpected AI generation error: {exc}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    caption = (ollama_data.get("message", {}) or {}).get("content", "").strip()
+    if not caption:
+        return Response(
+            {"error": "Ollama returned an empty caption."},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+
+    monthly_request.ai_caption = caption
+    monthly_request._current_user = _get_actor_from_request(request)
+    monthly_request.save()
+
+    return Response({
+        "caption": caption,
+        "model": used_model,
+        "request_id": monthly_request.id,
+    })
+
 
 class MonthlyRequestListCreateView(generics.ListCreateAPIView):
     serializer_class = MonthlyRequestSerializer
@@ -47,7 +265,7 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         return MonthlyRequest.objects.none()
 
     def perform_create(self, serializer):
-        user = self.request.user if self.request.user.is_authenticated else None
+        user = _get_actor_from_request(self.request)
         serializer.save(_current_user=user)
 
 class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -59,7 +277,7 @@ class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
         return MonthlyRequest.objects.all()
 
     def perform_update(self, serializer):
-        user = self.request.user if self.request.user.is_authenticated else None
+        user = _get_actor_from_request(self.request)
         serializer.instance._current_user = user
         serializer.save()
 
@@ -82,6 +300,7 @@ def confirm_assignment(request, pk):
     # Limpiar el note de sugerencia
     if monthly_request.notes and "Suggested assignment" in monthly_request.notes:
         monthly_request.notes = ""
+        monthly_request._current_user = _get_actor_from_request(request)
         monthly_request.save(update_fields=['notes'])
 
     serializer = MonthlyRequestSerializer(monthly_request)
@@ -117,6 +336,7 @@ def reassign_creator(request, pk):
         monthly_request.notes = ""  # Limpiar sugerencia
 
     monthly_request.assigned_to_id = new_creator_id
+    monthly_request._current_user = _get_actor_from_request(request)
     monthly_request.save()
 
     serializer = MonthlyRequestSerializer(monthly_request)
@@ -150,6 +370,7 @@ def reassign_qa(request, pk):
             return Response({"error": "Invalid QA user"}, status=400)
 
     monthly_request.qa_assigned_to_id = new_qa_id
+    monthly_request._current_user = _get_actor_from_request(request)
     monthly_request.save()
 
     serializer = MonthlyRequestSerializer(monthly_request)
