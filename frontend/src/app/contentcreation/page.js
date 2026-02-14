@@ -17,9 +17,9 @@ export default function ContentBoardPage() {
     // Filters
     const [filterType, setFilterType] = useState("ALL");
     const [filterUser, setFilterUser] = useState("ALL");
+    const [currentUserRole, setCurrentUserRole] = useState("GUEST");
+    const [currentUserId, setCurrentUserId] = useState("");
 
-    // TODO: Get from auth context in production
-    const userRole = "SUPERUSER";
 
     // Board Columns Configuration
     const columns = [
@@ -31,16 +31,22 @@ export default function ContentBoardPage() {
     ];
 
     useEffect(() => {
-        fetchData();
+        const role = localStorage.getItem("userRole") || "GUEST";
+        const id = localStorage.getItem("userId") || "";
+        setCurrentUserRole(role);
+        setCurrentUserId(id);
+        fetchData(role, id);
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (role = currentUserRole, userId = currentUserId) => {
         setIsLoading(true);
         try {
-            // Fetch Requests (assuming an admin view or similar that returns everything)
-            // In a real app, you'd pass role=SUPERUSER or similar to see all
+            const reqUrl = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            if (role) reqUrl.searchParams.append('role', role);
+            if (userId) reqUrl.searchParams.append('user_id', userId);
+
             const [reqResponse, userResponse, creatorsResponse] = await Promise.all([
-                fetch('http://localhost:8000/api/contents/monthly-requests/?role=SUPERUSER'),
+                fetch(reqUrl.toString()),
                 fetch('http://localhost:8000/api/users/manage/'), // Fetch all users for filter
                 fetch('http://localhost:8000/api/users/content-creators/') // Fetch content creators
             ]);
@@ -69,7 +75,8 @@ export default function ContentBoardPage() {
         const matchesType = filterType === 'ALL' || req.request_type === filterType;
         const matchesUser = filterUser === 'ALL' ||
             (req.client_details?.id && String(req.client_details.id) === filterUser) ||
-            (req.assigned_to_details?.id && String(req.assigned_to_details.id) === filterUser);
+            (req.assigned_to_details?.id && String(req.assigned_to_details.id) === filterUser) ||
+            (req.qa_assigned_to_details?.id && String(req.qa_assigned_to_details.id) === filterUser);
 
         return matchesType && matchesUser;
     });

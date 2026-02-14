@@ -31,7 +31,11 @@ export default function LoginPage() {
                 localStorage.setItem('username', user.username);
                 // Optional: Store username or token if needed
 
-                router.push('/contentcreation');
+                if (user.role === 'CLIENT') {
+                    router.push('/contentcreation/your-insights');
+                } else {
+                    router.push('/contentcreation');
+                }
             } else {
                 const errorData = await response.json();
                 alert(errorData.error || "Login failed due to invalid credentials.");

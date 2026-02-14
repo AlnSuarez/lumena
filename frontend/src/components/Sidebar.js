@@ -22,7 +22,9 @@ import {
     Shield,
     UserPlus,
     Palette,
-    Images
+    Images,
+    BarChart3,
+    ClipboardList
 } from "lucide-react";
 
 export function Sidebar() {
@@ -36,6 +38,7 @@ export function Sidebar() {
         videoProduction: false,
         submitRequests: false,
         customization: false,
+        yourInsights: false,
         administration: false
     });
 
@@ -64,7 +67,9 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, submitRequests: true }));
         } else if (pathname.startsWith('/contentcreation/customize')) {
             setExpandedSections(prev => ({ ...prev, customization: true }));
-        } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery')) {
+        } else if (pathname.startsWith('/contentcreation/your-insights')) {
+            setExpandedSections(prev => ({ ...prev, yourInsights: true }));
+        } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery') || pathname.startsWith('/contentcreation/assignments')) {
             setExpandedSections(prev => ({ ...prev, administration: true }));
         }
     }, [pathname]);
@@ -81,6 +86,16 @@ export function Sidebar() {
     };
 
     const checkAccess = (sectionKey, allowedRoles = []) => {
+        // Temporary restriction: clients can only access customization and insights.
+        if (userRole === 'CLIENT') {
+            return sectionKey === 'customization' || sectionKey === 'your_insights';
+        }
+
+        // Your Insights is exclusive to clients.
+        if (sectionKey === 'your_insights') {
+            return false;
+        }
+
         // 1. Superuser always has access
         if (userRole === 'SUPERUSER') return true;
 
@@ -183,6 +198,12 @@ export function Sidebar() {
                     {checkAccess('customization', ['ALL']) && (
                         <Link href="/contentcreation/customize" title="Customization" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/customize') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
                             <Palette size={24} />
+                        </Link>
+                    )}
+
+                    {checkAccess('your_insights', ['CLIENT']) && (
+                        <Link href="/contentcreation/your-insights" title="Your Insights" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/your-insights') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <BarChart3 size={24} />
                         </Link>
                     )}
 
@@ -382,6 +403,38 @@ export function Sidebar() {
                         </div>
                     )}
 
+                    {/* Section: Your Insights */}
+                    {checkAccess('your_insights', ['CLIENT']) && (
+                        <div className="space-y-4">
+                            <button
+                                onClick={() => toggleSection('yourInsights')}
+                                className="w-full flex items-center justify-between font-semibold text-lg transition-all px-3 py-2 text-foreground hover:text-primary"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <BarChart3 size={20} className="text-muted-foreground" />
+                                    <h3>Your Insights</h3>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`transition-transform duration-300 text-muted-foreground ${expandedSections.yourInsights ? 'rotate-0' : '-rotate-90'}`}
+                                />
+                            </button>
+                            {expandedSections.yourInsights && (
+                                <ul className="space-y-2 ml-3 border-l-2 border-sidebar-border pl-4 animate-in fade-in duration-200">
+                                    <li>
+                                        <Link href="/contentcreation/your-insights" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/your-insights') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <BarChart3 size={16} className="group-hover:text-primary transition-colors" />
+                                                Insights Dashboard
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </div>
+                    )}
+
                     {/* Section: Administration (Only visible to admins) */}
                     {checkAccess('administration', PERMISSIONS.createClient) && (
                         <div className="space-y-4">
@@ -423,6 +476,15 @@ export function Sidebar() {
                                             <span className="flex items-center gap-2">
                                                 <Images size={16} className="group-hover:text-primary transition-colors" />
                                                 Client Gallery
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="/contentcreation/assignments" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/assignments') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <ClipboardList size={16} className="group-hover:text-primary transition-colors" />
+                                                Assignments
                                             </span>
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>

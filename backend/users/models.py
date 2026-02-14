@@ -18,6 +18,7 @@ class User(AbstractUser):
     )
 
     access_permissions = models.JSONField(default=dict, blank=True, verbose_name=_("Access Permissions"))
+    insights_metrics = models.JSONField(default=dict, blank=True, verbose_name=_("Insights Metrics"))
 
     def save(self, *args, **kwargs):
         if self.role == self.Role.SUPERUSER:

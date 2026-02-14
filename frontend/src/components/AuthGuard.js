@@ -20,12 +20,25 @@ export function AuthGuard({ children, allowedRoles = [] }) {
             return;
         }
 
+        // Temporary restriction: clients can only access customization and insights routes.
+        if (userRole === "CLIENT") {
+            const allowedClientPaths = ['/contentcreation/customize', '/contentcreation/your-insights'];
+            const isAllowedPath = allowedClientPaths.some((allowedPath) => pathname.startsWith(allowedPath));
+
+            if (!isAllowedPath) {
+                router.push('/contentcreation/your-insights');
+                return;
+            }
+        }
+
         // 2. Check Permissions (Role based)
         // Define route-specific permissions configuration
         const routePermissions = {
             '/contentcreation/manage-users': ['SUPERUSER'],
             '/contentcreation/client-gallery': ['SUPERUSER'],
+            '/contentcreation/assignments': ['SUPERUSER'],
             '/contentcreation/qa': ['SUPERUSER', 'CONTENT_CREATOR', 'QA'],
+            '/contentcreation/your-insights': ['CLIENT'],
             // Add more specific routes here
         };
 

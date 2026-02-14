@@ -11,7 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'client_profile', 'access_permissions']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'client_profile', 'access_permissions', 'insights_metrics']
 
 class CreateClientSerializer(serializers.ModelSerializer):
     profile = ClientProfileSerializer()
@@ -41,7 +41,7 @@ class ManageUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'password', 'access_permissions']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'password', 'access_permissions', 'insights_metrics']
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)

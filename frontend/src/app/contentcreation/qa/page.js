@@ -275,17 +275,34 @@ export default function QAPage() {
                                                 <span className="text-sm font-black text-foreground">{currentId}</span>
                                             </div>
 
-                                            {/* Content Placeholder */}
+                                            {/* Content Preview */}
                                             <div className="w-[85%] h-[85%] bg-card rounded-2xl border border-border shadow-2xl shadow-black/5 flex items-center justify-center relative overflow-hidden transition-all duration-700 group-hover:scale-[1.02] group-hover:shadow-xl">
-                                                <div className="text-center p-8">
-                                                    <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
-                                                        <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
+                                                {activeItem.originalData?.linked_image_details?.image_url ? (
+                                                    <>
+                                                        <img
+                                                            src={activeItem.originalData.linked_image_details.image_url}
+                                                            alt={activeItem.originalData.linked_image_details.title || "Linked Image"}
+                                                            className="w-full h-full object-contain"
+                                                        />
+                                                        {activeItem.originalData?.linked_image_details?.folio && (
+                                                            <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">
+                                                                <span className="text-[10px] font-mono text-white">
+                                                                    {activeItem.originalData.linked_image_details.folio}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <div className="text-center p-8">
+                                                        <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
+                                                            <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
+                                                        <p className="text-sm text-muted-foreground">No linked image for this request yet</p>
                                                     </div>
-                                                    <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
-                                                    <p className="text-sm text-muted-foreground">Images/Video would appear here</p>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
