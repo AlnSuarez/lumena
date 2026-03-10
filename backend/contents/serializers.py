@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import MonthlyRequest, RequestHistory
+from .models import MonthlyRequest, RequestHistory, LetsTalkSubmission
 from users.serializers import UserSerializer
 from gallery.serializers import ClientImageSerializer
 
@@ -28,3 +28,29 @@ class MonthlyRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = MonthlyRequest
         fields = ['id', 'client', 'client_details', 'assigned_to', 'assigned_to_details', 'qa_assigned_to', 'qa_assigned_to_details', 'linked_image', 'linked_image_details', 'month', 'request_type', 'status', 'notes', 'content_text', 'ai_caption', 'feedback', 'created_at', 'updated_at', 'history']
+
+
+class LetsTalkSubmissionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LetsTalkSubmission
+        fields = ['name', 'email', 'specialty', 'phone', 'message']
+
+
+class LetsTalkSubmissionAdminSerializer(serializers.ModelSerializer):
+    reviewed_by_details = UserSerializer(source='reviewed_by', read_only=True)
+
+    class Meta:
+        model = LetsTalkSubmission
+        fields = [
+            'id',
+            'name',
+            'email',
+            'specialty',
+            'phone',
+            'message',
+            'created_at',
+            'reviewed',
+            'reviewed_at',
+            'reviewed_by',
+            'reviewed_by_details',
+        ]

@@ -150,3 +150,26 @@ class ImagenProyecto(models.Model):
         return f"Imagen {self.id} - {self.imagen.name}"
 
 
+class LetsTalkSubmission(models.Model):
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    specialty = models.CharField(max_length=255, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed = models.BooleanField(default=False)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_lets_talk_submissions'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.email})"
+

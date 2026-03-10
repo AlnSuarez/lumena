@@ -24,7 +24,8 @@ import {
     Palette,
     Images,
     BarChart3,
-    ClipboardList
+    ClipboardList,
+    Mail
 } from "lucide-react";
 
 export function Sidebar() {
@@ -61,7 +62,7 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, dashboards: true }));
         } else if (pathname.startsWith('/contentcreation/monthly-contents') || pathname.startsWith('/contentcreation/qa')) {
             setExpandedSections(prev => ({ ...prev, contentProduction: true }));
-        } else if (pathname.startsWith('/contentcreation/video-editors') || pathname.startsWith('/contentcreation/shoots')) {
+        } else if (pathname.startsWith('/contentcreation/video-editors') || pathname.startsWith('/contentcreation/shoots') || pathname.startsWith('/contentcreation/calendar')) {
             setExpandedSections(prev => ({ ...prev, videoProduction: true }));
         } else if (pathname.startsWith('/contentcreation/submit-story')) {
             setExpandedSections(prev => ({ ...prev, submitRequests: true }));
@@ -69,7 +70,7 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, customization: true }));
         } else if (pathname.startsWith('/contentcreation/your-insights')) {
             setExpandedSections(prev => ({ ...prev, yourInsights: true }));
-        } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery') || pathname.startsWith('/contentcreation/assignments')) {
+        } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery') || pathname.startsWith('/contentcreation/assignments') || pathname.startsWith('/contentcreation/lets-talk')) {
             setExpandedSections(prev => ({ ...prev, administration: true }));
         }
     }, [pathname]);
@@ -332,6 +333,15 @@ export function Sidebar() {
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>
                                     </li>
+                                    <li>
+                                        <Link href="/contentcreation/calendar" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/calendar') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <Calendar size={16} className="group-hover:text-primary transition-colors" />
+                                                Calendar
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
                                 </ul>
                             )}
                         </div>
@@ -485,6 +495,15 @@ export function Sidebar() {
                                             <span className="flex items-center gap-2">
                                                 <ClipboardList size={16} className="group-hover:text-primary transition-colors" />
                                                 Assignments
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="/contentcreation/lets-talk" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/lets-talk') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <Mail size={16} className="group-hover:text-primary transition-colors" />
+                                                Lets Talk Leads
                                             </span>
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>

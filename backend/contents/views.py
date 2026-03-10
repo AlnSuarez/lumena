@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from django.utils import timezone
 from django.db.models import Q, Count
 import base64
@@ -9,8 +10,12 @@ import os
 import socket
 from urllib import request as urlrequest
 from urllib.error import URLError, HTTPError
-from .models import MonthlyRequest
-from .serializers import MonthlyRequestSerializer
+from .models import MonthlyRequest, LetsTalkSubmission
+from .serializers import (
+    MonthlyRequestSerializer,
+    LetsTalkSubmissionCreateSerializer,
+    LetsTalkSubmissionAdminSerializer,
+)
 from .utils import suggest_content_creator, assign_to_least_busy_qa
 from users.models import User
 
@@ -32,6 +37,22 @@ def _get_actor_from_request(request):
         return User.objects.get(id=user_id)
     except (User.DoesNotExist, ValueError, TypeError):
         return None
+
+
+def _get_admin_actor_from_request(request):
+    if request.user and request.user.is_authenticated and request.user.role == User.Role.SUPERUSER:
+        return request.user
+
+    user_id = request.query_params.get('user_id') or request.data.get('user_id')
+    if not user_id:
+        return None
+
+    try:
+        user = User.objects.get(id=user_id)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return None
+
+    return user if user.role == User.Role.SUPERUSER else None
 
 
 def _to_abs_url(django_request, maybe_relative_url):
@@ -416,3 +437,58 @@ def creator_workload_stats(request):
         })
 
     return Response(stats)
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def create_lets_talk_submission(request):
+    serializer = LetsTalkSubmissionCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        submission = serializer.save()
+        return Response(
+            {
+                "message": "Submission received.",
+                "id": submission.id,
+            },
+            status=status.HTTP_201_CREATED
+        )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def list_lets_talk_submissions(request):
+    admin_user = _get_admin_actor_from_request(request)
+    if not admin_user:
+        return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
+
+    submissions = LetsTalkSubmission.objects.select_related('reviewed_by').all()
+    serializer = LetsTalkSubmissionAdminSerializer(submissions, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['PATCH'])
+def mark_lets_talk_submission_reviewed(request, pk):
+    admin_user = _get_admin_actor_from_request(request)
+    if not admin_user:
+        return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        submission = LetsTalkSubmission.objects.get(pk=pk)
+    except LetsTalkSubmission.DoesNotExist:
+        return Response({"error": "Submission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    reviewed = request.data.get('reviewed', True)
+    reviewed_bool = str(reviewed).lower() not in ['false', '0', 'no']
+
+    submission.reviewed = reviewed_bool
+    if reviewed_bool:
+        submission.reviewed_at = timezone.now()
+        submission.reviewed_by = admin_user
+    else:
+        submission.reviewed_at = None
+        submission.reviewed_by = None
+    submission.save(update_fields=['reviewed', 'reviewed_at', 'reviewed_by'])
+
+    serializer = LetsTalkSubmissionAdminSerializer(submission)
+    return Response(serializer.data)

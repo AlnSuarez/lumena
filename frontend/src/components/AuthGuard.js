@@ -37,6 +37,7 @@ export function AuthGuard({ children, allowedRoles = [] }) {
             '/contentcreation/manage-users': ['SUPERUSER'],
             '/contentcreation/client-gallery': ['SUPERUSER'],
             '/contentcreation/assignments': ['SUPERUSER'],
+            '/contentcreation/lets-talk': ['SUPERUSER'],
             '/contentcreation/qa': ['SUPERUSER', 'CONTENT_CREATOR', 'QA'],
             '/contentcreation/your-insights': ['CLIENT'],
             // Add more specific routes here
