@@ -1,4 +1,4 @@
-import { LetsTalkForm } from "@/components/LetsTalkForm";
+import { ContactFormModal } from "@/components/ContactFormModal";
 import { ExpandableCards } from "@/components/ExpandableCards";
 import { LandingNavbar } from "@/components/LandingNavbar";
 
@@ -34,25 +34,7 @@ export default function Home() {
                 focused on your patients.
               </p>
             </div>
-            <a href="#contact-form" className="w-fit mt-9 inline-flex items-center gap-3 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#3768FF] shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-100">
-              Book a Strategy Call
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3768FF] text-white">
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M5 12h14m-6-6 6 6-6 6"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-            </a>
+            <ContactFormModal />
           </section>
 
           <section id="hero-media" className="lg:w-1/3 w-full mt-8 lg:mt-0 flex flex-col">
@@ -95,21 +77,21 @@ export default function Home() {
           <section id="portal" className="scroll-mt-28 flex w-full flex-col gap-7 rounded-[2rem] bg-[#d6e5fb] p-6 ring-1 ring-[#b9d0f2] md:p-8 lg:h-full lg:flex-1 lg:gap-8 lg:p-9">
             <div id="portal-content" className="h-full w-full">
               <ul id="portal-cards" className="grid grid-cols-1 gap-5 lg:h-full">
-                <li id="portal-card-understanding" className="flex min-h-[145px] flex-col rounded-3xl border border-[#c2d8f7] bg-[#ecf4ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#f4f9ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
+                <li id="portal-card-focus" className="flex min-h-[145px] flex-col rounded-3xl border border-[#b8d2f5] bg-[#e5f0ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#eff6ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
                   <div className="flex items-center gap-3">
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#bed2f1] bg-[#4a72b5] text-[#edf5ff] shadow-[0_8px_20px_rgba(45,74,129,0.35)]">
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.9" />
-                        <path d="M15.5 15.5L20 20" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-                        <path d="M8.8 11h4.4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                        <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.9" />
+                        <circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+                        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
                       </svg>
                     </span>
                     <h3 className="text-lg font-semibold leading-tight tracking-tight text-black md:text-xl">
-                      Understanding
+                      Focus
                     </h3>
                   </div>
                   <p className="mt-3 max-w-[36ch] text-sm leading-[1.55] text-black/80 md:text-base">
-                    We understand how medical reputation is built.
+                    We remove the complexity so you can focus on patients.
                   </p>
                 </li>
                 <li id="portal-card-authority" className="flex min-h-[145px] flex-col rounded-3xl border border-[#bdd5f6] bg-[#e9f2ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#f2f8ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
@@ -128,21 +110,21 @@ export default function Home() {
                     Your expertise deserves a clear voice online.
                   </p>
                 </li>
-                <li id="portal-card-focus" className="flex min-h-[145px] flex-col rounded-3xl border border-[#b8d2f5] bg-[#e5f0ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#eff6ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
+                <li id="portal-card-understanding" className="flex min-h-[145px] flex-col rounded-3xl border border-[#c2d8f7] bg-[#ecf4ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#f4f9ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
                   <div className="flex items-center gap-3">
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#bed2f1] bg-[#4a72b5] text-[#edf5ff] shadow-[0_8px_20px_rgba(45,74,129,0.35)]">
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.9" />
-                        <circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.9" />
-                        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                        <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.9" />
+                        <path d="M15.5 15.5L20 20" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                        <path d="M8.8 11h4.4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
                       </svg>
                     </span>
                     <h3 className="text-lg font-semibold leading-tight tracking-tight text-black md:text-xl">
-                      Focus
+                      Understanding
                     </h3>
                   </div>
                   <p className="mt-3 max-w-[36ch] text-sm leading-[1.55] text-black/80 md:text-base">
-                    We remove the complexity so you can focus on patients.
+                    We understand how medical reputation is built.
                   </p>
                 </li>
               </ul>
@@ -163,24 +145,7 @@ export default function Home() {
           <ExpandableCards />
         </section>
 
-        <section
-          id="contact-form"
-          className="mt-8 w-full scroll-mt-28 rounded-[2.25rem] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] ring-1 ring-slate-200/80 md:p-9"
-        >
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3768FF]">
-              Let&apos;s Talk
-            </p>
-            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-              Book a strategy meeting
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 md:text-base">
-              Share your details and we&apos;ll contact you to plan your next steps.
-            </p>
-          </div>
 
-          <LetsTalkForm />
-        </section>
       </div>
     </div>
   );

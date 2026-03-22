@@ -1,59 +1,49 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { LetsTalkForm } from "./LetsTalkForm";
 
-export function LandingNavbar() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export function ContactFormModal() {
+  const [isOpen, setIsOpen] = useState(false);
 
   const openModal = () => {
-    setIsModalOpen(true);
+    setIsOpen(true);
     document.body.style.overflow = "hidden";
   };
 
   const closeModal = () => {
-    setIsModalOpen(false);
+    setIsOpen(false);
     document.body.style.overflow = "auto";
   };
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-50 mx-auto w-full max-w-7xl px-4 pt-4 md:px-6">
-        <nav className="flex items-center justify-between rounded-full border border-white/70 bg-white/90 px-6 py-4 shadow-[0_12px_35px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-          <div className="flex items-center gap-2 md:gap-3">
-            <Link
-              href="/"
-              className="mr-2 text-xl font-semibold tracking-tight text-[#fbb92a]"
-            >
-              Lumena
-            </Link>
-            <Link
-              href="/"
-              className="ml-6 rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              Home
-            </Link>
-            <Link
-              href="/web"
-              className="ml-3 rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              Web
-            </Link>
-          </div>
-
-          <button
-            onClick={openModal}
-            className="rounded-full bg-slate-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+      <button
+        onClick={openModal}
+        className="w-fit mt-9 inline-flex items-center gap-3 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#3768FF] shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-100"
+      >
+        Book a Strategy Call
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3768FF] text-white">
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
           >
-            Let&apos;s Talk
-          </button>
-        </nav>
-      </div>
+            <path
+              d="M5 12h14m-6-6 6 6-6 6"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={closeModal}

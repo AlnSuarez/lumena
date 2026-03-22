@@ -1,13 +1,89 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Building2, UserCircle, Target, BookOpen, Search, Smartphone, Layout, Mail } from "lucide-react";
 
 const deliverables = [
-  { id: "web-deliverable-clinic-websites", label: "clinic websites" },
-  { id: "web-deliverable-doctor-brand-sites", label: "personal brand websites for doctors" },
-  { id: "web-deliverable-landing-pages", label: "procedure landing pages" },
-  { id: "web-deliverable-education-pages", label: "educational content pages" },
-  { id: "web-deliverable-seo-structure", label: "SEO-ready website structures" },
+  {
+    id: "web-deliverable-clinic-websites",
+    title: "Clinic Websites",
+    description: "Simple, professional sites for medical practices.",
+    icon: Building2,
+    color: "from-blue-500 to-indigo-600",
+    bgColor: "bg-gradient-to-br from-blue-50 to-indigo-100",
+    features: ["Service information", "Team introduction", "Contact details"],
+    benefit: "Professional online presence"
+  },
+  {
+    id: "web-deliverable-doctor-brand-sites",
+    title: "Personal Brand Sites",
+    description: "Showcase your expertise and background.",
+    icon: UserCircle,
+    color: "from-purple-500 to-pink-600",
+    bgColor: "bg-gradient-to-br from-purple-50 to-pink-100",
+    features: ["Expertise highlights", "Education & training", "Simple contact"],
+    benefit: "Build doctor authority"
+  },
+  {
+    id: "web-deliverable-landing-pages",
+    title: "Procedure Pages",
+    description: "Simple pages for specific treatments.",
+    icon: Target,
+    color: "from-emerald-500 to-teal-600",
+    bgColor: "bg-gradient-to-br from-emerald-50 to-teal-100",
+    features: ["Treatment overview", "Basic information", "Contact option"],
+    benefit: "Inform potential patients"
+  },
+  {
+    id: "web-deliverable-education-pages",
+    title: "Educational Content",
+    description: "Simple pages to educate patients.",
+    icon: BookOpen,
+    color: "from-amber-500 to-orange-600",
+    bgColor: "bg-gradient-to-br from-amber-50 to-orange-100",
+    features: ["Condition information", "Treatment basics", "FAQ section"],
+    benefit: "Establish trust"
+  },
+  {
+    id: "web-deliverable-seo-basics",
+    title: "SEO Basics",
+    description: "Simple optimization for better visibility.",
+    icon: Search,
+    color: "from-cyan-500 to-blue-600",
+    bgColor: "bg-gradient-to-br from-cyan-50 to-blue-100",
+    features: ["Basic keywords", "Mobile friendly", "Clean structure"],
+    benefit: "Better search visibility"
+  },
+  {
+    id: "web-deliverable-mobile-friendly",
+    title: "Mobile Friendly",
+    description: "Works well on phones and tablets.",
+    icon: Smartphone,
+    color: "from-violet-500 to-purple-600",
+    bgColor: "bg-gradient-to-br from-violet-50 to-purple-100",
+    features: ["Responsive design", "Easy navigation", "Fast loading"],
+    benefit: "Reach mobile users"
+  },
+  {
+    id: "web-deliverable-simple-design",
+    title: "Clean Design",
+    description: "Professional, easy-to-use layouts.",
+    icon: Layout,
+    color: "from-green-500 to-emerald-600",
+    bgColor: "bg-gradient-to-br from-green-50 to-emerald-100",
+    features: ["Modern aesthetics", "Clear typography", "Professional colors"],
+    benefit: "Make good first impression"
+  },
+  {
+    id: "web-deliverable-basic-contact",
+    title: "Contact Pages",
+    description: "Simple ways for patients to reach you.",
+    icon: Mail,
+    color: "from-rose-500 to-red-600",
+    bgColor: "bg-gradient-to-br from-rose-50 to-red-100",
+    features: ["Contact form", "Location map", "Phone/email"],
+    benefit: "Easy patient communication"
+  }
 ];
 
 function getCardsPerView() {
@@ -48,65 +124,105 @@ export function WebDeliverablesCarousel() {
 
   return (
     <div id="web-deliverables-carousel" className="mt-8">
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm font-semibold text-[#4b6aa6]">Swipe or use arrows</p>
-        <div className="flex items-center gap-2">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[#4b6aa6]">Simple Web Pages</p>
+          <p className="mt-1 text-sm text-slate-600">Basic websites for doctors and clinics</p>
+        </div>
+        <div className="flex items-center gap-3">
           <button
             id="web-deliverables-prev"
             type="button"
             onClick={handlePrev}
             disabled={currentIndex === 0}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#d0dcf3] bg-white text-[#3768FF] transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Previous deliverables"
           >
-            ←
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
           <button
             id="web-deliverables-next"
             type="button"
             onClick={handleNext}
             disabled={currentIndex === maxIndex}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#d0dcf3] bg-white text-[#3768FF] transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Next deliverables"
           >
-            →
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       </div>
 
       <div
         id="web-deliverables-track"
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {deliverables.map((item, idx) => (
-          <article
-            key={item.id}
-            id={item.id}
-            ref={(el) => {
-              itemRefs.current[idx] = el;
-            }}
-            className="w-full shrink-0 snap-start rounded-2xl border border-[#dbe5f7] bg-[#f7faff] p-5 text-base font-medium text-[#2f4e84] shadow-[0_10px_28px_rgba(15,23,42,0.06)] md:w-[calc((100%-1rem)/2)] md:text-lg xl:w-[calc((100%-2rem)/3)]"
-          >
-            <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#3768FF] text-white">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            {item.label}
-          </article>
-        ))}
+        {deliverables.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <article
+              key={item.id}
+              id={item.id}
+              ref={(el) => {
+                itemRefs.current[idx] = el;
+              }}
+              className="group w-full shrink-0 snap-start rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[calc((100%-1.25rem)/2)] xl:w-[calc((100%-2.5rem)/3)]"
+            >
+              <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${item.bgColor}`}>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${item.color} text-white`}>
+                  <Icon size={16} strokeWidth={2} />
+                </div>
+              </div>
+
+              <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+              
+              <p className="mt-2 text-sm text-slate-600">{item.description}</p>
+              
+              <div className="mt-3">
+                {item.features.map((feature, i) => (
+                  <div key={i} className="mb-1 flex items-center gap-1.5">
+                    <svg className="h-3 w-3 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-xs text-slate-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <svg className="h-3 w-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span className="text-xs font-medium text-slate-900">Benefit:</span>
+                  <span className="text-xs text-slate-700">{item.benefit}</span>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
-      <div id="web-deliverables-dots" className="mt-4 flex justify-center gap-2">
+      <div id="web-deliverables-dots" className="mt-4 flex justify-center gap-1.5">
         {Array.from({ length: maxIndex + 1 }).map((_, idx) => (
           <button
             key={`dot-${idx}`}
             type="button"
             onClick={() => setCurrentIndex(idx)}
-            className={`h-2.5 rounded-full transition ${idx === currentIndex ? "w-8 bg-[#3768FF]" : "w-2.5 bg-[#c4d4f1]"}`}
+            className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? "w-8 bg-blue-600" : "w-1.5 bg-slate-300"}`}
             aria-label={`Go to slide ${idx + 1}`}
           />
         ))}
+      </div>
+
+      <div className="mt-6 text-center">
+        <p className="text-xs text-slate-500">
+          {currentIndex + 1}-{Math.min(currentIndex + cardsPerView, deliverables.length)} of {deliverables.length}
+        </p>
       </div>
     </div>
   );
