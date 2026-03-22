@@ -9,44 +9,44 @@ export function ExpandableCards() {
     const cards = [
         {
             keyword: "Workflow",
-            fullTitle: "A clear, systemized content workflow",
-            desc: "From planning and creation to approvals and publishing — everything follows a proven system.",
+            fullTitle: "A structured content workflow",
+            desc: "From planning to publishing, every step follows a clear system.",
             icon: Layers
         },
         {
             keyword: "Strategy",
-            fullTitle: "On-brand messaging & strategic positioning",
-            desc: "Content designed to reflect your expertise, build trust, and position you clearly within your specialty.",
+            fullTitle: "Strategic brand messaging",
+            desc: "Content aligned with your expertise to build trust and differentiation.",
             icon: Target
         },
         {
             keyword: "Consistency",
-            fullTitle: "Consistent, high-quality content delivery",
-            desc: "A reliable posting cadence that keeps your brand visible and relevant — without last-minute scrambling.",
+            fullTitle: "Consistent content delivery",
+            desc: "A reliable cadence that keeps your brand visible and relevant.",
             icon: Clock
         },
         {
             keyword: "Portal",
-            fullTitle: "Fast, centralized approvals through your client portal",
-            desc: "Review and approve content in one place, saving time and avoiding endless back-and-forth.",
+            fullTitle: "Centralized approvals",
+            desc: "Review and approve content in one place with less back-and-forth.",
             icon: MousePointerClick
         },
         {
             keyword: "Insights",
-            fullTitle: "Performance tracking & monthly insights",
-            desc: "Clear reporting and strategic insights to understand what's working and how your presence is evolving.",
+            fullTitle: "Performance insights",
+            desc: "Clear monthly reporting to understand what works and what to improve.",
             icon: BarChart3
         },
         {
             keyword: "Web",
             fullTitle: "Optional web support",
-            desc: "Landing pages, website updates, and digital touchpoints aligned with your brand and content strategy.",
+            desc: "Landing pages and site updates aligned with your content strategy.",
             icon: Layout
         }
     ];
 
     return (
-        <div className="mt-8 flex w-full h-[28rem] md:h-[32rem] gap-2 md:gap-4">
+        <div className="mt-8 flex h-[24rem] w-full gap-2 md:h-[28rem] md:gap-4">
             {cards.map((card, idx) => {
                 const isExpanded = expanded === idx;
                 const num = `0${idx + 1}`;
@@ -83,7 +83,7 @@ export function ExpandableCards() {
 
                         {/* Expanded View */}
                         <div
-                            className={`absolute inset-0 flex flex-col p-6 md:p-8 transition-opacity duration-500 delay-150 ${isExpanded ? "opacity-100" : "opacity-0 pointer-events-none"
+                            className={`absolute inset-0 flex flex-col p-5 md:p-6 transition-opacity duration-500 delay-150 ${isExpanded ? "opacity-100" : "opacity-0 pointer-events-none"
                                 }`}
                         >
                             <div className="flex items-start justify-between flex-1">
@@ -93,10 +93,10 @@ export function ExpandableCards() {
                                 </div>
                             </div>
                             <div className="mt-auto min-w-[200px] max-w-sm relative z-10">
-                                <p className="text-xl md:text-2xl font-bold text-blue-950 mb-3 leading-tight">
+                                <p className="mb-2 text-lg font-semibold leading-[1.04] tracking-tight text-blue-950 md:text-xl">
                                     {card.fullTitle}
                                 </p>
-                                <p className="text-sm md:text-base leading-relaxed text-blue-800">
+                                <p className="text-sm leading-relaxed text-blue-800 md:text-sm">
                                     {card.desc}
                                 </p>
                             </div>

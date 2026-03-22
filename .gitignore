@@ -23,6 +23,7 @@ wheels/
 
 # Virtual environments
 .venv/
+.venv312/
 venv/
 ENV/
 env/
@@ -57,7 +58,8 @@ coverage/
 .coverage
 
 # IDEs
-.vscode/
+.vscode/settings.json
+.vscode/launch.json
 .idea/
 *.swp
 *.swo
