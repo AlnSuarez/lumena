@@ -48,6 +48,19 @@ export default function Home() {
           </section>
         </main>
 
+        <section id="features" className="scroll-mt-28 mt-8 w-full rounded-[2.25rem] bg-[#f6f2e8] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] ring-1 ring-[#e4d8c2] md:p-9">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3768FF]">
+              What You Get
+            </p>
+            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-blue-950 md:text-4xl">
+              A practical system to grow your medical brand online.
+            </h3>
+          </div>
+
+          <ExpandableCards />
+        </section>
+
         <div id="home-mid-row" className="mt-8 flex w-full flex-col gap-6 lg:h-[560px] lg:flex-row lg:items-stretch lg:[&>*]:h-full">
           <aside id="why-lumena" className="w-full rounded-[2rem] bg-[#eef4f8] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.12)] ring-1 ring-[#c8d5e3] md:p-8 lg:flex lg:h-full lg:flex-[1.35]">
             <div id="why-lumena-card" className="rounded-3xl bg-white p-6 ring-1 ring-[#d3e0ff] md:p-7 lg:grid lg:h-full lg:grid-cols-2 lg:items-center lg:gap-8">
@@ -131,19 +144,6 @@ export default function Home() {
             </div>
           </section>
         </div>
-
-        <section id="features" className="scroll-mt-28 mt-8 w-full rounded-[2.25rem] bg-[#f6f2e8] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] ring-1 ring-[#e4d8c2] md:p-9">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3768FF]">
-              What You Get
-            </p>
-            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-blue-950 md:text-4xl">
-              A practical system to grow your medical brand online.
-            </h3>
-          </div>
-
-          <ExpandableCards />
-        </section>
 
 
       </div>

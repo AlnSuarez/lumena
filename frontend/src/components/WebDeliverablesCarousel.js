@@ -124,38 +124,34 @@ export function WebDeliverablesCarousel() {
 
   return (
     <div id="web-deliverables-carousel" className="mt-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.1em] text-[#4b6aa6]">Simple Web Pages</p>
-          <p className="mt-1 text-sm text-slate-600">Basic websites for doctors and clinics</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            id="web-deliverables-prev"
-            type="button"
-            onClick={handlePrev}
-            disabled={currentIndex === 0}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Previous deliverables"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            id="web-deliverables-next"
-            type="button"
-            onClick={handleNext}
-            disabled={currentIndex === maxIndex}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Next deliverables"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      </div>
+       <div className="mb-6 flex items-center justify-between">
+         <div className="flex items-center gap-3">
+           <button
+             id="web-deliverables-prev"
+             type="button"
+             onClick={handlePrev}
+             disabled={currentIndex === 0}
+             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+             aria-label="Previous deliverables"
+           >
+             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+             </svg>
+           </button>
+           <button
+             id="web-deliverables-next"
+             type="button"
+             onClick={handleNext}
+             disabled={currentIndex === maxIndex}
+             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+             aria-label="Next deliverables"
+           >
+             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+             </svg>
+           </button>
+         </div>
+       </div>
 
       <div
         id="web-deliverables-track"

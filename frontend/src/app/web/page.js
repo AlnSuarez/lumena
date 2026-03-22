@@ -3,7 +3,7 @@
 import { LandingNavbar } from "@/components/LandingNavbar";
 import { WebDeliverablesCarousel } from "@/components/WebDeliverablesCarousel";
 import { WebUnifiedSystemSection } from "@/components/WebUnifiedSystemSection";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { LetsTalkForm } from "@/components/LetsTalkForm";
 import Image from "next/image";
@@ -12,6 +12,10 @@ import Image from "next/image";
 
 export default function WebPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -31,7 +35,7 @@ export default function WebPage() {
         </div>
 
         <main id="web-main" className="mx-auto w-full max-w-[108rem] px-4 pb-24 pt-32 md:px-6 md:pt-36">
-          <section id="web-hero" className="rounded-[2.5rem] border border-white/45 bg-[#3768FF] p-8 shadow-[0_24px_70px_rgba(15,23,42,0.2)] md:p-12 lg:p-14">
+           <section id="web-hero" className="rounded-[2.5rem] border border-white/45 bg-[#736a5d] p-8 shadow-[0_24px_70px_rgba(15,23,42,0.2)] md:p-12 lg:p-14">
             <div id="web-hero-layout" className="flex flex-col gap-10 lg:flex-row lg:items-stretch lg:gap-14">
               <div id="web-hero-content" className="lg:w-3/5">
                 <p className="text-sm font-bold uppercase tracking-[0.15em] text-white/85">
@@ -152,16 +156,13 @@ export default function WebPage() {
           <WebUnifiedSystemSection />
         </div>
 
-        <section id="web-deliverables" className="mt-8 rounded-[2.25rem] border border-[#d4e0f5] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] md:p-9">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#4b6aa6]">
-            Deliverables
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold leading-[1.04] tracking-tight text-[#17315f] md:text-5xl">
-            What We Build
-          </h2>
+         <section id="web-deliverables" className="mt-8 rounded-[2.25rem] border border-[#d4e0f5] bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] md:p-9">
+           <h2 className="text-3xl font-semibold leading-[1.04] tracking-tight text-[#17315f] md:text-5xl">
+             What We Build
+           </h2>
 
-          <WebDeliverablesCarousel />
-        </section>
+           <WebDeliverablesCarousel />
+         </section>
       </main>
     </div>
 

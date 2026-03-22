@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { LetsTalkForm } from "./LetsTalkForm";
 
 export function LandingNavbar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -16,6 +18,14 @@ export function LandingNavbar() {
   const closeModal = () => {
     setIsModalOpen(false);
     document.body.style.overflow = "auto";
+  };
+
+  const handleWebClick = (e) => {
+    e.preventDefault();
+    router.push('/web');
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 10);
   };
 
   return (
@@ -37,6 +47,7 @@ export function LandingNavbar() {
             </Link>
             <Link
               href="/web"
+              onClick={handleWebClick}
               className="ml-3 rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
             >
               Web

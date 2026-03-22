@@ -58,22 +58,7 @@ export function WebUnifiedSystemSection() {
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Previous"
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#d0d8e8] bg-white text-[#3768FF]"
-          >
-            <span aria-hidden="true" className="text-2xl leading-none">←</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Next"
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#d0d8e8] bg-white text-[#3768FF]"
-          >
-            <span aria-hidden="true" className="text-2xl leading-none">→</span>
-          </button>
-        </div>
+
       </div>
 
       <div id="web-unified-system-grid" className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
