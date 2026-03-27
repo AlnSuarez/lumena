@@ -4,7 +4,11 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { LetsTalkForm } from "./LetsTalkForm";
 
-export function ContactFormModal() {
+export function ContactFormModal({
+  buttonText = "Book a Strategy Call",
+  buttonClassName = "",
+  showIcon = true,
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   const openModal = () => {
@@ -21,25 +25,27 @@ export function ContactFormModal() {
     <>
       <button
         onClick={openModal}
-        className="w-fit mt-9 inline-flex items-center gap-3 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#3768FF] shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-100"
+        className={`w-fit mt-9 inline-flex items-center gap-3 rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#3768FF] shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-100 ${buttonClassName}`}
       >
-        Book a Strategy Call
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3768FF] text-white">
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M5 12h14m-6-6 6 6-6 6"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
+        {buttonText}
+        {showIcon && (
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3768FF] text-white">
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M5 12h14m-6-6 6 6-6 6"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        )}
       </button>
 
       {isOpen && (

@@ -10,37 +10,37 @@ export function ExpandableCards() {
         {
             keyword: "Workflow",
             fullTitle: "A structured content workflow",
-            desc: "From planning to publishing, every step follows a clear system.",
+            desc: "From planning to publishing, every step follows a clear system—so nothing feels random or overwhelming.",
             icon: Layers
         },
         {
             keyword: "Strategy",
-            fullTitle: "Strategic brand messaging",
-            desc: "Content aligned with your expertise to build trust and differentiation.",
+            fullTitle: "Clear strategy",
+            desc: "We define what to say, how to say it, and who it’s for—so your content has direction from the start.",
             icon: Target
         },
         {
             keyword: "Consistency",
-            fullTitle: "Consistent content delivery",
-            desc: "A reliable cadence that keeps your brand visible and relevant.",
+            fullTitle: "Consistent presence",
+            desc: "We make sure your content shows up regularly, so you stay visible and top of mind for patients.",
             icon: Clock
         },
         {
             keyword: "Portal",
-            fullTitle: "Centralized approvals",
-            desc: "Review and approve content in one place with less back-and-forth.",
+            fullTitle: "Simple approvals",
+            desc: "Review and approve your content in seconds—no back-and-forth, no complexity.",
             icon: MousePointerClick
         },
         {
             keyword: "Insights",
-            fullTitle: "Performance insights",
-            desc: "Clear monthly reporting to understand what works and what to improve.",
+            fullTitle: "What’s working, clearly",
+            desc: "Understand what resonates with your patients and improve your content over time.",
             icon: BarChart3
         },
         {
             keyword: "Web",
-            fullTitle: "Optional web support",
-            desc: "Landing pages and site updates aligned with your content strategy.",
+            fullTitle: "A cohesive online presence",
+            desc: "From social to web, everything works together to reflect your expertise clearly.",
             icon: Layout
         }
     ];

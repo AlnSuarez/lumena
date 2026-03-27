@@ -142,7 +142,7 @@ export default function WebPage() {
             <div id="web-foundation-media" className="relative overflow-hidden rounded-3xl border border-[#dbe5f7] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.07)] lg:w-1/2">
               <div className="relative min-h-[360px] w-full md:min-h-[500px] lg:h-full lg:min-h-0">
                 <Image
-                  src="/webwireframe.png"
+                  src="/sitemockup.jpeg"
                   alt="Website wireframe preview"
                   fill
                   className="object-contain object-center"

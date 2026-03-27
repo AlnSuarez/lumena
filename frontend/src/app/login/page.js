@@ -153,10 +153,10 @@ export default function LoginPage() {
                                 <CheckCircle2 size={32} strokeWidth={2.5} />
                             </div>
                             <h2 className="text-5xl font-extrabold text-[#192853] mb-6 leading-tight">
-                                Power your agency <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#192853] to-[#2a4595]">to the next level.</span>
+                                Power your brand <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#192853] to-[#2a4595]">to the next level.</span>
                             </h2>
                             <p className="text-lg text-[#192853]/80 font-medium leading-relaxed mb-8">
-                                The all-in-one platform designed for creative teams seeking excellence and speed.
+                                The all-in-one platform designed for doctors seeking excellence and speed.
                             </p>
 
                             <div className="flex gap-4">

@@ -26,12 +26,10 @@ export default function Home() {
             </h1>
             <div className="mt-8 space-y-5 border-l-2 border-white/35 pl-5 md:pl-7">
               <p className="max-w-3xl text-lg leading-relaxed text-white/90 md:text-xl">
-                AI tools and a specialized team helping medical practices build
-                a clear, consistent digital presence.
+                We turn medical expertise into clear, consistent content that builds trust.
               </p>
               <p className="max-w-3xl text-lg leading-relaxed text-white/90 md:text-xl">
-                We handle strategy, production, and publishing, so you can stay
-                focused on your patients.
+                You stay focused on your patients—we take care of the rest.
               </p>
             </div>
             <ContactFormModal />
@@ -54,7 +52,7 @@ export default function Home() {
               What You Get
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-blue-950 md:text-4xl">
-              A practical system to grow your medical brand online.
+              A system designed to grow your medical brand—clearly and consistently.
             </h3>
           </div>
 
@@ -69,7 +67,7 @@ export default function Home() {
                   Why LUMENA
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold leading-[1.04] tracking-tight text-[#17315f] md:text-3xl">
-                  Your medical brand needs a reliable content system.
+                  Your expertise deserves to be seen and understood.
                 </h3>
                 <p className="mt-4 text-base leading-relaxed text-[#2f4e84] md:text-lg">
                   We simplify strategy, production, and publishing so your team
@@ -104,7 +102,7 @@ export default function Home() {
                     </h3>
                   </div>
                   <p className="mt-3 max-w-[36ch] text-sm leading-[1.55] text-black/80 md:text-base">
-                    We remove the complexity so you can focus on patients.
+                    We remove the complexity—so you can stay focused on your patients.
                   </p>
                 </li>
                 <li id="portal-card-authority" className="flex min-h-[145px] flex-col rounded-3xl border border-[#bdd5f6] bg-[#e9f2ff] p-3.5 text-[#111827] shadow-[0_12px_24px_rgba(30,55,102,0.12)] backdrop-blur-sm transition hover:-translate-y-1 hover:bg-[#f2f8ff] hover:shadow-[0_18px_34px_rgba(30,55,102,0.18)] md:p-4">
@@ -137,13 +135,60 @@ export default function Home() {
                     </h3>
                   </div>
                   <p className="mt-3 max-w-[36ch] text-sm leading-[1.55] text-black/80 md:text-base">
-                    We understand how medical reputation is built.
+                    We understand how patients choose and how medical trust is built.
                   </p>
                 </li>
               </ul>
             </div>
           </section>
         </div>
+
+        <section
+          id="portal-showcase"
+          className="mt-8 grid w-full gap-6 rounded-[2.25rem] bg-[#2f456c] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.18)] ring-1 ring-[#4f6793] md:p-9 lg:min-h-[620px] lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch lg:gap-10"
+        >
+          <div id="portal-showcase-content" className="flex max-w-3xl flex-col justify-center py-2 md:py-3 lg:py-6">
+            <h2 className="text-3xl font-semibold leading-[1.08] tracking-tight text-[#f5f8ff] md:text-5xl">
+              We make content effortless for busy doctors
+            </h2>
+            <div className="mt-7 space-y-4 border-l-2 border-[#91addd] pl-5 md:pl-6">
+              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                We take care of the entire process.
+              </p>
+              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                You review and approve when your content is ready, quickly and clearly.
+              </p>
+              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                Everything is organized in one place, with insights to help you understand what resonates with your patients.
+              </p>
+            </div>
+          </div>
+
+          <div id="portal-showcase-media" className="flex items-center justify-center">
+            <img
+              src="/portal.png"
+              alt="Lumena portal preview"
+              className="h-auto w-full max-w-[640px] rounded-[2rem] border border-white/20"
+            />
+          </div>
+        </section>
+
+        <section
+          id="final-cta"
+          className="mt-8 rounded-[2.25rem] bg-[#17315f] p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.25)] ring-1 ring-[#33548f] md:p-12"
+        >
+          <h2 className="mx-auto mt-3 max-w-4xl text-3xl font-semibold leading-[1.08] tracking-tight text-white md:text-5xl">
+            Let&apos;s build your medical brand the right way
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#e4eeff] md:text-lg">
+            We&apos;ll walk you through how this would look for your practice.
+          </p>
+          <ContactFormModal
+            buttonText="Book your strategy call"
+            buttonClassName="mt-8 text-[#17315f] hover:bg-[#f2f7ff]"
+            showIcon={false}
+          />
+        </section>
 
 
       </div>
