@@ -79,7 +79,7 @@ export default function Home() {
 
               <div id="why-lumena-media" className="mt-6 overflow-hidden lg:mt-0">
                 <img
-                  src="/doctorFeed.png"
+                  src="/mock.png"
                   alt="Doctor feed preview"
                   className="h-64 w-full object-contain object-center md:h-[320px] lg:h-[380px]"
                 />
