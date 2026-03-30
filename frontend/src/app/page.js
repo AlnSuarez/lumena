@@ -151,16 +151,18 @@ export default function Home() {
             <h2 className="text-3xl font-semibold leading-[1.08] tracking-tight text-[#f5f8ff] md:text-5xl">
               We make content effortless for busy doctors
             </h2>
-            <div className="mt-7 space-y-4 border-l-2 border-[#91addd] pl-5 md:pl-6">
-              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
-                We take care of the entire process.
-              </p>
-              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
-                You review and approve when your content is ready, quickly and clearly.
-              </p>
-              <p className="text-base leading-relaxed text-[#e6efff] md:text-lg">
-                Everything is organized in one place, with insights to help you understand what resonates with your patients.
-              </p>
+            <div className="mt-7 border-l-2 border-[#91addd] pl-5 md:pl-6">
+              <ul className="list-disc space-y-4 pl-5">
+                <li className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                  We take care of the entire process.
+                </li>
+                <li className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                  You review and approve when your content is ready, quickly and clearly.
+                </li>
+                <li className="text-base leading-relaxed text-[#e6efff] md:text-lg">
+                  Everything is organized in one place, with insights to help you understand what resonates with your patients.
+                </li>
+              </ul>
             </div>
           </div>
 
@@ -175,17 +177,17 @@ export default function Home() {
 
         <section
           id="final-cta"
-          className="mt-8 rounded-[2.25rem] bg-[#17315f] p-8 text-center shadow-[0_22px_70px_rgba(15,23,42,0.25)] ring-1 ring-[#33548f] md:p-12"
+          className="mt-8 rounded-[2.25rem] bg-[#f9e4b3] p-8 text-center text-[#1f2735] shadow-[0_22px_70px_rgba(15,23,42,0.22)] ring-1 ring-[#e4c983] md:p-12"
         >
-          <h2 className="mx-auto mt-3 max-w-4xl text-3xl font-semibold leading-[1.08] tracking-tight text-white md:text-5xl">
+          <h2 className="mx-auto mt-3 max-w-4xl text-3xl font-semibold leading-[1.08] tracking-tight md:text-5xl">
             Let&apos;s build your medical brand the right way
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#e4eeff] md:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed md:text-lg">
             We&apos;ll walk you through how this would look for your practice.
           </p>
           <ContactFormModal
             buttonText="Book your strategy call"
-            buttonClassName="mt-8 text-[#17315f] hover:bg-[#f2f7ff]"
+            buttonClassName="mt-8 border border-[#1f2735] bg-[#1f2735] text-[#fbb92a] shadow-none hover:bg-[#162033] hover:text-[#fbb92a]"
             showIcon={false}
           />
         </section>

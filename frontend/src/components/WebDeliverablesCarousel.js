@@ -166,7 +166,7 @@ export function WebDeliverablesCarousel() {
               ref={(el) => {
                 itemRefs.current[idx] = el;
               }}
-              className="group w-full shrink-0 snap-start rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[calc((100%-1.25rem)/2)] xl:w-[calc((100%-2.5rem)/3)]"
+              className="group w-full shrink-0 snap-start rounded-2xl border border-sky-200 bg-sky-100 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[calc((100%-1.25rem)/2)] xl:w-[calc((100%-2.5rem)/3)]"
             >
               <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${item.bgColor}`}>
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${item.color} text-white`}>
@@ -174,28 +174,28 @@ export function WebDeliverablesCarousel() {
                 </div>
               </div>
 
-              <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+              <h3 className="text-lg font-semibold text-sky-900">{item.title}</h3>
               
-              <p className="mt-2 text-sm text-slate-600">{item.description}</p>
+              <p className="mt-2 text-sm text-sky-800">{item.description}</p>
               
               <div className="mt-3">
                 {item.features.map((feature, i) => (
                   <div key={i} className="mb-1 flex items-center gap-1.5">
-                    <svg className="h-3 w-3 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-3 w-3 flex-shrink-0 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-xs text-slate-700">{feature}</span>
+                    <span className="text-xs text-sky-800">{feature}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2">
+              <div className="mt-4 rounded-lg bg-sky-200 px-3 py-2">
                 <div className="flex items-center gap-1.5">
-                  <svg className="h-3 w-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3 w-3 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <span className="text-xs font-medium text-slate-900">Benefit:</span>
-                  <span className="text-xs text-slate-700">{item.benefit}</span>
+                  <span className="text-xs font-medium text-sky-900">Benefit:</span>
+                  <span className="text-xs text-sky-800">{item.benefit}</span>
                 </div>
               </div>
             </article>

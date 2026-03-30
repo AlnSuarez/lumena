@@ -18,6 +18,7 @@
         "panel": "dedicated"
       }
     },
+    
     {
       "label": "Frontend: Next.js dev server",
       "type": "shell",

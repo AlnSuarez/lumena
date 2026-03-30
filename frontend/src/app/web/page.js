@@ -78,10 +78,7 @@ export default function WebPage() {
           </section>
 
         <section id="web-foundation" className="mt-8 rounded-[2.25rem] border border-[#d4e0f5] bg-gradient-to-b from-white to-[#f7faff] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.1)] md:p-9">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#4b6aa6]">
-            Foundation
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold leading-[1.04] tracking-tight text-[#17315f] md:text-5xl">
+          <h2 className="text-3xl font-semibold leading-[1.04] tracking-tight text-[#17315f] md:text-5xl">
             Why Doctors Need Better Websites
           </h2>
 
@@ -139,13 +136,13 @@ export default function WebPage() {
               </article>
             </div>
 
-            <div id="web-foundation-media" className="relative overflow-hidden rounded-3xl border border-[#dbe5f7] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.07)] lg:w-1/2">
+            <div id="web-foundation-media" className="relative overflow-hidden rounded-3xl border border-[#dbe5f7] bg-white shadow-[0_12px_35px_rgba(15,23,42,0.07)] lg:w-1/2">
               <div className="relative min-h-[360px] w-full md:min-h-[500px] lg:h-full lg:min-h-0">
                 <Image
                   src="/sitemockup.jpeg"
                   alt="Website wireframe preview"
                   fill
-                  className="object-contain object-center"
+                  className="object-cover object-top"
                 />
               </div>
             </div>
