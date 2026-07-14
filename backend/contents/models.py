@@ -8,6 +8,8 @@ class MonthlyRequest(models.Model):
         IN_PROGRESS = 'IN_PROGRESS', _('In Progress')
         QA = 'QA', _('QA')
         IN_REVISION = 'IN_REVISION', _('In Revision')
+        CLIENT_REVIEW = 'CLIENT_REVIEW', _('Client Review')
+        APPROVED = 'APPROVED', _('Approved')
         DONE = 'DONE', _('Done')
 
     class RequestType(models.TextChoices):

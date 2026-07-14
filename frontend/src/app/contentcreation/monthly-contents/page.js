@@ -10,6 +10,18 @@ export default function MonthlyContentsPage() {
     const [items, setItems] = useState([]);
     const [activeItemIndex, setActiveItemIndex] = useState(0);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [expandedSections, setExpandedSections] = useState({
+        newRequests: true,
+        returnedQA: true,
+        returnedClient: true
+    });
+
+    const toggleSection = (section) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
 
     const [counts, setCounts] = useState({
         photos: 4,
@@ -70,9 +82,13 @@ export default function MonthlyContentsPage() {
 
                     // Transform API data to Component Item format
                     const apiItems = data
-                        .filter(req => req.status !== 'QA' && req.status !== 'DONE' && req.status !== 'CONTENT_REVISION')
+                        .filter(req => req.status !== 'QA' && req.status !== 'DONE' && req.status !== 'CONTENT_REVISION' && req.status !== 'CLIENT_REVIEW' && req.status !== 'APPROVED')
                         .map(req => {
                             const isAdhoc = req.request_type !== 'MONTHLY_CONTENT';
+                            const isReturned = req.status === 'IN_REVISION';
+                            const returnedByClient = isReturned && req.history?.some(h => 
+                                h.new_status === 'IN_REVISION' && h.changed_by_details?.role === 'CLIENT'
+                            );
                             return {
                                 id: req.id,
                                 type: isAdhoc ? 'adhoc_request' : 'client',
@@ -80,8 +96,9 @@ export default function MonthlyContentsPage() {
                                 completed: false, // Since we filter, all remaining are "pending" for user
                                 month: req.month,
                                 status: req.status,
+                                returnedByClient: !!returnedByClient,
                                 // If adhoc, we need some fields mapped or extracted from notes if possible
-                                contentType: isAdhoc ? (req.notes.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
+                                contentType: isAdhoc ? (req.notes?.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
                                 instructions: req.notes,
                                 asignee: req.assigned_to_details?.username,
                                 feedback: req.feedback,
@@ -692,63 +709,104 @@ export default function MonthlyContentsPage() {
                                 </button>
                             </div>
 
-                            <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-2 pb-6 ${isSidebarCollapsed ? 'px-3 overflow-x-hidden' : 'px-4'}`}>
-                                {items.map((item, index) => {
-                                    const isActive = index === activeItemIndex;
-                                    const isRequest = item.type === 'adhoc_request';
-                                    const isReturned = item.status === 'IN_REVISION';
+                            <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-6 ${isSidebarCollapsed ? 'px-3 overflow-x-hidden' : 'px-4'}`}>
+                                {(() => {
+                                    const newRequests = items.filter(item => item.status !== 'IN_REVISION');
+                                    const returnedQA = items.filter(item => item.status === 'IN_REVISION' && !item.returnedByClient);
+                                    const returnedClient = items.filter(item => item.status === 'IN_REVISION' && item.returnedByClient);
+
+                                    const renderGroup = (title, key, list, colorClass, iconColorClass) => {
+                                        if (list.length === 0) return null;
+                                        const isExpanded = expandedSections[key];
+
+                                        return (
+                                            <div className="space-y-1 mb-2">
+                                                {!isSidebarCollapsed && (
+                                                    <button
+                                                        onClick={() => toggleSection(key)}
+                                                        className="w-full flex items-center justify-between py-1.5 px-2 hover:bg-muted/40 rounded-lg text-xs font-bold text-muted-foreground uppercase tracking-wider transition-colors"
+                                                    >
+                                                        <span className="flex items-center gap-1.5">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${colorClass}`} />
+                                                            {title} ({list.length})
+                                                        </span>
+                                                        <ChevronDown size={14} className={`transform transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
+                                                    </button>
+                                                )}
+                                                
+                                                {(isExpanded || isSidebarCollapsed) && (
+                                                    <div className="space-y-2">
+                                                        {list.map((item) => {
+                                                            const globalIndex = items.findIndex(x => x.id === item.id);
+                                                            const isActive = globalIndex === activeItemIndex;
+                                                            const isRequest = item.type === 'adhoc_request';
+                                                            const isReturned = item.status === 'IN_REVISION';
+
+                                                            return (
+                                                                <div
+                                                                    key={item.id}
+                                                                    onClick={() => {
+                                                                        if (globalIndex !== -1 && globalIndex !== activeItemIndex) {
+                                                                            setActiveItemIndex(globalIndex);
+                                                                        }
+                                                                    }}
+                                                                    className={`
+                                                                group flex items-center transition-all cursor-pointer border relative overflow-hidden
+                                                                ${isSidebarCollapsed
+                                                                            ? 'justify-center p-3 rounded-2xl aspect-square'
+                                                                            : 'gap-4 p-4 rounded-2xl'}
+                                                                ${isActive
+                                                                            ? 'bg-primary border-primary shadow-lg shadow-primary/25'
+                                                                            : 'bg-card border-transparent hover:border-border hover:bg-muted/50'}
+                                                            `}
+                                                                    title={isSidebarCollapsed ? item.name : ''}
+                                                                >
+                                                                    <div className={`
+                                                                w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0 transition-all duration-300
+                                                                ${isActive
+                                                                            ? 'border-white/20 bg-white/20 text-white'
+                                                                            : item.completed
+                                                                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
+                                                                                : iconColorClass}
+                                                            `}>
+                                                                        {item.completed ? <Check size={16} strokeWidth={3} /> : (
+                                                                            <span className="text-sm font-black">
+                                                                                {isReturned ? '!' : (isRequest ? 'R' : globalIndex + 1)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {!isSidebarCollapsed && (
+                                                                        <div className="flex flex-col min-w-0 z-10">
+                                                                            <span className={`text-sm font-bold truncate leading-tight ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                                                                {item.name}
+                                                                            </span>
+                                                                            <span className={`text-[11px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                                                {item.completed ? 'Completed' : isActive ? 'Reviewing' : item.returnedByClient ? 'Client Revision' : isReturned ? 'Returned by QA' : isRequest ? 'Adhoc Request' : 'Monthly Plan'}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {!isSidebarCollapsed && isActive && (
+                                                                        <ChevronRight size={18} className="text-primary-foreground/50 ml-auto" />
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    };
 
                                     return (
-                                        <div
-                                            key={item.id}
-                                            onClick={() => {
-                                                if (index !== activeItemIndex) {
-                                                    setActiveItemIndex(index);
-                                                }
-                                            }}
-                                            className={`
-                                        group flex items-center transition-all cursor-pointer border relative overflow-hidden
-                                        ${isSidebarCollapsed
-                                                    ? 'justify-center p-3 rounded-2xl aspect-square'
-                                                    : 'gap-4 p-4 rounded-2xl'}
-                                        ${isActive
-                                                    ? 'bg-primary border-primary shadow-lg shadow-primary/25'
-                                                    : 'bg-card border-transparent hover:border-border hover:bg-muted/50'}
-                                    `}
-                                            title={isSidebarCollapsed ? item.name : ''}
-                                        >
-                                            <div className={`
-                                        w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0 transition-all duration-300
-                                        ${isActive
-                                                    ? 'border-white/20 bg-white/20 text-white'
-                                                    : item.completed
-                                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
-                                                        : isReturned
-                                                            ? 'bg-destructive/10 border-destructive/20 text-destructive'
-                                                            : isRequest
-                                                                ? 'bg-orange-500/10 border-orange-500/20 text-orange-600'
-                                                                : 'border-border bg-slate-50 dark:bg-slate-900 text-muted-foreground group-hover:bg-white'}
-                                    `}>
-                                                {item.completed ? <Check size={16} strokeWidth={3} /> : <span className="text-sm font-black">{isReturned ? '!' : (isRequest ? 'R' : index + 1)}</span>}
-                                            </div>
-
-                                            {!isSidebarCollapsed && (
-                                                <div className="flex flex-col min-w-0 z-10">
-                                                    <span className={`text-sm font-bold truncate leading-tight ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
-                                                        {item.name}
-                                                    </span>
-                                                    <span className={`text-[11px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                        {item.completed ? 'Completed' : isActive ? 'Reviewing' : isReturned ? 'Returned by QA' : isRequest ? 'Adhoc Request' : 'Monthly Plan'}
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {!isSidebarCollapsed && isActive && (
-                                                <ChevronRight size={18} className="text-primary-foreground/50 ml-auto" />
-                                            )}
-                                        </div>
+                                        <>
+                                            {renderGroup("New Requests", "newRequests", newRequests, "bg-blue-500", "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20")}
+                                            {renderGroup("Returned by QA", "returnedQA", returnedQA, "bg-amber-500", "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500/20")}
+                                            {renderGroup("Returned by Client", "returnedClient", returnedClient, "bg-red-500", "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 group-hover:bg-red-500/20")}
+                                        </>
                                     );
-                                })}
+                                })()}
                             </div>
                         </div>
 
@@ -1131,7 +1189,9 @@ export default function MonthlyContentsPage() {
                                                     {/* QA Feedback Display */}
                                                     {activeItem.feedback && (
                                                         <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
-                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-2">QA Feedback</label>
+                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-2">
+                                                                {activeItem.returnedByClient ? `${activeItem.name} requested a change` : 'QA Feedback'}
+                                                            </label>
                                                             <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
                                                             </p>
@@ -1199,8 +1259,8 @@ export default function MonthlyContentsPage() {
                                             /* --- Standard Monthly Form --- */
                                             <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
                                                 <div className="pb-4 shrink-0">
-                                                    <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-md uppercase tracking-wider inline-block mb-3">
-                                                        Editing {steps[currentStepIndex].label.slice(0, -1)}
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider inline-block mb-3 ${activeItem.returnedByClient ? 'text-red-600 bg-red-500/10 border border-red-500/20' : 'text-primary bg-primary/10 border border-primary/20'}`}>
+                                                        {activeItem.returnedByClient ? 'Client Revision' : `Editing ${steps[currentStepIndex].label.slice(0, -1)}`}
                                                     </span>
                                                     <h3 className="text-2xl font-black text-foreground">Customize Details</h3>
                                                 </div>
@@ -1210,7 +1270,9 @@ export default function MonthlyContentsPage() {
                                                     {/* QA Feedback Display for Monthly Content */}
                                                     {activeItem.feedback && (
                                                         <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
-                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-1">QA Feedback</label>
+                                                            <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-1">
+                                                                {activeItem.returnedByClient ? `${activeItem.name} requested a change` : 'QA Feedback'}
+                                                            </label>
                                                             <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
                                                             </p>

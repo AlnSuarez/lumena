@@ -64,7 +64,9 @@ INSTALLED_APPS = [
     'users',
     'contents',
     'gallery',
+    'scheduler',
     'storages',
+    'django_apscheduler',  # Job scheduling
 ]
 
 MIDDLEWARE = [
@@ -197,3 +199,6 @@ REST_FRAMEWORK = {
     ],
 }
 
+# APScheduler Configuration
+APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
+APSCHEDULER_RUN_NOW_TIMEOUT = 25  # seconds

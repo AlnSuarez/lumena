@@ -25,7 +25,9 @@ import {
     Images,
     BarChart3,
     ClipboardList,
-    Mail
+    Mail,
+    CheckCircle2,
+    Clock
 } from "lucide-react";
 
 export function Sidebar() {
@@ -35,12 +37,13 @@ export function Sidebar() {
     const [isCollapsed, setIsCollapsed] = React.useState(false);
     const [expandedSections, setExpandedSections] = React.useState({
         dashboards: false,
-        contentProduction: false,
+        contentProduction: true,
         videoProduction: false,
         submitRequests: false,
         customization: false,
         yourInsights: false,
-        administration: false
+        administration: false,
+        scheduler: false
     });
 
     React.useEffect(() => {
@@ -68,10 +71,12 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, submitRequests: true }));
         } else if (pathname.startsWith('/contentcreation/customize')) {
             setExpandedSections(prev => ({ ...prev, customization: true }));
-        } else if (pathname.startsWith('/contentcreation/your-insights')) {
+        } else if (pathname.startsWith('/contentcreation/your-insights') || pathname.startsWith('/contentcreation/client-review')) {
             setExpandedSections(prev => ({ ...prev, yourInsights: true }));
         } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery') || pathname.startsWith('/contentcreation/assignments') || pathname.startsWith('/contentcreation/lets-talk')) {
             setExpandedSections(prev => ({ ...prev, administration: true }));
+        } else if (pathname.startsWith('/contentcreation/scheduler')) {
+            setExpandedSections(prev => ({ ...prev, scheduler: true }));
         }
     }, [pathname]);
 
@@ -87,13 +92,13 @@ export function Sidebar() {
     };
 
     const checkAccess = (sectionKey, allowedRoles = []) => {
-        // Temporary restriction: clients can only access customization and insights.
+        // Temporary restriction: clients can only access customization, insights, and client_review.
         if (userRole === 'CLIENT') {
-            return sectionKey === 'customization' || sectionKey === 'your_insights';
+            return sectionKey === 'customization' || sectionKey === 'your_insights' || sectionKey === 'client_review';
         }
 
-        // Your Insights is exclusive to clients.
-        if (sectionKey === 'your_insights') {
+        // Your Insights and Client Review are exclusive to clients.
+        if (sectionKey === 'your_insights' || sectionKey === 'client_review') {
             return false;
         }
 
@@ -170,6 +175,15 @@ export function Sidebar() {
                         </Link>
                     )}
 
+                    {/* Submit Requests Icon */}
+                    {/* Submit Requests Icon */}
+                    {/* Submit Requests Icon */}
+                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
+                        <button onClick={() => toggleSection('submitRequests')} title="Submit Requests" className="p-3 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-primary">
+                            <Send size={24} />
+                        </button>
+                    )}
+
                     {/* Content Production Icon */}
                     {checkAccess('content_production', ['CONTENT_CREATOR', 'QA']) && (
                         <button onClick={() => toggleSection('contentProduction')} title="Content Production" className="p-3 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-primary">
@@ -181,15 +195,6 @@ export function Sidebar() {
                     {checkAccess('video_production', PERMISSIONS.videoProduction) && (
                         <button onClick={() => toggleSection('videoProduction')} title="Video Production" className="p-3 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-primary">
                             <Video size={24} />
-                        </button>
-                    )}
-
-                    {/* Submit Requests Icon */}
-                    {/* Submit Requests Icon */}
-                    {/* Submit Requests Icon */}
-                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
-                        <button onClick={() => toggleSection('submitRequests')} title="Submit Requests" className="p-3 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-primary">
-                            <Send size={24} />
                         </button>
                     )}
 
@@ -208,7 +213,19 @@ export function Sidebar() {
                         </Link>
                     )}
 
-                    {/* Administration Icon */}
+                    {checkAccess('client_review', ['CLIENT']) && (
+                        <Link href="/contentcreation/client-review" title="Client Review" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/client-review') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <CheckSquare size={24} />
+                        </Link>
+                    )}
+
+                    {/* Scheduler Icon */}
+                    {userRole === 'SUPERUSER' && (
+                        <Link href="/contentcreation/scheduler" title="Scheduler" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/scheduler') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <Clock size={24} />
+                        </Link>
+                    )}
+                    
                     {/* Administration Icon */}
                     {checkAccess('administration', PERMISSIONS.createClient) && (
                         <button onClick={() => toggleSection('administration')} title="Administration" className="p-3 rounded-lg hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-primary">
@@ -246,6 +263,40 @@ export function Sidebar() {
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>
                                     </li>
+                                </ul>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Section: Submit Content Requests */}
+                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
+                        <div className="space-y-4">
+                            <button
+                                onClick={() => toggleSection('submitRequests')}
+                                className="w-full flex items-center justify-between text-foreground font-semibold text-lg hover:text-primary transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Send size={20} className="text-muted-foreground" />
+                                    <h3>Submit Requests</h3>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`text-muted-foreground transition-transform duration-300 ${expandedSections.submitRequests ? 'rotate-0' : '-rotate-90'}`}
+                                />
+                            </button>
+                            {expandedSections.submitRequests && (
+                                <ul className="space-y-2 ml-3 border-l-2 border-sidebar-border pl-4 animate-in fade-in duration-200">
+                                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
+                                        <li>
+                                            <Link href="/contentcreation/submit-story" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/submit-story') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <span className="flex items-center gap-2">
+                                                    <Send size={16} className="group-hover:text-primary transition-colors" />
+                                                    Submit content request
+                                                </span>
+                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </div>
@@ -291,7 +342,17 @@ export function Sidebar() {
                                             </Link>
                                         </li>
                                     )}
-
+                                    {userRole === 'SUPERUSER' && (
+                                        <li>
+                                            <Link href="/contentcreation/scheduler" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/scheduler') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <span className="flex items-center gap-2">
+                                                    <Clock size={16} className="group-hover:text-primary transition-colors" />
+                                                    Scheduler
+                                                </span>
+                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </div>
@@ -342,40 +403,6 @@ export function Sidebar() {
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>
                                     </li>
-                                </ul>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Section: Submit Content Requests */}
-                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
-                        <div className="space-y-4">
-                            <button
-                                onClick={() => toggleSection('submitRequests')}
-                                className="w-full flex items-center justify-between text-foreground font-semibold text-lg hover:text-primary transition-colors"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Send size={20} className="text-muted-foreground" />
-                                    <h3>Submit Requests</h3>
-                                </div>
-                                <ChevronDown
-                                    size={18}
-                                    className={`text-muted-foreground transition-transform duration-300 ${expandedSections.submitRequests ? 'rotate-0' : '-rotate-90'}`}
-                                />
-                            </button>
-                            {expandedSections.submitRequests && (
-                                <ul className="space-y-2 ml-3 border-l-2 border-sidebar-border pl-4 animate-in fade-in duration-200">
-                                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
-                                        <li>
-                                            <Link href="/contentcreation/submit-story" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/submit-story') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                <span className="flex items-center gap-2">
-                                                    <Send size={16} className="group-hover:text-primary transition-colors" />
-                                                    Submit content request
-                                                </span>
-                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                                            </Link>
-                                        </li>
-                                    )}
                                 </ul>
                             )}
                         </div>
@@ -440,6 +467,17 @@ export function Sidebar() {
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>
                                     </li>
+                                    {checkAccess('client_review', ['CLIENT']) && (
+                                        <li>
+                                            <Link href="/contentcreation/client-review" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/client-review') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <span className="flex items-center gap-2">
+                                                    <CheckSquare size={16} className="group-hover:text-primary transition-colors" />
+                                                    Client Review
+                                                </span>
+                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </div>

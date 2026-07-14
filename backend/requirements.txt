@@ -9,3 +9,4 @@ sqlparse==0.5.5
 python-dotenv
 django-storages
 boto3
+django-apscheduler==0.7.0

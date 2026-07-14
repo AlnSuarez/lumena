@@ -103,12 +103,17 @@ def login_user(request):
     # Users in this app seem to have 'username' and 'email'.
     # Authenticate usually matches 'username' against the model's USERNAME_FIELD.
     
-    # Let's try to find the user first by email
-    try:
-        user_obj = User.objects.get(email=email)
-        # authenticate takes 'username' (which acts as the credential identifier) and 'password'
-        user = django_authenticate(username=user_obj.username, password=password)
-    except User.DoesNotExist:
+    # Try to find user by email
+    users = User.objects.filter(email=email)
+    user = None
+    
+    if users.exists():
+        for u in users:
+            authenticated_user = django_authenticate(username=u.username, password=password)
+            if authenticated_user:
+                user = authenticated_user
+                break
+    else:
         # Also try treating email as username just in case
         user = django_authenticate(username=email, password=password)
         

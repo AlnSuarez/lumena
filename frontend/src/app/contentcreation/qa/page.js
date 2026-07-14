@@ -119,8 +119,8 @@ export default function QAPage() {
     };
 
     const handleApprove = () => {
-        // "Si se aprueba va a pasar al step de content revision"
-        handleUpdateStatus('CONTENT_REVISION', 'Approved');
+        // QA aprueba → pasa a revisión del cliente
+        handleUpdateStatus('CLIENT_REVIEW', 'Approved');
     };
 
     const handleDeny = () => {

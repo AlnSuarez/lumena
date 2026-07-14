@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from "react";
 import {
     Layout, CheckCircle2, Clock, AlertCircle, FileText, Video,
-    MessageSquare, Filter, MoreHorizontal, User as UserIcon, X, Sparkles, Activity, ArrowRight
+    MessageSquare, Filter, MoreHorizontal, User as UserIcon, X, Sparkles, Activity, ArrowRight,
+    Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check, Users
 } from "lucide-react";
 
 export default function ContentBoardPage() {
     const [requests, setRequests] = useState([]);
     const [users, setUsers] = useState([]);
     const [contentCreators, setContentCreators] = useState([]);
+    const [clients, setClients] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [assignmentMenu, setAssignmentMenu] = useState(null);
@@ -20,6 +22,127 @@ export default function ContentBoardPage() {
     const [currentUserRole, setCurrentUserRole] = useState("GUEST");
     const [currentUserId, setCurrentUserId] = useState("");
 
+    // Create Task Modal States
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [createContentType, setCreateContentType] = useState('story');
+    const [createAssignedUser, setCreateAssignedUser] = useState('');
+    const [createInstructions, setCreateInstructions] = useState('');
+    const [createSelectedClient, setCreateSelectedClient] = useState('');
+    const [createDueDate, setCreateDueDate] = useState('');
+    const [createPostDate, setCreatePostDate] = useState('');
+    
+    // Gallery search inside Create Modal
+    const [showCreateFolioSearch, setShowCreateFolioSearch] = useState(false);
+    const [createFolioSearch, setCreateFolioSearch] = useState('');
+    const [createSearchedImage, setCreateSearchedImage] = useState(null);
+    const [createFolioSearchLoading, setCreateFolioSearchLoading] = useState(false);
+    const [createFolioSearchError, setCreateFolioSearchError] = useState(null);
+
+    const contentTypes = [
+        { id: 'story', label: 'Story', icon: Type, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+        { id: 'image', label: 'Image', icon: ImageIcon, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+        { id: 'carousel', label: 'Carousel', icon: Layers, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+        { id: 'video', label: 'Video', icon: Video, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+    ];
+
+    const handleCreateRequest = async () => {
+        if (!createAssignedUser) {
+            alert("Please assign the request to a team member.");
+            return;
+        }
+
+        if (!createSelectedClient) {
+            alert("Please select a client.");
+            return;
+        }
+
+        const payload = {
+            client: createSelectedClient,
+            assigned_to: createAssignedUser,
+            request_type: 'CONTENT_REQUEST',
+            month: createDueDate || new Date().toISOString().split('T')[0],
+            linked_image: createSearchedImage ? createSearchedImage.id : null,
+            notes: `${createInstructions}\n\n[Meta]\nContent Type: ${createContentType}\nPost Date: ${createPostDate}${createSearchedImage ? `\nGallery Image: ${createSearchedImage.folio} - ${createSearchedImage.title}\nImage URL: ${createSearchedImage.image_url}` : ''}`,
+            status: 'TO_DO'
+        };
+
+        try {
+            const userId = localStorage.getItem('userId');
+            const createUrl = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            if (userId) createUrl.searchParams.append('user_id', userId);
+
+            const response = await fetch(createUrl.toString(), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (response.ok) {
+                alert("Request created successfully! It has been assigned.");
+                setShowCreateModal(false);
+                // Reset form
+                setCreateInstructions('');
+                setCreateAssignedUser('');
+                setCreateSelectedClient('');
+                setCreateDueDate('');
+                setCreatePostDate('');
+                setCreateSearchedImage(null);
+                setCreateFolioSearch('');
+                setCreateFolioSearchError(null);
+                // Refresh board data
+                fetchData();
+            } else {
+                const err = await response.json();
+                console.error("Error creating request:", err);
+                alert("Failed to create request. Check console.");
+            }
+        } catch (error) {
+            console.error("Network error:", error);
+            alert("Network error.");
+        }
+    };
+
+    const handleSearchByFolio = async () => {
+        if (!createFolioSearch.trim()) {
+            setCreateFolioSearchError('Please enter a folio number');
+            return;
+        }
+
+        setCreateFolioSearchLoading(true);
+        setCreateFolioSearchError(null);
+        setCreateSearchedImage(null);
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/gallery/images/search/?folio=${createFolioSearch.trim()}`, {
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCreateSearchedImage(data);
+                setCreateFolioSearchError(null);
+            } else {
+                const errorData = await response.json();
+                setCreateFolioSearchError(errorData.error || 'Image not found');
+                setCreateSearchedImage(null);
+            }
+        } catch (error) {
+            console.error('Error searching image:', error);
+            setCreateFolioSearchError('Failed to search image');
+            setCreateSearchedImage(null);
+        } finally {
+            setCreateFolioSearchLoading(false);
+        }
+    };
+
+    const handleClearGalleryImage = () => {
+        setCreateSearchedImage(null);
+        setCreateFolioSearch('');
+        setCreateFolioSearchError(null);
+    };
+
 
     // Board Columns Configuration
     const columns = [
@@ -27,6 +150,8 @@ export default function ContentBoardPage() {
         { id: 'IN_PROGRESS', title: 'In Progress', color: 'bg-yellow-500', icon: Clock },
         { id: 'QA', title: 'QA', color: 'bg-purple-500', icon: CheckCircle2 },
         { id: 'IN_REVISION', title: 'In Revision', color: 'bg-orange-500', icon: MessageSquare },
+        { id: 'CLIENT_REVIEW', title: 'Client Review', color: 'bg-blue-500', icon: Activity },
+        { id: 'APPROVED', title: 'Approved', color: 'bg-emerald-400', icon: CheckCircle2 },
         { id: 'DONE', title: 'Done', color: 'bg-emerald-500', icon: CheckCircle2 },
     ];
 
@@ -45,10 +170,11 @@ export default function ContentBoardPage() {
             if (role) reqUrl.searchParams.append('role', role);
             if (userId) reqUrl.searchParams.append('user_id', userId);
 
-            const [reqResponse, userResponse, creatorsResponse] = await Promise.all([
+            const [reqResponse, userResponse, creatorsResponse, clientsResponse] = await Promise.all([
                 fetch(reqUrl.toString()),
                 fetch('http://localhost:8000/api/users/manage/'), // Fetch all users for filter
-                fetch('http://localhost:8000/api/users/content-creators/') // Fetch content creators
+                fetch('http://localhost:8000/api/users/content-creators/'), // Fetch content creators
+                fetch('http://localhost:8000/api/users/clients/') // Fetch clients
             ]);
 
             if (reqResponse.ok) {
@@ -62,6 +188,10 @@ export default function ContentBoardPage() {
             if (creatorsResponse.ok) {
                 const creatorsData = await creatorsResponse.json();
                 setContentCreators(creatorsData);
+            }
+            if (clientsResponse.ok) {
+                const clientsData = await clientsResponse.json();
+                setClients(clientsData);
             }
         } catch (error) {
             console.error("Error fetching board data:", error);
@@ -219,8 +349,11 @@ export default function ContentBoardPage() {
                                 <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
-
-                        <button className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95">
+ 
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95"
+                        >
                             <span>+ New Task</span>
                         </button>
                     </div>
@@ -503,6 +636,293 @@ export default function ContentBoardPage() {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Create Request Modal */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-card w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col border border-border relative animate-in zoom-in-95 duration-200 text-foreground overflow-hidden">
+                            
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-border flex items-center justify-between bg-muted/10 shrink-0">
+                                <div>
+                                    <h2 className="text-2xl font-black text-foreground tracking-tight">New Request</h2>
+                                    <p className="text-xs text-muted-foreground font-medium">Create a task for the content team</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="p-2 bg-background hover:bg-destructive/10 rounded-full text-muted-foreground hover:text-destructive transition-colors border border-border"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col md:flex-row gap-6">
+                                
+                                {/* Left Side: Content Type & Folio */}
+                                <div className="md:w-1/3 flex flex-col gap-6">
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Content Type</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {contentTypes.map((type) => {
+                                                const Icon = type.icon;
+                                                const isSelected = createContentType === type.id;
+                                                return (
+                                                    <button
+                                                        key={type.id}
+                                                        onClick={() => setCreateContentType(type.id)}
+                                                        className={`
+                                                            flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all duration-200
+                                                            ${isSelected
+                                                                ? 'border-primary bg-primary text-primary-foreground shadow-lg'
+                                                                : 'border-border bg-card hover:bg-muted/50 text-muted-foreground hover:text-primary'}
+                                                        `}
+                                                    >
+                                                        <div className={`p-2 rounded-xl ${isSelected ? 'bg-white/20 text-white' : type.bg + ' ' + type.color}`}>
+                                                            <Icon size={20} />
+                                                        </div>
+                                                        <span className="font-bold text-xs">{type.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-border pt-4 mt-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCreateFolioSearch(true)}
+                                            className="w-full flex items-center justify-between p-3.5 bg-muted/30 hover:bg-card border border-border hover:border-primary/50 rounded-xl transition-all shadow-sm"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
+                                                    {createSearchedImage ? <Check size={16} /> : <Plus size={16} />}
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="block text-xs font-bold text-foreground">
+                                                        {createSearchedImage ? `Linked: ${createSearchedImage.folio}` : 'Link Photo ID'}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground block truncate max-w-[150px]">
+                                                        {createSearchedImage ? createSearchedImage.title : 'Search from gallery'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="hidden md:block w-px bg-border my-2"></div>
+
+                                {/* Right Side: Fields */}
+                                <div className="flex-1 flex flex-col gap-5 overflow-y-auto pr-1">
+                                    
+                                    {/* Instructions */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Instructions</label>
+                                        <textarea
+                                            value={createInstructions}
+                                            onChange={(e) => setCreateInstructions(e.target.value)}
+                                            className="w-full h-24 px-4 py-3 bg-secondary/10 border border-input focus:bg-card focus:border-primary rounded-xl text-foreground placeholder-muted-foreground/50 resize-none outline-none transition-all font-medium text-sm"
+                                            placeholder="Describe the requirements for this content piece..."
+                                        />
+                                    </div>
+
+                                    {/* Client Selection */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Client</label>
+                                        <div className="relative">
+                                            <select
+                                                value={createSelectedClient}
+                                                onChange={(e) => setCreateSelectedClient(e.target.value)}
+                                                className="w-full px-4 py-3 pl-10 bg-secondary/10 border border-input rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary focus:bg-card appearance-none transition-all"
+                                            >
+                                                <option value="">Select Client...</option>
+                                                {clients.map(client => {
+                                                    const name = client.first_name && client.last_name ? `${client.first_name} ${client.last_name}` : client.username;
+                                                    return (
+                                                        <option key={client.id} value={client.id}>{name}</option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                        </div>
+                                    </div>
+
+                                    {/* Assign To */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Assign To</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <select
+                                                value={createAssignedUser}
+                                                onChange={(e) => setCreateAssignedUser(e.target.value)}
+                                                className="w-full px-4 py-3 bg-secondary/10 border border-input rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary focus:bg-card appearance-none transition-all"
+                                            >
+                                                <option value="">Select Team Member...</option>
+                                                {contentCreators.map(user => {
+                                                    const name = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username;
+                                                    return (
+                                                        <option key={user.id} value={user.id}>{name} ({user.role})</option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 border border-border rounded-xl">
+                                                {createAssignedUser ? (
+                                                    <>
+                                                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0">
+                                                            {contentCreators.find(u => String(u.id) === String(createAssignedUser))?.username?.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className="truncate">
+                                                            <p className="text-xs font-bold text-foreground truncate">{contentCreators.find(u => String(u.id) === String(createAssignedUser))?.username}</p>
+                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{contentCreators.find(u => String(u.id) === String(createAssignedUser))?.role}</p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground font-medium">No user selected</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dates Row */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Due Date</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="date"
+                                                    value={createDueDate}
+                                                    onChange={(e) => setCreateDueDate(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2.5 bg-secondary/10 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-xs transition-all"
+                                                />
+                                                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Post Date</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="date"
+                                                    value={createPostDate}
+                                                    onChange={(e) => setCreatePostDate(e.target.value)}
+                                                    className="w-full pl-9 pr-3 py-2.5 bg-secondary/10 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-xs transition-all"
+                                                />
+                                                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Submit Button */}
+                                    <div className="pt-4 shrink-0">
+                                        <button
+                                            onClick={handleCreateRequest}
+                                            className="w-full py-3.5 bg-foreground hover:bg-foreground/90 text-background rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group"
+                                        >
+                                            <span>Create Request</span>
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Create Folio Search Modal */}
+                {showCreateFolioSearch && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+                        <div className="bg-card rounded-3xl shadow-2xl p-6 max-w-xl w-full animate-in zoom-in duration-300 border border-border text-foreground">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-foreground">Link Gallery Image</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">Search by folio number (e.g., C5F12-001)</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowCreateFolioSearch(false);
+                                        setCreateFolioSearchError(null);
+                                    }}
+                                    className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                                >
+                                    <X size={16} className="text-muted-foreground" />
+                                </button>
+                            </div>
+
+                            {/* Search Input */}
+                            <div className="mb-4">
+                                <div className="flex gap-2">
+                                    <div className="flex-1 relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                        <input
+                                            type="text"
+                                            value={createFolioSearch}
+                                            onChange={(e) => setCreateFolioSearch(e.target.value.toUpperCase())}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleSearchByFolio()}
+                                            placeholder="Enter folio number..."
+                                            className="w-full pl-9 pr-3 py-3 border border-border bg-secondary/10 rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary transition-all"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleSearchByFolio}
+                                        disabled={createFolioSearchLoading}
+                                        className="px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+                                    >
+                                        {createFolioSearchLoading ? 'Searching...' : 'Search'}
+                                    </button>
+                                </div>
+
+                                {createFolioSearchError && (
+                                    <div className="mt-2.5 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                        <p className="text-xs text-red-500 font-medium">{createFolioSearchError}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Search Result */}
+                            {createSearchedImage && (
+                                <div className="border border-emerald-500/20 bg-emerald-500/5 rounded-xl p-4">
+                                    <div className="flex items-start gap-4">
+                                        <img
+                                            src={createSearchedImage.image_url}
+                                            alt={createSearchedImage.title}
+                                            className="w-24 h-24 object-cover rounded-lg border shadow-sm"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-start justify-between mb-1">
+                                                <div>
+                                                    <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{createSearchedImage.folio}</p>
+                                                    <h4 className="text-sm font-bold text-foreground">{createSearchedImage.title}</h4>
+                                                </div>
+                                                <button
+                                                    onClick={handleClearGalleryImage}
+                                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowCreateFolioSearch(false)}
+                                                className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+                                            >
+                                                <Check size={14} />
+                                                Confirm & Attach
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Empty State */}
+                            {!createSearchedImage && !createFolioSearchError && (
+                                <div className="text-center py-8 border border-dashed border-border rounded-xl">
+                                    <ImageIcon size={32} className="mx-auto text-muted-foreground mb-2 opacity-50" />
+                                    <p className="text-xs text-muted-foreground font-medium">Enter a folio number to search</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
