@@ -574,7 +574,7 @@ export default function ClientGalleryPage() {
                                         id="imageInput"
                                         type="file"
                                         multiple
-                                        accept="image/*"
+                                        accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
                                         onChange={handleFileSelect}
                                         className="hidden"
                                     />
@@ -583,8 +583,8 @@ export default function ClientGalleryPage() {
                                             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                                                 <Upload className="text-primary" size={32} />
                                             </div>
-                                            <p className="font-bold text-foreground text-lg">Click to select images</p>
-                                            <p className="text-sm text-muted-foreground mt-1">or drag and drop JPG, PNG, GIF, WebP</p>
+                                            <p className="font-bold text-foreground text-lg">Click to select images or videos</p>
+                                            <p className="text-sm text-muted-foreground mt-1">Supports JPG, PNG, GIF, WebP, MP4, MOV, AVI</p>
                                         </div>
                                     </label>
 

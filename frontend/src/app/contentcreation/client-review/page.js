@@ -179,16 +179,31 @@ export default function ClientReviewPage() {
 
                                         {/* Preview Mockup */}
                                         <div className="aspect-video bg-secondary/30 rounded-2xl overflow-hidden relative border border-border/50 flex items-center justify-center">
-                                            {req.linked_image_details ? (
-                                                <img 
-                                                    src={req.linked_image_details.image_compressed || req.linked_image_details.image} 
-                                                    alt={req.linked_image_details.title} 
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="text-center p-4">
-                                                    <ImageIcon size={32} className="mx-auto text-muted-foreground/60 mb-2" />
-                                                    <p className="text-xs text-muted-foreground font-bold">Visual Asset Pending Upload</p>
+                                            {(() => {
+                                                const items = req.content_items || [];
+                                                if (req.linked_image_details && items.length === 0) {
+                                                    items.push({ media_type: 'IMAGE', gallery_image_details: req.linked_image_details });
+                                                }
+                                                if (items.length > 0) {
+                                                    const ci = items[0];
+                                                    const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || ci.file_url || req.linked_image_details?.image_compressed || req.linked_image_details?.image;
+                                                    if (src) {
+                                                        if (ci.media_type === 'VIDEO') {
+                                                            return <video src={src} controls className="absolute inset-0 w-full h-full object-cover" />;
+                                                        }
+                                                        return <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="absolute inset-0 w-full h-full object-cover" />;
+                                                    }
+                                                }
+                                                return (
+                                                    <div className="text-center p-4">
+                                                        <ImageIcon size={32} className="mx-auto text-muted-foreground/60 mb-2" />
+                                                        <p className="text-xs text-muted-foreground font-bold">Visual Asset Pending Upload</p>
+                                                    </div>
+                                                );
+                                            })()}
+                                            {req.content_items?.length > 1 && (
+                                                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                                                    <span className="text-[10px] font-mono text-white">{req.content_items.length} items</span>
                                                 </div>
                                             )}
                                         </div>

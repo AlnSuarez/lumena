@@ -124,6 +124,16 @@ export default function SubmitStoryPage() {
         setFolioSearchError(null);
     };
 
+    const getMediaTypeForContentType = (ct) => {
+        const map = {
+            story: 'STORY',
+            image: 'IMAGE',
+            carousel: 'CAROUSEL_IMAGE',
+            video: 'VIDEO',
+        };
+        return map[ct] || 'IMAGE';
+    };
+
     const handleCreateRequest = async () => {
         if (!assignedUser) {
             alert("Please assign the request to a team member.");
@@ -135,13 +145,59 @@ export default function SubmitStoryPage() {
             return;
         }
 
+        let attachmentUrl = null;
+        let attachmentName = null;
+        if (attachment) {
+            const formData = new FormData();
+            formData.append('file', attachment);
+            try {
+                const uploadRes = await fetch('http://localhost:8000/api/contents/upload-attachment/', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (uploadRes.ok) {
+                    const uploadData = await uploadRes.json();
+                    attachmentUrl = uploadData.url;
+                    attachmentName = uploadData.filename;
+                }
+            } catch (e) {
+                console.error("Error uploading attachment:", e);
+            }
+        }
+
+        const contentItems = [];
+        if (searchedImage) {
+            contentItems.push({
+                media_type: getMediaTypeForContentType(contentType),
+                order: 0,
+                gallery_image: searchedImage.id,
+            });
+        }
+        if (attachmentUrl) {
+            contentItems.push({
+                media_type: getMediaTypeForContentType(contentType),
+                order: searchedImage ? 1 : 0,
+                file_url: attachmentUrl,
+                file_name: attachmentName,
+            });
+        }
+
+        let metaNotes = `[Meta]\nContent Type: ${contentType}\nPost Date: ${postDate}`;
+        if (searchedImage) {
+            metaNotes += `\nGallery Image: ${searchedImage.folio} - ${searchedImage.title}`;
+        }
+        if (attachmentUrl) {
+            metaNotes += `\nAttachment: ${attachmentUrl}`;
+        }
+
         const payload = {
             client: selectedClient,
             assigned_to: assignedUser,
-            request_type: 'CONTENT_REQUEST', // or map contentType if needed, but 'CONTENT_REQUEST' covers adhoc
-            month: dueDate || new Date().toISOString().split('T')[0], // Fallback to today if no due date
+            request_type: 'CONTENT_REQUEST',
+            month: dueDate || new Date().toISOString().split('T')[0],
             linked_image: searchedImage ? searchedImage.id : null,
-            notes: `${instructions}\n\n[Meta]\nContent Type: ${contentType}\nPost Date: ${postDate}${searchedImage ? `\nGallery Image: ${searchedImage.folio} - ${searchedImage.title}\nImage URL: ${searchedImage.image_url}` : ''}`,
+            content_items: contentItems.length > 0 ? contentItems : undefined,
+            notes: `${instructions}\n\n${metaNotes}`,
             status: 'TO_DO'
         };
 
@@ -160,7 +216,6 @@ export default function SubmitStoryPage() {
 
             if (response.ok) {
                 alert("Request created successfully! It has been assigned.");
-                // Reset form
                 setInstructions('');
                 setAssignedUser('');
                 setSelectedClient('');
@@ -383,7 +438,7 @@ export default function SubmitStoryPage() {
                                 id="attachment-upload"
                                 onChange={handleFileChange}
                                 className="hidden"
-                                accept="image/*"
+                                accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
                             />
                             <label
                                 htmlFor="attachment-upload"
@@ -397,7 +452,11 @@ export default function SubmitStoryPage() {
                             >
                                 {attachmentPreview ? (
                                     <>
-                                        <img src={attachmentPreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                                        {attachment?.type?.startsWith('video/') ? (
+                                            <video src={attachmentPreview} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                                        ) : (
+                                            <img src={attachmentPreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                                        )}
                                         <div className="relative z-10 flex flex-col items-center">
                                             <div className="w-12 h-12 rounded-full bg-primary shadow-lg flex items-center justify-center text-primary-foreground mb-2">
                                                 <Upload size={20} />
@@ -412,8 +471,8 @@ export default function SubmitStoryPage() {
                                             <Upload size={20} className="text-muted-foreground group-hover:text-primary" />
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Click to upload image</p>
-                                            <p className="text-xs text-muted-foreground">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+                                            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Click to upload image or video</p>
+                                            <p className="text-xs text-muted-foreground">Supports JPG, PNG, GIF, MP4, MOV, AVI</p>
                                         </div>
                                     </>
                                 )}

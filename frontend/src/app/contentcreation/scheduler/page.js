@@ -342,11 +342,13 @@ export default function SchedulerPage() {
                                     year: "numeric",
                                 }),
                             status: item.status,
-                            // Thumbnail comes from linked_image_details
-                            thumbnail:
-                                item.linked_image_details?.image_compressed ||
-                                item.linked_image_details?.image ||
-                                null,
+                            // Thumbnail from content_items (first item), fallback to linked_image_details
+                            content_items: item.content_items || [],
+                            thumbnail: (() => {
+                                const ci = item.content_items?.[0];
+                                if (ci) return ci.gallery_image_details?.image_url || ci.file_url || null;
+                                return item.linked_image_details?.image_compressed || item.linked_image_details?.image || null;
+                            })(),
                             // Caption is ai_caption; fallback to content_text
                             caption: item.ai_caption || item.content_text || "",
                             hashtags: [],
@@ -441,6 +443,7 @@ export default function SchedulerPage() {
             release_time: releaseTime,
             caption,
             hashtags,
+            content_items: selectedContent.content_items || [],
             status: isDraft ? "DRAFT" : "SCHEDULED",
         };
 

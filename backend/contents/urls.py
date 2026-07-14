@@ -9,6 +9,7 @@ urlpatterns = [
     path('monthly-requests/<int:pk>/reassign/', views.reassign_creator, name='reassign_creator'),
     path('monthly-requests/<int:pk>/reassign-qa/', views.reassign_qa, name='reassign_qa'),
     path('creator-workload-stats/', views.creator_workload_stats, name='creator_workload_stats'),
+    path('upload-attachment/', views.upload_attachment, name='upload_attachment'),
     path('lets-talk/', views.create_lets_talk_submission, name='create_lets_talk_submission'),
     path('lets-talk/admin/', views.list_lets_talk_submissions, name='list_lets_talk_submissions'),
     path('lets-talk/admin/<int:pk>/reviewed/', views.mark_lets_talk_submission_reviewed, name='mark_lets_talk_submission_reviewed'),

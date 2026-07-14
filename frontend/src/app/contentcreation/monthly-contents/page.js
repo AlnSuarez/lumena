@@ -307,18 +307,26 @@ export default function MonthlyContentsPage() {
     };
 
     const handleSelectImage = async (image) => {
-        // Update the request with the new image ID
-        await updateRequestStatus(activeItem.id, activeItem.status, { linked_image: image.id });
+        const stepKey = steps[currentStepIndex]?.id || 'photos';
+        const mediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
+        const currentItems = activeItem.originalData?.content_items || [];
+        const newItem = { media_type: mediaType, order: currentItems.length, gallery_image: image.id };
+        const updatedItems = [...currentItems, newItem];
 
-        // Update local state manually to reflect change immediately without full reload
+        await updateRequestStatus(activeItem.id, activeItem.status, {
+            content_items: updatedItems,
+            linked_image: image.id,
+        });
+
         setItems(prev => prev.map(item => {
             if (item.id === activeItem.id) {
                 return {
                     ...item,
                     originalData: {
                         ...item.originalData,
+                        content_items: updatedItems,
                         linked_image: image.id,
-                        linked_image_details: image
+                        linked_image_details: image,
                     }
                 };
             }
@@ -326,12 +334,11 @@ export default function MonthlyContentsPage() {
         }));
 
         setIsImageSelectionOpen(false);
-        // Reset selection state
         setFoundImage(null);
         setSelectedFolderId(null);
         setFolderImages([]);
 
-        alert("Image updated successfully!");
+        alert("Image added successfully!");
     };
 
     const findOrCreateContentFolder = async (clientId) => {
@@ -421,11 +428,18 @@ export default function MonthlyContentsPage() {
             const uploadResult = await uploadResponse.json();
             const uploadedImages = uploadResult.images || [uploadResult];
 
-            // 4. Vincular primera imagen al request
+            // 4. Vincular imágenes al request como ContentItems
             if (uploadedImages.length > 0) {
-                const firstImage = uploadedImages[0];
+                const stepKey = steps[currentStepIndex]?.id || 'photos';
+                const mediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
+                const currentItems = activeItem.originalData?.content_items || [];
+                const newItems = uploadedImages.map((img, idx) => ({
+                    media_type: mediaType,
+                    order: currentItems.length + idx,
+                    gallery_image: img.id,
+                }));
+                const updatedItems = [...currentItems, ...newItems];
 
-                // Actualizar request con imagen vinculada
                 const updateResponse = await fetch(
                     `${API_BASE}/contents/monthly-requests/${activeItem.id}/`,
                     {
@@ -437,16 +451,16 @@ export default function MonthlyContentsPage() {
                         },
                         body: JSON.stringify({
                             status: activeItem.originalData.status,
-                            linked_image: firstImage.id,
+                            content_items: updatedItems,
+                            linked_image: uploadedImages[0].id,
                         }),
                     }
                 );
 
                 if (!updateResponse.ok) {
-                    throw new Error('Failed to link image');
+                    throw new Error('Failed to link images');
                 }
 
-                // Actualizar estado local
                 setItems(prevItems =>
                     prevItems.map(itm =>
                         itm.id === activeItem.id
@@ -454,8 +468,9 @@ export default function MonthlyContentsPage() {
                                 ...itm,
                                 originalData: {
                                     ...itm.originalData,
-                                    linked_image: firstImage.id,
-                                    linked_image_details: firstImage,
+                                    content_items: updatedItems,
+                                    linked_image: uploadedImages[0].id,
+                                    linked_image_details: uploadedImages[0],
                                 },
                             }
                             : itm
@@ -892,21 +907,54 @@ export default function MonthlyContentsPage() {
 
                                             {/* Content Container */}
                                             <div className="w-[85%] h-[85%] bg-card rounded-2xl border border-border shadow-2xl shadow-black/5 flex items-center justify-center relative overflow-hidden transition-all duration-700 group-hover:scale-[1.02] group-hover:shadow-xl">
-                                                {activeItem.originalData?.linked_image_details?.image_url ? (
-                                                    <img
-                                                        src={activeItem.originalData.linked_image_details.image_url}
-                                                        alt={activeItem.originalData.linked_image_details.title || "Reference Image"}
-                                                        className="w-full h-full object-contain"
-                                                    />
-                                                ) : (
-                                                    <div className="text-center p-8">
-                                                        <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
-                                                            <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
+                                                {(() => {
+                                                    const items = activeItem.originalData?.content_items || [];
+                                                    if (activeItem.originalData?.linked_image_details && items.length === 0) {
+                                                        items.push({ media_type: 'IMAGE', gallery_image_details: activeItem.originalData.linked_image_details });
+                                                    }
+                                                    if (items.length > 0) {
+                                                        const ci = items[0];
+                                                        const imgSrc = ci.gallery_image_details?.image_url || ci.file_url || activeItem.originalData?.linked_image_details?.image_url;
+                                                        if (imgSrc) {
+                                                            if (ci.media_type === 'VIDEO') {
+                                                                return (
+                                                                    <video
+                                                                        src={imgSrc}
+                                                                        controls
+                                                                        className="w-full h-full object-contain"
+                                                                    />
+                                                                );
+                                                            }
+                                                            return (
+                                                                <img
+                                                                    src={imgSrc}
+                                                                    alt={ci.gallery_image_details?.title || ci.file_name || "Media"}
+                                                                    className="w-full h-full object-contain"
+                                                                />
+                                                            );
+                                                        }
+                                                    }
+                                                    return (
+                                                        <div className="text-center p-8">
+                                                            <div className="w-24 h-24 bg-secondary/50 rounded-full mx-auto mb-6 flex items-center justify-center text-muted-foreground">
+                                                                <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                            </div>
+                                                            <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
+                                                            <p className="text-sm text-muted-foreground">Linked media will appear here</p>
                                                         </div>
-                                                        <h4 className="text-lg font-bold text-foreground mb-1">Content Preview</h4>
-                                                        <p className="text-sm text-muted-foreground">Linked media will appear here</p>
+                                                    );
+                                                })()}
+
+                                                                                        {activeItem.originalData?.content_items?.length > 1 && (
+                                                    <div className="absolute top-4 left-4 z-30 flex gap-1">
+                                                        {activeItem.originalData.content_items.map((ci, ciIdx) => (
+                                                            <div
+                                                                key={ci.id || ciIdx}
+                                                                className={`w-2 h-2 rounded-full ${ciIdx === 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                                            />
+                                                        ))}
                                                     </div>
                                                 )}
 
@@ -921,7 +969,7 @@ export default function MonthlyContentsPage() {
                                                         className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
                                                     >
                                                         <RefreshCw size={12} />
-                                                        {activeItem.originalData?.linked_image_details ? 'Change Image' : 'Select Image'}
+                                                        {activeItem.originalData?.content_items?.length ? 'Add Media' : 'Select Image'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1108,7 +1156,7 @@ export default function MonthlyContentsPage() {
                                                                         id="uploadImageInput"
                                                                         type="file"
                                                                         multiple
-                                                                        accept="image/*"
+                                                                        accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
                                                                         onChange={handleUploadFileSelect}
                                                                         className="hidden"
                                                                     />
@@ -1117,15 +1165,15 @@ export default function MonthlyContentsPage() {
                                                                             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                                                                                 <Upload className="text-primary" size={32} />
                                                                             </div>
-                                                                            <p className="font-bold text-foreground">Click to select images</p>
-                                                                            <p className="text-sm text-muted-foreground mt-1">Images will be saved in the client's \"Created\" folder</p>
+                                                                            <p className="font-bold text-foreground">Click to select images or videos</p>
+                                                                            <p className="text-sm text-muted-foreground mt-1">Supports JPG, PNG, GIF, MP4, MOV, AVI &mdash; saved in client&apos;s &quot;Created&quot; folder</p>
                                                                         </div>
                                                                     </label>
 
                                                                     {uploadSelectedFiles.length > 0 && (
                                                                         <div className="mt-6 pt-6 border-t border-primary/10">
                                                                             <p className="text-sm font-bold mb-3">
-                                                                                Selected: {uploadSelectedFiles.length} image(s)
+                                                                                Selected: {uploadSelectedFiles.length} file(s)
                                                                             </p>
                                                                             <div className="space-y-1 mb-4 max-h-32 overflow-y-auto">
                                                                                 {uploadSelectedFiles.map((file, idx) => (

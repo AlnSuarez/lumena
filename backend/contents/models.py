@@ -133,6 +133,37 @@ class MonthlyRequest(models.Model):
         verbose_name_plural = _("Monthly Requests")
         ordering = ['-month', 'client__username']
 
+class ContentItem(models.Model):
+    class MediaType(models.TextChoices):
+        IMAGE = 'IMAGE', _('Image')
+        VIDEO = 'VIDEO', _('Video')
+        CAROUSEL_IMAGE = 'CAROUSEL_IMAGE', _('Carousel Image')
+        STORY = 'STORY', _('Story')
+
+    request = models.ForeignKey(MonthlyRequest, on_delete=models.CASCADE, related_name='content_items')
+    media_type = models.CharField(max_length=20, choices=MediaType.choices, default=MediaType.IMAGE)
+    order = models.IntegerField(default=0)
+    gallery_image = models.ForeignKey(
+        'gallery.ClientImage',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='content_items'
+    )
+    file_url = models.URLField(max_length=500, blank=True)
+    file_name = models.CharField(max_length=255, blank=True)
+    caption = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = _("Content Item")
+        verbose_name_plural = _("Content Items")
+
+    def __str__(self):
+        return f"{self.get_media_type_display()} #{self.order} for request {self.request_id}"
+
+
 class RequestHistory(models.Model):
     request = models.ForeignKey(MonthlyRequest, on_delete=models.CASCADE, related_name='history')
     previous_status = models.CharField(max_length=50, null=True, blank=True)

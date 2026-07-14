@@ -1,18 +1,22 @@
 from rest_framework import generics, permissions, status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from django.db.models import Q, Count
+from django.conf import settings
 import base64
 import json
 import os
 import socket
+import uuid
 from urllib import request as urlrequest
 from urllib.error import URLError, HTTPError
-from .models import MonthlyRequest, LetsTalkSubmission
+from .models import MonthlyRequest, LetsTalkSubmission, ContentItem
 from .serializers import (
     MonthlyRequestSerializer,
+    MonthlyRequestCreateSerializer,
     LetsTalkSubmissionCreateSerializer,
     LetsTalkSubmissionAdminSerializer,
 )
@@ -248,8 +252,12 @@ def generate_caption(request, pk):
 
 
 class MonthlyRequestListCreateView(generics.ListCreateAPIView):
-    serializer_class = MonthlyRequestSerializer
     permission_classes = [permissions.AllowAny] # Changed for dev/prototype without token auth
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return MonthlyRequestCreateSerializer
+        return MonthlyRequestSerializer
 
     def get_queryset(self):
         # In a real app, use self.request.user and IsAuthenticated
@@ -290,8 +298,12 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         serializer.save(_current_user=user)
 
 class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = MonthlyRequestSerializer
     permission_classes = [permissions.AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return MonthlyRequestCreateSerializer
+        return MonthlyRequestSerializer
 
     def get_queryset(self):
         # Similar logic or just AllowAny for detail if ID is known
@@ -465,6 +477,27 @@ def list_lets_talk_submissions(request):
     submissions = LetsTalkSubmission.objects.select_related('reviewed_by').all()
     serializer = LetsTalkSubmissionAdminSerializer(submissions, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def upload_attachment(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ext = os.path.splitext(file.name)[1] or '.jpg'
+    filename = f"attachments/{uuid.uuid4().hex}{ext}"
+    dest = settings.MEDIA_ROOT / filename
+    os.makedirs(dest.parent, exist_ok=True)
+    with open(dest, 'wb') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+
+    url = f"{settings.MEDIA_URL}{filename}"
+    return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['PATCH'])
