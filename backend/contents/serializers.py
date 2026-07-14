@@ -13,6 +13,8 @@ class ContentItemSerializer(serializers.ModelSerializer):
 
 
 class ContentItemCreateSerializer(serializers.ModelSerializer):
+    file_url = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = ContentItem
         fields = ['media_type', 'order', 'gallery_image', 'file_url', 'file_name', 'caption']

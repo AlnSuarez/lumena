@@ -297,6 +297,14 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         user = _get_actor_from_request(self.request)
         serializer.save(_current_user=user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        read_serializer = MonthlyRequestSerializer(instance, context=self.get_serializer_context())
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+
 class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.AllowAny]
 

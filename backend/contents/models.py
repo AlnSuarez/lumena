@@ -150,7 +150,7 @@ class ContentItem(models.Model):
         blank=True,
         related_name='content_items'
     )
-    file_url = models.URLField(max_length=500, blank=True)
+    file_url = models.TextField(blank=True)
     file_name = models.CharField(max_length=255, blank=True)
     caption = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
