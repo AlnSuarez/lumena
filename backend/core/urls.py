@@ -28,4 +28,13 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    from django.views.static import serve
+    from django.views.decorators.clickjacking import xframe_options_exempt
+    from django.urls import re_path
+    
+    # Exclude media serving from X-Frame-Options to allow framing locally (e.g. from frontend port 3000)
+    media_url_pattern = r'^' + settings.MEDIA_URL.lstrip('/') + r'(?P<path>.*)$'
+    urlpatterns += [
+        re_path(media_url_pattern, xframe_options_exempt(serve), {'document_root': settings.MEDIA_ROOT}),
+    ]
+

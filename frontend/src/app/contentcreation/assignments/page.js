@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Filter, User as UserIcon, AlertTriangle, Loader2, X } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "DONE"];
 
 const statusBadge = (status) => {

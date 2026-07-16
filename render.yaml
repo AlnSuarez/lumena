@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lumena-backend
+    env: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn core.wsgi
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: POSTPROXY_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"

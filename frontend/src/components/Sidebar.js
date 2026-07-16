@@ -28,7 +28,9 @@ import {
     ClipboardList,
     Mail,
     CheckCircle2,
-    Clock
+    Clock,
+    Folder,
+    Settings
 } from "lucide-react";
 
 export function Sidebar() {
@@ -44,8 +46,10 @@ export function Sidebar() {
         submitRequests: false,
         customization: false,
         yourInsights: false,
+        sharedContent: false,
         administration: false,
-        scheduler: false
+        scheduler: false,
+        clientSettings: true
     });
 
     React.useEffect(() => {
@@ -73,12 +77,16 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, submitRequests: true }));
         } else if (pathname.startsWith('/contentcreation/customize')) {
             setExpandedSections(prev => ({ ...prev, customization: true }));
-        } else if (pathname.startsWith('/contentcreation/your-insights') || pathname.startsWith('/contentcreation/client-review')) {
+        } else if (pathname.startsWith('/contentcreation/your-insights') || pathname.startsWith('/contentcreation/client-review') || pathname.startsWith('/contentcreation/completed-content')) {
             setExpandedSections(prev => ({ ...prev, yourInsights: true }));
+        } else if (pathname.startsWith('/contentcreation/shared-content')) {
+            setExpandedSections(prev => ({ ...prev, sharedContent: true }));
         } else if (pathname.startsWith('/contentcreation/create-client') || pathname.startsWith('/contentcreation/manage-users') || pathname.startsWith('/contentcreation/client-gallery') || pathname.startsWith('/contentcreation/assignments') || pathname.startsWith('/contentcreation/lets-talk')) {
             setExpandedSections(prev => ({ ...prev, administration: true }));
         } else if (pathname.startsWith('/contentcreation/scheduler')) {
             setExpandedSections(prev => ({ ...prev, scheduler: true }));
+        } else if (pathname.startsWith('/contentcreation/client-settings')) {
+            setExpandedSections(prev => ({ ...prev, clientSettings: true }));
         }
     }, [pathname]);
 
@@ -96,11 +104,11 @@ export function Sidebar() {
     const checkAccess = (sectionKey, allowedRoles = []) => {
         // Temporary restriction: clients can only access customization, insights, and client_review.
         if (userRole === 'CLIENT') {
-            return sectionKey === 'customization' || sectionKey === 'your_insights' || sectionKey === 'client_review';
+            return sectionKey === 'customization' || sectionKey === 'your_insights' || sectionKey === 'client_review' || sectionKey === 'shared_content' || sectionKey === 'client_settings' || sectionKey === 'completed_content';
         }
 
-        // Your Insights and Client Review are exclusive to clients.
-        if (sectionKey === 'your_insights' || sectionKey === 'client_review') {
+        // Your Insights, Client Review, Shared Content, Client Settings, and Completed Content are exclusive to clients.
+        if (sectionKey === 'your_insights' || sectionKey === 'client_review' || sectionKey === 'shared_content' || sectionKey === 'client_settings' || sectionKey === 'completed_content') {
             return false;
         }
 
@@ -212,6 +220,24 @@ export function Sidebar() {
                     {checkAccess('client_review', ['CLIENT']) && (
                         <Link href="/contentcreation/client-review" title="Client Review" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/client-review') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
                             <CheckSquare size={24} />
+                        </Link>
+                    )}
+
+                    {checkAccess('completed_content', ['CLIENT']) && (
+                        <Link href="/contentcreation/completed-content" title="Completed Content" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/completed-content') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <Layers size={24} />
+                        </Link>
+                    )}
+
+                    {checkAccess('shared_content', ['CLIENT']) && (
+                        <Link href="/contentcreation/shared-content" title="Shared Content" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/shared-content') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <Folder size={24} />
+                        </Link>
+                    )}
+
+                    {checkAccess('client_settings', ['CLIENT']) && (
+                        <Link href="/contentcreation/client-settings" title="Client Settings" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/client-settings') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                            <Settings size={24} />
                         </Link>
                     )}
 
@@ -485,11 +511,84 @@ export function Sidebar() {
                                             </Link>
                                         </li>
                                     )}
+                                    {checkAccess('completed_content', ['CLIENT']) && (
+                                        <li>
+                                            <Link href="/contentcreation/completed-content" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/completed-content') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <span className="flex items-center gap-2">
+                                                    <Layers size={16} className="group-hover:text-primary transition-colors" />
+                                                    Completed Content
+                                                </span>
+                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </div>
                     )}
 
+                    {/* Section: Shared Content */}
+                    {checkAccess('shared_content', ['CLIENT']) && (
+                        <div className="space-y-4">
+                            <button
+                                onClick={() => toggleSection('sharedContent')}
+                                className="w-full flex items-center justify-between font-semibold text-lg transition-all px-3 py-2 text-foreground hover:text-primary"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Folder size={20} className="text-muted-foreground" />
+                                    <h3>Shared Content</h3>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`transition-transform duration-300 text-muted-foreground ${expandedSections.sharedContent ? 'rotate-0' : '-rotate-90'}`}
+                                />
+                            </button>
+                            {expandedSections.sharedContent && (
+                                <ul className="space-y-2 ml-3 border-l-2 border-sidebar-border pl-4 animate-in fade-in duration-200">
+                                    <li>
+                                        <Link href="/contentcreation/shared-content" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/shared-content') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <FileText size={16} className="group-hover:text-primary transition-colors" />
+                                                Shared Documents
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </div>
+                    )}
+                    {/* Section: Client Settings */}
+                    {checkAccess('client_settings', ['CLIENT']) && (
+                        <div className="space-y-4">
+                            <button
+                                onClick={() => toggleSection('clientSettings')}
+                                className="w-full flex items-center justify-between font-semibold text-lg transition-all px-3 py-2 text-foreground hover:text-primary"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Settings size={20} className="text-muted-foreground" />
+                                    <h3>Client Settings</h3>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`transition-transform duration-300 text-muted-foreground ${expandedSections.clientSettings ? 'rotate-0' : '-rotate-90'}`}
+                                />
+                            </button>
+                            {expandedSections.clientSettings && (
+                                <ul className="space-y-2 ml-3 border-l-2 border-sidebar-border pl-4 animate-in fade-in duration-200">
+                                    <li>
+                                        <Link href="/contentcreation/client-settings" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/client-settings') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <Settings size={16} className="group-hover:text-primary transition-colors" />
+                                                Social Networks
+                                            </span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </div>
+                    )}
                     {/* Section: Administration (Only visible to admins) */}
                     {checkAccess('administration', PERMISSIONS.createClient) && (
                         <div className="space-y-4">

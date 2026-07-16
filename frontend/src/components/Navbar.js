@@ -39,7 +39,7 @@ export function Navbar() {
 
     const fetchNotifications = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/contents/monthly-requests/?role=SUPERUSER');
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/?role=SUPERUSER');
             if (response.ok) {
                 const data = await response.json();
                 // Filter logic
@@ -58,7 +58,7 @@ export function Navbar() {
 
     const fetchCreators = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/users/content-creators/');
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/');
             if (response.ok) {
                 const data = await response.json();
                 setContentCreators(data);
@@ -71,7 +71,7 @@ export function Navbar() {
     const handleConfirmAssignment = async (requestId) => {
         try {
             const userId = localStorage.getItem('userId');
-            const confirmUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
+            const confirmUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
             if (userId) confirmUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(
@@ -90,7 +90,7 @@ export function Navbar() {
     const handleReassign = async (requestId, creatorId) => {
         try {
             const userId = localStorage.getItem('userId');
-            const reassignUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`);
+            const reassignUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/reassign/`);
             if (userId) reassignUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(

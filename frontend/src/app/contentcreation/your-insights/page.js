@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, HelpCircle, FileText, Download, ExternalLink, File, FileImage, Video, FileSpreadsheet, FileType } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 
 const fallbackData = {
     timeframe: "Last 30 days",
@@ -62,9 +62,7 @@ function getFileLabel(fileType) {
 
 export default function YourInsightsPage() {
     const [data, setData] = useState(fallbackData);
-    const [sharedDocuments, setSharedDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [loadingDocs, setLoadingDocs] = useState(true);
 
     useEffect(() => {
         const fetchInsights = async () => {
@@ -86,24 +84,7 @@ export default function YourInsightsPage() {
             }
         };
 
-        const fetchSharedDocuments = async () => {
-            const userId = localStorage.getItem("userId");
-            if (!userId) { setLoadingDocs(false); return; }
-            try {
-                const response = await fetch(`${API_BASE}/gallery/clients/${userId}/shared-content/images/`);
-                if (response.ok) {
-                    const docs = await response.json();
-                    setSharedDocuments(docs);
-                }
-            } catch (error) {
-                console.error("Error loading shared documents:", error);
-            } finally {
-                setLoadingDocs(false);
-            }
-        };
-
         fetchInsights();
-        fetchSharedDocuments();
     }, []);
 
     return (
@@ -128,7 +109,7 @@ export default function YourInsightsPage() {
                     <div className="flex-1 overflow-y-auto space-y-6 pb-2">
                         <h2 className="text-2xl font-bold text-foreground">Performance Snapshot</h2>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                        <div className="grid grid-cols-1 gap-5">
                             <div className="rounded-2xl border border-border bg-card overflow-hidden">
                                 {(data.performance_snapshot || []).map((item, idx) => (
                                     <div key={`snapshot-${idx}`} className={`flex items-center justify-between gap-3 px-5 py-4 ${idx !== 0 ? "border-t border-border" : ""}`}>
@@ -139,98 +120,6 @@ export default function YourInsightsPage() {
                                         <ChevronDown size={16} className="text-muted-foreground" />
                                     </div>
                                 ))}
-                            </div>
-
-                            <div className="rounded-2xl border border-border bg-card p-5">
-                                <h3 className="text-3xl font-bold text-foreground mb-4 flex items-center gap-2">
-                                    <FileText className="text-primary" size={28} />
-                                    Shared Documents
-                                </h3>
-                                {loadingDocs ? (
-                                    <div className="flex items-center justify-center py-8 text-muted-foreground">Loading documents...</div>
-                                ) : sharedDocuments.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                                        <FileText size={40} className="text-muted-foreground/30 mb-3" />
-                                        <p className="text-muted-foreground">No shared documents yet</p>
-                                        <p className="text-muted-foreground/60 text-sm mt-1">Documents shared by your team will appear here</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                                        {sharedDocuments.map((doc) => {
-                                            const isDoc = doc._type === 'document';
-                                            const isImage = isDoc ? doc.is_image : true;
-                                            const isVideo = isDoc ? doc.is_video : false;
-                                            const isPdf = isDoc ? doc.is_pdf : false;
-                                            const fileUrl = isDoc ? doc.file_url : (doc.image_url_original || doc.image_url);
-                                            const thumbUrl = isDoc ? doc.file_url : doc.image_url;
-
-                                            return (
-                                                <div
-                                                    key={`${isDoc ? 'd' : 'i'}-${doc.id}`}
-                                                    className="group rounded-xl border border-border bg-background/60 overflow-hidden hover:shadow-md hover:border-primary/30 transition-all"
-                                                >
-                                                    <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                                                        {isImage ? (
-                                                            <img
-                                                                src={thumbUrl}
-                                                                alt={doc.title || "Shared"}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                            />
-                                                        ) : isVideo ? (
-                                                            <video
-                                                                src={fileUrl}
-                                                                className="w-full h-full object-cover"
-                                                                controls
-                                                                preload="metadata"
-                                                            />
-                                                        ) : isPdf ? (
-                                                            <iframe
-                                                                src={fileUrl}
-                                                                className="w-full h-full border-0"
-                                                                title={doc.title || "PDF"}
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-background/80">
-                                                                {getFileIcon(doc.file_type, false, false, false)}
-                                                                <span className="text-xs font-bold text-muted-foreground">{getFileLabel(doc.file_type)}</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                                                        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <a
-                                                                href={fileUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="p-1.5 bg-black/50 text-white rounded-full hover:bg-primary backdrop-blur-sm transition-all"
-                                                                title="Open"
-                                                            >
-                                                                <ExternalLink size={14} />
-                                                            </a>
-                                                            <a
-                                                                href={fileUrl}
-                                                                download
-                                                                className="p-1.5 bg-black/50 text-white rounded-full hover:bg-primary backdrop-blur-sm transition-all"
-                                                                title="Download"
-                                                            >
-                                                                <Download size={14} />
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-2.5 flex items-center justify-between gap-2">
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-xs font-semibold text-foreground truncate" title={doc.title}>
-                                                                {doc.title || "Untitled"}
-                                                            </p>
-                                                            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                                                                {getFileLabel(doc.file_type || "img")} {doc.file_size ? `· ${formatSize(doc.file_size)}` : ""}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
                             </div>
                         </div>
 

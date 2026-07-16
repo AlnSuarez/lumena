@@ -1,8 +1,14 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import ScheduledPost
-from .serializers import ScheduledPostSerializer
+import urllib.request
+import json
+from .models import ScheduledPost, SocialAccount
+from .serializers import ScheduledPostSerializer, SocialAccountSerializer
+from .publisher import get_api_key, fetch_profiles
 from contents.models import MonthlyRequest
 from users.models import User
 
@@ -116,3 +122,168 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         user = _get_actor_from_request(self.request)
         serializer.save(created_by=user)
+
+
+class SocialAccountListCreateView(generics.ListAPIView):
+    serializer_class = SocialAccountSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        client_id = self.request.query_params.get('client_id')
+        if client_id:
+            return SocialAccount.objects.filter(client_id=client_id)
+        return SocialAccount.objects.all()
+
+
+class ConnectSocialAccountView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        client_id = request.data.get('client_id')
+        platform = request.data.get('platform')
+        if not client_id or not platform:
+            return Response({"error": "client_id and platform are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        api_key = get_api_key()
+        if not api_key:
+            return Response({"error": "POSTPROXY_API_KEY is not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 1. Fetch profile groups
+        url_groups = "https://api.postproxy.dev/api/profile_groups"
+        req_groups = urllib.request.Request(
+            url_groups,
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(req_groups) as response:
+                groups_data = json.loads(response.read().decode())
+                groups = groups_data.get("data", [])
+        except Exception as e:
+            return Response({"error": f"Failed to fetch profile groups from Postproxy: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            client_user = User.objects.get(id=client_id)
+        except User.DoesNotExist:
+            return Response({"error": "Client user not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        profile_name = f"Lumena - {client_user.username}"
+        if hasattr(client_user, 'client_profile') and client_user.client_profile.practice_name:
+            profile_name = client_user.client_profile.practice_name
+
+        group_id = None
+        for g in groups:
+            if g.get("name") == profile_name:
+                group_id = g.get("id")
+                break
+
+        if not group_id:
+            # Create a new profile group on Postproxy
+            create_payload = {"name": profile_name}
+            req_create = urllib.request.Request(
+                "https://api.postproxy.dev/api/profile_groups",
+                data=json.dumps(create_payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req_create) as response_create:
+                    res_create = json.loads(response_create.read().decode())
+                    if isinstance(res_create, dict):
+                        if res_create.get("success") and isinstance(res_create.get("data"), dict):
+                            group_id = res_create["data"].get("id")
+                        else:
+                            group_id = res_create.get("id") or (res_create.get("data") and res_create["data"].get("id"))
+            except Exception as e:
+                if groups:
+                    group_id = groups[0].get("id")
+                else:
+                    return Response({"error": f"Failed to create profile group: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if not group_id:
+            if groups:
+                group_id = groups[0].get("id")
+            else:
+                return Response({"error": "No profile group could be resolved or created"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 2. Call initialize_connection
+        next_url = request.data.get('next', '/contentcreation/manage-users')
+        url_init = f"https://api.postproxy.dev/api/profile_groups/{group_id}/initialize_connection"
+        callback_url = f"http://localhost:8000/api/scheduler/social-accounts/callback/?client_id={client_id}&next={next_url}"
+        payload = {
+            "platform": platform,
+            "redirect_url": callback_url
+        }
+        req_init = urllib.request.Request(
+            url_init,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req_init) as response:
+                res_init = json.loads(response.read().decode())
+                if res_init.get("success") and "url" in res_init:
+                    return Response({"url": res_init["url"]})
+                return Response({"error": "Failed to retrieve connection URL"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"error": f"Failed to initialize connection: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SocialAccountCallbackView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        client_id = request.query_params.get('client_id')
+        next_url = request.query_params.get('next', '/contentcreation/manage-users')
+        if not client_id:
+            return Response({"error": "client_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        client = get_object_or_404(User, id=client_id)
+        api_key = get_api_key()
+        if not api_key:
+            return Response({"error": "POSTPROXY_API_KEY is not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Retrieve profiles from Postproxy
+        profiles = fetch_profiles(api_key)
+        
+        # Save profiles that are not yet in our DB for this client
+        for p in profiles:
+            if p.get("status") == "active":
+                profile_id = p.get("id")
+                
+                # Check if this profile is already linked to another client to prevent overwriting
+                existing = SocialAccount.objects.filter(postproxy_profile_id=profile_id).first()
+                if existing and existing.client != client:
+                    continue
+
+                SocialAccount.objects.update_or_create(
+                    postproxy_profile_id=profile_id,
+                    defaults={
+                        "client": client,
+                        "platform": p.get("platform"),
+                        "name": p.get("name", "Account"),
+                        "avatar_url": p.get("avatar_url"),
+                        "status": p.get("status", "active"),
+                    }
+                )
+
+        # Redirect back to frontend
+        return HttpResponseRedirect(f"http://localhost:3000{next_url}?connect_success=true")
+
+
+class SocialAccountDestroyView(generics.DestroyAPIView):
+    queryset = SocialAccount.objects.all()
+    serializer_class = SocialAccountSerializer
+    permission_classes = [permissions.AllowAny]
+
+

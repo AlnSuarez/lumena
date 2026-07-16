@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Mail, Phone, RefreshCw, Stethoscope } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 
 const formatDateTime = (value) => {
   if (!value) return "-";

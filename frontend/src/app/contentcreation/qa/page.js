@@ -17,7 +17,7 @@ export default function QAPage() {
     const normalizeUrl = (url) => {
         if (!url) return null;
         if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        return `http://localhost:8000${url}`;
+        return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${url}`;
     };
 
     const fetchRequests = async () => {
@@ -31,7 +31,7 @@ export default function QAPage() {
         }
 
         try {
-            const url = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            const url = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
             if (userId) url.searchParams.append('user_id', userId);
             if (userRole) url.searchParams.append('role', userRole);
 
@@ -90,7 +90,7 @@ export default function QAPage() {
 
         try {
             const userId = localStorage.getItem('userId');
-            const updateUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${activeItem.id}/`);
+            const updateUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${activeItem.id}/`);
             if (userId) updateUrl.searchParams.append('user_id', userId);
 
             // Optimistic update for demo purposes if backend isn't fully ready
@@ -155,7 +155,7 @@ export default function QAPage() {
                         <div className="h-4 w-px bg-border"></div>
                         {activeItem && activeItem.originalData?.client_details?.client_profile?.logo ? (
                             <img
-                                src={`http://localhost:8000${activeItem.originalData.client_details.client_profile.logo}`}
+                                src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${activeItem.originalData.client_details.client_profile.logo}`}
                                 alt={clientName}
                                 className="w-8 h-8 rounded-full object-cover border border-border ring-2 ring-background"
                             />

@@ -112,7 +112,7 @@ export default function MonthlyContentsPage() {
 
             try {
                 // Construct URL with query params for our "simulated" auth
-                const url = new URL('http://localhost:8000/api/contents/monthly-requests/');
+                const url = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
                 url.searchParams.append('user_id', userId);
                 url.searchParams.append('role', userRole);
 
@@ -191,8 +191,8 @@ export default function MonthlyContentsPage() {
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
     const [contentFolderId, setContentFolderId] = useState(null);
     const CREATED_CONTENT_FOLDER_NAME = "Created";
-    const API_BASE = 'http://localhost:8000/api';
-    const API_ORIGIN = 'http://localhost:8000';
+    const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+    const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
 
     const normalizeUrl = (url) => {
         if (!url) return null;
@@ -270,7 +270,7 @@ export default function MonthlyContentsPage() {
         setIsDeleting(true);
         try {
             const userId = localStorage.getItem('userId');
-            const deleteUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${item.id}/`);
+            const deleteUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${item.id}/`);
             if (userId) deleteUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(deleteUrl.toString(), {
@@ -300,7 +300,7 @@ export default function MonthlyContentsPage() {
     const updateRequestStatus = async (id, status, extraData = {}) => {
         try {
             const userId = localStorage.getItem('userId');
-            const updateUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${id}/`);
+            const updateUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${id}/`);
             if (userId) updateUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(updateUrl.toString(), {
@@ -352,7 +352,7 @@ export default function MonthlyContentsPage() {
             const userId = localStorage.getItem('userId');
             const userRole = localStorage.getItem('userRole');
 
-            const url = new URL(`http://localhost:8000/api/gallery/images/search/`);
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/gallery/images/search/`);
             url.searchParams.append('folio', imageSearchQuery);
             if (userId) url.searchParams.append('user_id', userId);
             if (userRole) url.searchParams.append('role', userRole);
@@ -383,7 +383,7 @@ export default function MonthlyContentsPage() {
             const userId = localStorage.getItem('userId');
             const userRole = localStorage.getItem('userRole');
 
-            const url = new URL(`http://localhost:8000/api/gallery/clients/${activeItem.originalData.client}/folders/`);
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/gallery/clients/${activeItem.originalData.client}/folders/`);
             if (userId) url.searchParams.append('user_id', userId);
             if (userRole) url.searchParams.append('role', userRole);
 
@@ -414,7 +414,7 @@ export default function MonthlyContentsPage() {
             const userId = localStorage.getItem('userId');
             const userRole = localStorage.getItem('userRole');
 
-            const url = new URL(`http://localhost:8000/api/gallery/folders/${folderId}/images/`);
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/gallery/folders/${folderId}/images/`);
             if (userId) url.searchParams.append('user_id', userId);
             if (userRole) url.searchParams.append('role', userRole);
 
@@ -864,7 +864,7 @@ export default function MonthlyContentsPage() {
         } catch (error) {
             console.error('Caption generation error:', error);
             if (error?.message === 'Failed to fetch') {
-                alert('Could not reach backend/Ollama. Verify Django is running on http://localhost:8000 and try again.');
+                alert('Could not reach backend/Ollama. Verify Django is running on ${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} and try again.');
             } else {
                 alert(error.message || 'No se pudo generar el caption.');
             }
@@ -887,7 +887,8 @@ export default function MonthlyContentsPage() {
             }
             setItems(updatedItems);
             setActiveItemIndex(newIndex);
-            updateRequestStatus(activeItem.id, 'QA', dataToUpdate);
+            const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
+            updateRequestStatus(activeItem.id, nextStatus, dataToUpdate);
             if (updatedItems.length === 0) {
                 alert("All pending items reviewed!");
             }
@@ -965,7 +966,7 @@ export default function MonthlyContentsPage() {
                         <div className="h-4 w-px bg-border"></div>
                         {activeItem && activeItem.originalData?.client_details?.client_profile?.logo ? (
                             <img
-                                src={`http://localhost:8000${activeItem.originalData.client_details.client_profile.logo}`}
+                                src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${activeItem.originalData.client_details.client_profile.logo}`}
                                 alt={clientName}
                                 className="w-8 h-8 rounded-full object-cover border border-border ring-2 ring-background"
                             />

@@ -22,7 +22,14 @@ export function AuthGuard({ children, allowedRoles = [] }) {
 
         // Temporary restriction: clients can only access customization, insights, and client-review routes.
         if (userRole === "CLIENT") {
-            const allowedClientPaths = ['/contentcreation/customize', '/contentcreation/your-insights', '/contentcreation/client-review'];
+            const allowedClientPaths = [
+                '/contentcreation/customize',
+                '/contentcreation/your-insights',
+                '/contentcreation/client-review',
+                '/contentcreation/shared-content',
+                '/contentcreation/client-settings',
+                '/contentcreation/completed-content'
+            ];
             const isAllowedPath = allowedClientPaths.some((allowedPath) => pathname.startsWith(allowedPath));
 
             if (!isAllowedPath) {
@@ -42,6 +49,9 @@ export function AuthGuard({ children, allowedRoles = [] }) {
             '/contentcreation/qa': ['SUPERUSER', 'CONTENT_CREATOR', 'QA'],
             '/contentcreation/your-insights': ['CLIENT'],
             '/contentcreation/client-review': ['CLIENT'],
+            '/contentcreation/shared-content': ['CLIENT'],
+            '/contentcreation/client-settings': ['CLIENT'],
+            '/contentcreation/completed-content': ['CLIENT'],
             // Add more specific routes here
         };
 

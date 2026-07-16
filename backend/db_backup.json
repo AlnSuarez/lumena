@@ -1,0 +1,2027 @@
+[
+{
+    "model": "sessions.session",
+    "pk": "16nx9isgsx7fvk4fj81ehx23d4ne7ti7",
+    "fields": {
+        "session_data": ".eJxVjDsOwyAQRO9CHSF-hiVlep8B7QIOTiIsGbuKcvdgyUXSTDHvzbxZwH0rYW95DXNiV-bY5bcjjM9cD5AeWO8Lj0vd1pn4ofCTNj4uKb9up_t3ULCVvkYw3skhWYQejpzJZLyMwk7Sa9IiqYwCFCVNEF03rCWrBg0kPEySfb7VUTdU:1wbpIX:LdQUJ437KX5QBsdJNfuGTbdlcGtTCaEOzTTXmwfnjIg",
+        "expire_date": "2026-07-07T00:47:29.720Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "bp5voyk60xdk9zj7izgqa2tvroc5txjw",
+    "fields": {
+        "session_data": ".eJxVjMsOwiAQRf-FtSEFpnRw6d5vIAwzSNXQpI-V8d-1SRe6veec-1IxbWuN2yJzHFmdlVWn341SfkjbAd9Tu006T22dR9K7og-66OvE8rwc7t9BTUv91ll8P5CFHmkADOCseOycsKEuMAAXg0zBGey7Ykz2SMUBcQABguLU-wPMPDeB:1w4Pwn:xYLw9RrXUcAP-wKOkO95G5P3WaSehDOAn8xxkEM6M4w",
+        "expire_date": "2026-04-05T21:02:57.445Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "crpuva1ca72oioner1e8et4nhmkhhnow",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hAKLXRcuvcMZIYZpGpoUtqV8e7apAvd_vfef6mI21ri1mSJE6uzGtTpdyNMD6k74DvW26zTXNdlIr0r-qBNX2eW5-Vw_w4KtvKtLWQavQ0sCN4BpCEFa9wonq0l7Fi6YDz1jjMY7n0CkwGQAEQccVLvD-JNOE8:1wkBx2:IvQSp8W9vLizI0dEBb-m3Q79d3GTDuP0C7q_uY3cZzA",
+        "expire_date": "2026-07-30T02:35:52.316Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "ez8j08fdwjen9npw1zm2md1ah8ut2etp",
+    "fields": {
+        "session_data": ".eJxVjDsOwyAQRO9CHSF-hiVlep8B7QIOTiIsGbuKcvdgyUXSTDHvzbxZwH0rYW95DXNiV-bY5bcjjM9cD5AeWO8Lj0vd1pn4ofCTNj4uKb9up_t3ULCVvkYw3skhWYQejpzJZLyMwk7Sa9IiqYwCFCVNEF03rCWrBg0kPEySfb7VUTdU:1wcnqm:nfC8xGhZ412UfwlYLr88RDPMlRsOD_oVNcGTFpgvjF0",
+        "expire_date": "2026-07-09T17:26:52.296Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "freqgly86812ftyyprpk411h591o9yyi",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hAKLXRcuvcMZIYZpGpoUtqV8e7apAvd_vfef6mI21ri1mSJE6uzGtTpdyNMD6k74DvW26zTXNdlIr0r-qBNX2eW5-Vw_w4KtvKtLWQavQ0sCN4BpCEFa9wonq0l7Fi6YDz1jjMY7n0CkwGQAEQccVLvD-JNOE8:1wkQ6R:IxHfhNa8-1_Yx4vFW5FTJ-BudGgVNT-MmN2CkmWtC7Y",
+        "expire_date": "2026-07-30T17:42:31.443Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "m5exxcfk6cp0tb01z9zx4ziw1bgon3d9",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hAKLXRcuvcMZIYZpGpoUtqV8e7apAvd_vfef6mI21ri1mSJE6uzGtTpdyNMD6k74DvW26zTXNdlIr0r-qBNX2eW5-Vw_w4KtvKtLWQavQ0sCN4BpCEFa9wonq0l7Fi6YDz1jjMY7n0CkwGQAEQccVLvD-JNOE8:1wjQkk:gFtCrYkV0KqiNvhkb1E_92eZYDCr3ppp4UQizM4XBK8",
+        "expire_date": "2026-07-28T00:12:02.419Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "nmcnx5py2s2xzplw4nuam52cgv2sqnsn",
+    "fields": {
+        "session_data": ".eJxVjDsOwjAQBe_iGln-fyjpOYO1Xq9xADlSnFSIu0OkFNC-mXkvlmBbW9oGLWkq7MykYKffMQM-qO-k3KHfZo5zX5cp813hBx38Ohd6Xg7376DBaN9aCJkBDFbnFQUNOZJzJRKJUKXTMhtNxWkrhVfVaB-VKmAsInqthA3s_QEGnzeW:1wkQdf:FMYS-0m2V9e01SUsFS5diuByNpPATYemhOwtdMjifnY",
+        "expire_date": "2026-07-30T18:16:51.028Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "u0doejyly35ylu7sc1364uxo1l5g7oru",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hAcpsC4dN8zNANDbdVAUtqV8e7apAvd_vfef6mBt3UatpaXYRZ1UUGdfrfI6ZHLDuTO5VZ1qmVd5qh3RR-06b5Kfl4P9-9g4jZ963RmEUKkQIBRLAVvMDrDXfSYQDoxDODGZIKxjvwIgUksIuQMQlG9P9bdN38:1whDGs:lUy0FybkxlaalLt0gv0K9y02e-N1IrsDd8M90CF7FKQ",
+        "expire_date": "2026-07-21T21:24:02.180Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "vnxqa1onzccbdp9100wq1bs4iwtch1mj",
+    "fields": {
+        "session_data": ".eJxVjM0OwiAQhN-FsyGI_Gw8evcZyMIuUjWQlPbU-O7SpAc9TTLzfbOJgOtSwtp5DhOJq9Di9NtFTC-u-0BPrI8mU6vLPEW5I_JYu7w34vftYP8OCvYybHBI3jrjEp8pefDMir3XWSmj2ILBEYwATmWI-aIhkrHZDAlNViQ-X-PwOBM:1wcncK:3JIYEjWxPiI4dmtQ4nvw3wKAi_R1JlnqvdMXRs65FHw",
+        "expire_date": "2026-07-09T17:11:56.742Z"
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "zme5ad5a2ewtf9efnkzyr1djrdqhrw2x",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2hAKLXRcuvcMZIYZpGpoUtqV8e7apAvd_vfef6mI21ri1mSJE6uzGtTpdyNMD6k74DvW26zTXNdlIr0r-qBNX2eW5-Vw_w4KtvKtLWQavQ0sCN4BpCEFa9wonq0l7Fi6YDz1jjMY7n0CkwGQAEQccVLvD-JNOE8:1w5wYM:7WJ6Yh-ZrQc6MVORUYN5gWhKmeskjRNYGP80QdFttrQ",
+        "expire_date": "2026-04-10T02:04:02.596Z"
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$VtlDP2QHpBW0V3gpXEe0KZ$4BMK0d+gkO6oi1cRnxEGVc01KEVIWZUkNfMhOOqXSwc=",
+        "last_login": null,
+        "is_superuser": true,
+        "username": "admin2",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin2@lumena.local",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-19T00:11:11.625Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$myfkqq4wd07QHWpz8NP6W7$EZ7hij4J8mFIz0ZPZiQIKT1eJsD8XJMiGPne/MJhWTg=",
+        "last_login": "2026-06-25T17:11:56.740Z",
+        "is_superuser": true,
+        "username": "admin",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin@lumena.local",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-22T21:02:34.555Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$GeB4oXW9wKyAKVhPiN3qab$g3RAkG9k0jvEggU9E8rMElYzsY3AyZhQTcur+Q3oRf4=",
+        "last_login": null,
+        "is_superuser": true,
+        "username": "alansuarezsantamaria",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin@lumena.local",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-27T01:41:13.854Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$sjlQuyx8mnjiLA47CXL5pV$PcpgZp6rGlJtJV4wJS1FAuy+pYrN65VFpegZ8NU5C5I=",
+        "last_login": null,
+        "is_superuser": true,
+        "username": "lumena_admin",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin@lumena.local",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-27T01:45:15.155Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$60fgYzd4VLzymtkUR4ht7Y$J0tUuL2NR6UHIFhYDphhWXsq09iTtQVy7SIMWANr6mI=",
+        "last_login": "2026-07-16T17:42:31.440Z",
+        "is_superuser": true,
+        "username": "lumena_root",
+        "first_name": "",
+        "last_name": "",
+        "email": "lumena_admin@lumena.local",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-03-27T01:46:35.386Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$mbVcZN5WC2XTOpoxaZoUix$2G5tci2CHVGWFaRO8cfuWpS+rCqEdQwpoOnE2LiGu0A=",
+        "last_login": "2026-06-18T19:40:08.518Z",
+        "is_superuser": true,
+        "username": "alansuperuser",
+        "first_name": "",
+        "last_name": "",
+        "email": "alan@lumenalab.com",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-06-18T19:36:43.232Z",
+        "role": "CONTENT_CREATOR",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$39dhmOomh1K0H67DKO8wVR$rDRW1IB+kaNxU5GIeru5BcGTbqWG5VPfKTYo0ss5/h0=",
+        "last_login": "2026-06-25T17:26:52.294Z",
+        "is_superuser": false,
+        "username": "cliente_ejemplo",
+        "first_name": "",
+        "last_name": "",
+        "email": "cliente@lumena.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-06-23T00:34:27.388Z",
+        "role": "CLIENT",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$RJbVYbxYBd31TDHbMAISit$zuGhhLRZDIQ5C9bcus5vlxApy4rC/YQBAc94bEvXQVM=",
+        "last_login": "2026-07-16T02:45:51.661Z",
+        "is_superuser": false,
+        "username": "Rachel",
+        "first_name": "Rachel",
+        "last_name": "",
+        "email": "rachel@lumena.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-07-07T19:07:34.492Z",
+        "role": "CLIENT",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$HyQgs6BfPlsWebrePVkjKd$vX4YN2eQ4+Dux/crWy6n2bV7fWmR+LrV8HEqBEilAA0=",
+        "last_login": "2026-07-07T19:21:13.029Z",
+        "is_superuser": true,
+        "username": "alan",
+        "first_name": "Alan",
+        "last_name": "",
+        "email": "alan@lumena.com",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2026-07-07T19:20:49.950Z",
+        "role": "SUPERUSER",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.user",
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$9tEohoDHcXNhQg1WvDHYm8$nRNFxW9Zv6o4LtzCr9A17/Hdam535y6vkqYZtHPb49M=",
+        "last_login": "2026-07-16T18:16:51.025Z",
+        "is_superuser": false,
+        "username": "alansuarez",
+        "first_name": "",
+        "last_name": "",
+        "email": "alan.suarez@example.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-07-16T18:07:07.583Z",
+        "role": "CLIENT",
+        "access_permissions": {},
+        "insights_metrics": {},
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "users.clientprofile",
+    "pk": 1,
+    "fields": {
+        "user": [
+            "Rachel"
+        ],
+        "practice_name": "",
+        "primary_contact": "",
+        "role_title": "",
+        "contact_email": "",
+        "phone": "",
+        "practice_address": "",
+        "time_zone": "",
+        "medical_specialty": "",
+        "sub_specialty": "",
+        "practice_type": "",
+        "target_patient_type": "",
+        "logo": "",
+        "brand_colors": "",
+        "brand_fonts": "",
+        "website_url": "",
+        "social_media_links": "",
+        "primary_brand_pillars": "",
+        "overall_voice": "",
+        "emojis": "",
+        "humor": "",
+        "formality_level": "",
+        "words_to_use": "",
+        "words_to_avoid": "",
+        "doctor_voice_preference": "",
+        "topics_to_emphasize": "",
+        "topics_to_avoid": "",
+        "medical_claims_limitations": "",
+        "hipaa_considerations": "",
+        "faces_allowed": "",
+        "testimonials_allowed": "",
+        "consent_required": "",
+        "primary_goal": "",
+        "secondary_goals": "",
+        "kpis_to_track": "",
+        "success_looks_like": "",
+        "communication_channel": "",
+        "feedback_style": ""
+    }
+},
+{
+    "model": "users.clientprofile",
+    "pk": 2,
+    "fields": {
+        "user": [
+            "alansuarez"
+        ],
+        "practice_name": "Alan Suarez Consulting",
+        "primary_contact": "Alan Suarez",
+        "role_title": "",
+        "contact_email": "alan.suarez@example.com",
+        "phone": "",
+        "practice_address": "",
+        "time_zone": "",
+        "medical_specialty": "",
+        "sub_specialty": "",
+        "practice_type": "",
+        "target_patient_type": "",
+        "logo": "",
+        "brand_colors": "",
+        "brand_fonts": "",
+        "website_url": "",
+        "social_media_links": "",
+        "primary_brand_pillars": "",
+        "overall_voice": "",
+        "emojis": "",
+        "humor": "",
+        "formality_level": "",
+        "words_to_use": "",
+        "words_to_avoid": "",
+        "doctor_voice_preference": "",
+        "topics_to_emphasize": "",
+        "topics_to_avoid": "",
+        "medical_claims_limitations": "",
+        "hipaa_considerations": "",
+        "faces_allowed": "",
+        "testimonials_allowed": "",
+        "consent_required": "",
+        "primary_goal": "",
+        "secondary_goals": "",
+        "kpis_to_track": "",
+        "success_looks_like": "",
+        "communication_channel": "",
+        "feedback_style": ""
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 1,
+    "fields": {
+        "client": [
+            "cliente_ejemplo"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-06-11",
+        "request_type": "CONTENT_REQUEST",
+        "status": "CLIENT_REVIEW",
+        "notes": "Cliente\n\n[Meta]\nContent Type: image\nPost Date: 2026-06-11",
+        "content_text": "",
+        "ai_caption": "",
+        "feedback": "",
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-06-23T00:35:07.221Z",
+        "updated_at": "2026-07-14T00:49:45.803Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 2,
+    "fields": {
+        "client": [
+            "cliente_ejemplo"
+        ],
+        "assigned_to": null,
+        "qa_assigned_to": null,
+        "month": "2026-06-01",
+        "request_type": "CONTENT_REQUEST",
+        "status": "CLIENT_REVIEW",
+        "notes": null,
+        "content_text": "Esta es una propuesta de estrategia médica de ejemplo para Lumena.",
+        "ai_caption": "¡Hola a todos! Este es el caption de ejemplo generado por AI para el post del doctor.",
+        "feedback": "",
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-06-23T00:49:02.841Z",
+        "updated_at": "2026-07-14T00:59:12.979Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 3,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-08",
+        "request_type": "CONTENT_REQUEST",
+        "status": "APPROVED",
+        "notes": "Example content to review\n\n[Meta]\nContent Type: image\nPost Date: 2026-07-08",
+        "content_text": "Content review",
+        "ai_caption": "This is an example of a review",
+        "feedback": "",
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-07T19:23:43.594Z",
+        "updated_at": "2026-07-14T01:05:37.851Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 4,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-08",
+        "request_type": "CONTENT_REQUEST",
+        "status": "APPROVED",
+        "notes": "Temp\n\n[Meta]\nContent Type: story\nPost Date: 2026-07-16",
+        "content_text": "Temp",
+        "ai_caption": "TEmp",
+        "feedback": "ALL good",
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-14T01:02:13.753Z",
+        "updated_at": "2026-07-14T01:02:57.494Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 13,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "este debe de ser un video\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "es un solo video",
+        "ai_caption": null,
+        "feedback": "test feedback",
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-16T03:26:41.692Z",
+        "updated_at": "2026-07-16T04:21:34.186Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 15,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "video nuevo\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "video nuevo",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-16T04:23:12.436Z",
+        "updated_at": "2026-07-16T04:23:46.588Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 17,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "video temp\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "video",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": 13,
+        "available_from": null,
+        "created_at": "2026-07-16T04:29:37.102Z",
+        "updated_at": "2026-07-16T04:30:29.299Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 18,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "temp\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "video",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": 14,
+        "available_from": null,
+        "created_at": "2026-07-16T04:31:18.870Z",
+        "updated_at": "2026-07-16T04:32:16.337Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 19,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "APPROVED",
+        "notes": "video nuevo\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "correccion de video",
+        "ai_caption": null,
+        "feedback": "",
+        "client_feedback": "de regreso a monthly content",
+        "linked_image": 16,
+        "available_from": null,
+        "created_at": "2026-07-16T04:33:42.019Z",
+        "updated_at": "2026-07-16T05:01:39.000Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 21,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "temp video\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "temp video",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-16T04:39:56.996Z",
+        "updated_at": "2026-07-16T04:40:12.406Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 23,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "QA",
+        "notes": "temp\n\n[Meta]\nContent Type: image\nPost Date:",
+        "content_text": "changed image",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": 19,
+        "available_from": null,
+        "created_at": "2026-07-16T04:48:17.395Z",
+        "updated_at": "2026-07-16T04:48:49.191Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 26,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "CLIENT_REVIEW",
+        "notes": "temp\n\n[Meta]\nContent Type: video\nPost Date:",
+        "content_text": "esto es video prueba",
+        "ai_caption": null,
+        "feedback": null,
+        "client_feedback": null,
+        "linked_image": null,
+        "available_from": null,
+        "created_at": "2026-07-16T05:01:02.288Z",
+        "updated_at": "2026-07-16T16:34:34.799Z"
+    }
+},
+{
+    "model": "contents.monthlyrequest",
+    "pk": 27,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "assigned_to": [
+            "alansuperuser"
+        ],
+        "qa_assigned_to": null,
+        "month": "2026-07-16",
+        "request_type": "CONTENT_REQUEST",
+        "status": "CLIENT_REVIEW",
+        "notes": "temp\n\n[Meta]\nContent Type: carousel\nPost Date:",
+        "content_text": "ejemplo de carrusel",
+        "ai_caption": null,
+        "feedback": "",
+        "client_feedback": null,
+        "linked_image": 28,
+        "available_from": null,
+        "created_at": "2026-07-16T05:02:38.105Z",
+        "updated_at": "2026-07-16T05:06:22.609Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 13,
+    "fields": {
+        "request": 13,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": null,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T03:27:29.830Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 29,
+    "fields": {
+        "request": 15,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": null,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T04:23:29.075Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 31,
+    "fields": {
+        "request": 17,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": 13,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T04:29:52.285Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 32,
+    "fields": {
+        "request": 18,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": 14,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T04:31:32.872Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 36,
+    "fields": {
+        "request": 19,
+        "media_type": "VIDEO",
+        "order": 0,
+        "gallery_image": null,
+        "file_url": "http://localhost:8000/media/videos/9458ab49172d47ed9270cb52d9ea0d57.mp4",
+        "file_name": "prueba.mp4",
+        "caption": "",
+        "created_at": "2026-07-16T04:43:24.569Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 37,
+    "fields": {
+        "request": 19,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": 16,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T04:43:24.570Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 40,
+    "fields": {
+        "request": 23,
+        "media_type": "IMAGE",
+        "order": 0,
+        "gallery_image": 19,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T04:48:37.616Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 55,
+    "fields": {
+        "request": 27,
+        "media_type": "CAROUSEL_IMAGE",
+        "order": 1,
+        "gallery_image": 24,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T05:05:38.965Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 56,
+    "fields": {
+        "request": 27,
+        "media_type": "CAROUSEL_IMAGE",
+        "order": 2,
+        "gallery_image": 27,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T05:05:38.965Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 57,
+    "fields": {
+        "request": 27,
+        "media_type": "CAROUSEL_IMAGE",
+        "order": 2,
+        "gallery_image": 28,
+        "file_url": "",
+        "file_name": "",
+        "caption": "",
+        "created_at": "2026-07-16T05:05:38.966Z"
+    }
+},
+{
+    "model": "contents.contentitem",
+    "pk": 58,
+    "fields": {
+        "request": 26,
+        "media_type": "VIDEO",
+        "order": 0,
+        "gallery_image": null,
+        "file_url": "http://localhost:8000/media/videos/a8d1bd129596499f81f89d121d1e3d43.mp4",
+        "file_name": "prueba.mp4",
+        "caption": "",
+        "created_at": "2026-07-16T16:34:21.609Z"
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 1,
+    "fields": {
+        "request": 1,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-06-23T00:35:07.225Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "admin"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 2,
+    "fields": {
+        "request": 2,
+        "previous_status": null,
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-06-23T00:49:02.842Z",
+        "notes": "Initial creation",
+        "changed_by": null
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 3,
+    "fields": {
+        "request": 2,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-06-23T00:49:13.305Z",
+        "notes": "QA Feedback: Please fix the medical terms",
+        "changed_by": [
+            "cliente_ejemplo"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 4,
+    "fields": {
+        "request": 2,
+        "previous_status": "IN_REVISION",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-06-23T00:49:17.346Z",
+        "notes": null,
+        "changed_by": null
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 5,
+    "fields": {
+        "request": 2,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-06-23T00:54:09.001Z",
+        "notes": "QA Feedback: This things are needed",
+        "changed_by": [
+            "cliente_ejemplo"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 6,
+    "fields": {
+        "request": 2,
+        "previous_status": "IN_REVISION",
+        "new_status": "QA",
+        "timestamp": "2026-06-25T17:18:16.025Z",
+        "notes": null,
+        "changed_by": [
+            "admin"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 7,
+    "fields": {
+        "request": 1,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-06-25T17:18:16.098Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: (empty)\n\nCaption changes:\n- Previous: (empty)\n+ New: (empty)",
+        "changed_by": [
+            "admin"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 8,
+    "fields": {
+        "request": 1,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-06-25T17:22:54.300Z",
+        "notes": null,
+        "changed_by": [
+            "admin"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 9,
+    "fields": {
+        "request": 1,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "APPROVED",
+        "timestamp": "2026-06-25T17:27:03.230Z",
+        "notes": null,
+        "changed_by": [
+            "cliente_ejemplo"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 10,
+    "fields": {
+        "request": 3,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-07T19:23:43.597Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "alan"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 11,
+    "fields": {
+        "request": 3,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-07T19:24:33.340Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: Content review\n\nCaption changes:\n- Previous: (empty)\n+ New: This is an example of a review",
+        "changed_by": [
+            "alan"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 12,
+    "fields": {
+        "request": 3,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-07T19:24:45.093Z",
+        "notes": null,
+        "changed_by": [
+            "alan"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 13,
+    "fields": {
+        "request": 3,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:47:08.578Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 14,
+    "fields": {
+        "request": 3,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:47:15.340Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 15,
+    "fields": {
+        "request": 1,
+        "previous_status": "APPROVED",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:49:35.379Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 16,
+    "fields": {
+        "request": 2,
+        "previous_status": "QA",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-14T00:49:43.836Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 17,
+    "fields": {
+        "request": 1,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:49:45.805Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 18,
+    "fields": {
+        "request": 3,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:49:50.988Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 19,
+    "fields": {
+        "request": 3,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:49:57.763Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 20,
+    "fields": {
+        "request": 3,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:51:26.669Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 21,
+    "fields": {
+        "request": 3,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:51:31.302Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 22,
+    "fields": {
+        "request": 3,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:56:05.588Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 23,
+    "fields": {
+        "request": 3,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:56:09.616Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 24,
+    "fields": {
+        "request": 2,
+        "previous_status": "IN_REVISION",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T00:59:06.717Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 25,
+    "fields": {
+        "request": 2,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-14T00:59:12.982Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 26,
+    "fields": {
+        "request": 4,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-14T01:02:13.755Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 27,
+    "fields": {
+        "request": 4,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-14T01:02:43.882Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: Temp\n\nCaption changes:\n- Previous: (empty)\n+ New: TEmp",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 28,
+    "fields": {
+        "request": 4,
+        "previous_status": "QA",
+        "new_status": "APPROVED",
+        "timestamp": "2026-07-14T01:02:57.498Z",
+        "notes": "QA Feedback: ALL good",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 29,
+    "fields": {
+        "request": 3,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "APPROVED",
+        "timestamp": "2026-07-14T01:05:37.855Z",
+        "notes": null,
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 39,
+    "fields": {
+        "request": 13,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T03:26:41.696Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 45,
+    "fields": {
+        "request": 13,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:07:25.612Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: es un solo video",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 46,
+    "fields": {
+        "request": 13,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-16T04:11:03.609Z",
+        "notes": null,
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 47,
+    "fields": {
+        "request": 13,
+        "previous_status": "IN_REVISION",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-16T04:16:44.429Z",
+        "notes": "QA Feedback: test feedback",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 49,
+    "fields": {
+        "request": 13,
+        "previous_status": "IN_REVISION",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:21:34.188Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 50,
+    "fields": {
+        "request": 15,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:23:12.438Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 51,
+    "fields": {
+        "request": 15,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:23:46.592Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: video nuevo",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 53,
+    "fields": {
+        "request": 17,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:29:37.104Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 54,
+    "fields": {
+        "request": 17,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:30:29.301Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: video",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 56,
+    "fields": {
+        "request": 18,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:31:18.872Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 57,
+    "fields": {
+        "request": 18,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:32:16.339Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: video",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 58,
+    "fields": {
+        "request": 19,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:33:42.022Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 60,
+    "fields": {
+        "request": 19,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:35:06.177Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: temp",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 61,
+    "fields": {
+        "request": 19,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T04:37:08.233Z",
+        "notes": null,
+        "changed_by": null
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 62,
+    "fields": {
+        "request": 21,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:39:56.998Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 63,
+    "fields": {
+        "request": 21,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:40:12.407Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: temp video",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 64,
+    "fields": {
+        "request": 19,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-16T04:40:32.641Z",
+        "notes": "QA Feedback: cambios de Rachel\n\nClient Feedback: cambios de Rachel",
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 66,
+    "fields": {
+        "request": 19,
+        "previous_status": "IN_REVISION",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T04:46:44.405Z",
+        "notes": null,
+        "changed_by": null
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 67,
+    "fields": {
+        "request": 23,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T04:48:17.397Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 68,
+    "fields": {
+        "request": 23,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:48:49.193Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: changed image",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 70,
+    "fields": {
+        "request": 19,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-16T04:53:04.271Z",
+        "notes": "QA Feedback: se regresa video\n\nClient Feedback: se regresa video",
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 71,
+    "fields": {
+        "request": 19,
+        "previous_status": "IN_REVISION",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T04:55:02.458Z",
+        "notes": "Content changes:\n- Previous: temp\n+ New: correccion de video",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 72,
+    "fields": {
+        "request": 19,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T04:55:39.643Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 74,
+    "fields": {
+        "request": 19,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "IN_REVISION",
+        "timestamp": "2026-07-16T04:59:16.773Z",
+        "notes": "QA Feedback: de regreso a monthly content\n\nClient Feedback: de regreso a monthly content",
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 75,
+    "fields": {
+        "request": 26,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T05:01:02.291Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 76,
+    "fields": {
+        "request": 19,
+        "previous_status": "IN_REVISION",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T05:01:12.594Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 77,
+    "fields": {
+        "request": 19,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T05:01:27.727Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 78,
+    "fields": {
+        "request": 19,
+        "previous_status": "CLIENT_REVIEW",
+        "new_status": "APPROVED",
+        "timestamp": "2026-07-16T05:01:39.001Z",
+        "notes": null,
+        "changed_by": [
+            "Rachel"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 79,
+    "fields": {
+        "request": 27,
+        "previous_status": null,
+        "new_status": "TO_DO",
+        "timestamp": "2026-07-16T05:02:38.108Z",
+        "notes": "Initial creation",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 80,
+    "fields": {
+        "request": 27,
+        "previous_status": "TO_DO",
+        "new_status": "QA",
+        "timestamp": "2026-07-16T05:06:02.379Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: ejemplo de carrusel",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 81,
+    "fields": {
+        "request": 27,
+        "previous_status": "QA",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T05:06:22.611Z",
+        "notes": null,
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "contents.requesthistory",
+    "pk": 82,
+    "fields": {
+        "request": 26,
+        "previous_status": "TO_DO",
+        "new_status": "CLIENT_REVIEW",
+        "timestamp": "2026-07-16T16:34:34.800Z",
+        "notes": "Content changes:\n- Previous: (empty)\n+ New: esto es video prueba",
+        "changed_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientfolder",
+    "pk": 1,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "folder_name": "Created",
+        "created_at": "2026-07-07T19:23:59.034Z",
+        "created_by": [
+            "alan"
+        ],
+        "is_system_folder": false
+    }
+},
+{
+    "model": "gallery.clientfolder",
+    "pk": 2,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "folder_name": "shared content",
+        "created_at": "2026-07-16T02:51:32.096Z",
+        "created_by": [
+            "lumena_root"
+        ],
+        "is_system_folder": true
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 13,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/prueba.mp4",
+        "image_compressed": "",
+        "title": "prueba",
+        "folio": "C8F1-001",
+        "uploaded_at": "2026-07-16T04:29:52.246Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 14,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/prueba_8s0tlzB.mp4",
+        "image_compressed": "",
+        "title": "prueba",
+        "folio": "C8F1-002",
+        "uploaded_at": "2026-07-16T04:31:32.858Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 15,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_G5aXhkv.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-003",
+        "uploaded_at": "2026-07-16T04:41:00.884Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 16,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_eNDaDda.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_8Rkh4YG.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-004",
+        "uploaded_at": "2026-07-16T04:43:24.561Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 17,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_rejBEPj.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_K61Xdq4.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-005",
+        "uploaded_at": "2026-07-16T04:46:27.286Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 18,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_VMX6lRo.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_Wmtyr2P.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-006",
+        "uploaded_at": "2026-07-16T04:48:28.297Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 19,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/image.png",
+        "image_compressed": "client_images/8/Created/compressed/image_compressed.jpg",
+        "title": "image",
+        "folio": "C8F1-007",
+        "uploaded_at": "2026-07-16T04:48:37.607Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 20,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_ZkZOZuc.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_eLRIztM.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-008",
+        "uploaded_at": "2026-07-16T04:51:06.584Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 21,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/image_Sbts17N.png",
+        "image_compressed": "client_images/8/Created/compressed/image_compressed_XBKZBQY.jpg",
+        "title": "image",
+        "folio": "C8F1-009",
+        "uploaded_at": "2026-07-16T04:53:26.459Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 22,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_uoCa2qg.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_QzeFmit.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-010",
+        "uploaded_at": "2026-07-16T04:54:47.523Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 23,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_xqpf8G6.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_9z6pQFk.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-011",
+        "uploaded_at": "2026-07-16T04:56:31.224Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 24,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/image_oBSZAT5.png",
+        "image_compressed": "client_images/8/Created/compressed/image_compressed_EEU3M0b.jpg",
+        "title": "image",
+        "folio": "C8F1-012",
+        "uploaded_at": "2026-07-16T04:56:39.984Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 25,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_1i51j8O.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_5hwbYCw.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-013",
+        "uploaded_at": "2026-07-16T04:58:15.872Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 26,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_oseeYVq.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_v7NQg42.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-014",
+        "uploaded_at": "2026-07-16T05:02:56.540Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 27,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/IMG_8489.jpg",
+        "image_compressed": "client_images/8/Created/compressed/IMG_8489_compressed.jpg",
+        "title": "IMG_8489",
+        "folio": "C8F1-015",
+        "uploaded_at": "2026-07-16T05:03:31.261Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.clientimage",
+    "pk": 28,
+    "fields": {
+        "folder": 1,
+        "image": "client_images/8/Created/imageexample_utXKISm.png",
+        "image_compressed": "client_images/8/Created/compressed/imageexample_compressed_gnjE09e.jpg",
+        "title": "imageexample",
+        "folio": "C8F1-016",
+        "uploaded_at": "2026-07-16T05:05:38.955Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.shareddocument",
+    "pk": 1,
+    "fields": {
+        "folder": 2,
+        "file": "shared_documents/8/Clinical_Visibility_Blueprint_Rachel.pdf",
+        "title": "Clinical Visibility Blueprint Rachel",
+        "file_type": "pdf",
+        "file_size": 741754,
+        "uploaded_at": "2026-07-16T02:56:11.508Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "gallery.shareddocument",
+    "pk": 2,
+    "fields": {
+        "folder": 2,
+        "file": "shared_documents/8/Profile_Optimization_Rachel.pdf",
+        "title": "Profile Optimization Rachel",
+        "file_type": "pdf",
+        "file_size": 161331,
+        "uploaded_at": "2026-07-16T02:56:11.510Z",
+        "uploaded_by": [
+            "lumena_root"
+        ]
+    }
+},
+{
+    "model": "scheduler.socialaccount",
+    "pk": 1,
+    "fields": {
+        "client": [
+            "Rachel"
+        ],
+        "platform": "linkedin",
+        "postproxy_profile_id": "4pU2Vj",
+        "name": "Rachel",
+        "avatar_url": "https://postproxy-prod.s3.eu-west-2.rabata.io/gfdkrebjcd7e6sy4r9r2agmj0gwg",
+        "status": "active",
+        "created_at": "2026-07-16T17:41:58.817Z"
+    }
+},
+{
+    "model": "scheduler.socialaccount",
+    "pk": 3,
+    "fields": {
+        "client": [
+            "alansuarez"
+        ],
+        "platform": "instagram",
+        "postproxy_profile_id": "JzUVOX",
+        "name": "Alan Suárez",
+        "avatar_url": "https://postproxy-prod.s3.eu-west-2.rabata.io/zhn9iuh9i54xhexmpl2u8lualdhd",
+        "status": "active",
+        "created_at": "2026-07-16T18:24:01.561Z"
+    }
+}
+]

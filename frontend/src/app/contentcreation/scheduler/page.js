@@ -26,10 +26,17 @@ import {
     Play,
     MoreHorizontal,
     Video,
+    Music,
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+
+const normalizeUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${url}`;
+};
 
 // ─── Mock / demo data (used when API is unavailable) ───────────────────
 const DEMO_CLIENTS = [
@@ -76,6 +83,7 @@ const PLATFORMS = [
     { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "#0A66C2" },
     { id: "twitter", label: "X / Twitter", icon: Twitter, color: "#000000" },
     { id: "facebook", label: "Facebook", icon: Facebook, color: "#1877F2" },
+    { id: "tiktok", label: "TikTok", icon: Music, color: "#000000" },
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -140,6 +148,13 @@ function ContentCard({ item, onPreview, primaryColor }) {
         ? { STORY: 'Story', VIDEO: 'Video', CAROUSEL_IMAGE: 'Carousel', IMAGE: 'Photo' }[contentItems[0].media_type] || 'Photo'
         : 'Photo';
 
+    const isVideo = typeLabel === 'Video' || (item.thumbnail && (
+        item.thumbnail.toLowerCase().endsWith('.mp4') ||
+        item.thumbnail.toLowerCase().endsWith('.mov') ||
+        item.thumbnail.toLowerCase().endsWith('.webm') ||
+        item.thumbnail.toLowerCase().includes('/videos/')
+    ));
+
     return (
         <button
             onClick={() => onPreview(item)}
@@ -148,11 +163,20 @@ function ContentCard({ item, onPreview, primaryColor }) {
             {/* Thumbnail */}
             <div className="relative w-full aspect-square bg-gradient-to-br from-purple-100 to-indigo-200 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center overflow-hidden">
                 {item.thumbnail ? (
-                    <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                    isVideo ? (
+                        <video
+                            src={item.thumbnail}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            muted
+                            playsInline
+                        />
+                    ) : (
+                        <img
+                            src={item.thumbnail}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                    )
                 ) : (
                     <ImageIcon
                         size={36}
@@ -250,12 +274,6 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const videoRef = useRef(null);
 
-    const normalizeUrl = (url) => {
-        if (!url) return null;
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        return `http://localhost:8000${url}`;
-    };
-
     const contentItems = item.content_items || [];
     const hasContentItems = contentItems.length > 0;
 
@@ -273,7 +291,7 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
 
     const getImageUrl = (ci) => {
         if (!ci) return normalizeUrl(item.thumbnail);
-        return ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || normalizeUrl(ci.file_url) || normalizeUrl(item.thumbnail);
+        return normalizeUrl(ci.gallery_image_details?.image_url) || normalizeUrl(ci.gallery_image_details?.image_compressed) || normalizeUrl(ci.file_url) || normalizeUrl(item.thumbnail);
     };
 
     const currentUrl = getImageUrl(current);
@@ -540,7 +558,8 @@ export default function SchedulerPage() {
     const [previewItem, setPreviewItem] = useState(null);
 
     // Step 3
-    const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram"]);
+    const [availablePlatforms, setAvailablePlatforms] = useState([]);
+    const [selectedPlatforms, setSelectedPlatforms] = useState([]);
     const [scheduleDate, setScheduleDate] = useState(getToday());
     const [releaseTime, setReleaseTime] = useState("10:00");
     const [caption, setCaption] = useState("");
@@ -551,12 +570,6 @@ export default function SchedulerPage() {
 
     const [toast, setToast] = useState(null);
     const hashtagInputRef = useRef(null);
-
-    const normalizeUrl = (url) => {
-        if (!url) return null;
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        return `http://localhost:8000${url}`;
-    };
 
     // Load clients
     useEffect(() => {
@@ -600,9 +613,34 @@ export default function SchedulerPage() {
         fetchClients();
     }, []);
 
-    // Load content when client changes
+    // Load content and social accounts when client changes
     useEffect(() => {
-        if (!selectedClient) return;
+        if (!selectedClient) {
+            setAvailablePlatforms([]);
+            setSelectedPlatforms([]);
+            return;
+        }
+
+        const fetchSocial = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/scheduler/social-accounts/?client_id=${selectedClient.id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const platforms = data
+                        .filter(acc => acc.status === "active")
+                        .map(acc => acc.platform.toLowerCase());
+                    setAvailablePlatforms(platforms);
+                    if (platforms.length > 0) {
+                        setSelectedPlatforms([platforms[0]]);
+                    } else {
+                        setSelectedPlatforms([]);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching client social networks:", err);
+            }
+        };
+
         const fetchContent = async () => {
             setLoadingContent(true);
             setSelectedContent(null);
@@ -638,8 +676,8 @@ export default function SchedulerPage() {
                             content_items: item.content_items || [],
                             thumbnail: (() => {
                                 const ci = item.content_items?.[0];
-                                if (ci) return ci.gallery_image_details?.image_url || normalizeUrl(ci.file_url) || null;
-                                return item.linked_image_details?.image_compressed || item.linked_image_details?.image || null;
+                                if (ci) return normalizeUrl(ci.gallery_image_details?.image_url) || normalizeUrl(ci.gallery_image_details?.image_compressed) || normalizeUrl(ci.file_url) || null;
+                                return normalizeUrl(item.linked_image_details?.image_compressed) || normalizeUrl(item.linked_image_details?.image) || null;
                             })(),
                             // Caption is ai_caption; fallback to content_text
                             caption: item.ai_caption || item.content_text || "",
@@ -662,6 +700,7 @@ export default function SchedulerPage() {
                 setLoadingContent(false);
             }
         };
+        fetchSocial();
         fetchContent();
     }, [selectedClient]);
 
@@ -975,7 +1014,7 @@ export default function SchedulerPage() {
                                         Select Platform
                                     </p>
                                     <div className="flex items-center gap-3">
-                                        {PLATFORMS.map((platform) => (
+                                        {PLATFORMS.filter((p) => availablePlatforms.includes(p.id)).map((platform) => (
                                             <PlatformButton
                                                 key={platform.id}
                                                 platform={platform}
@@ -987,6 +1026,11 @@ export default function SchedulerPage() {
                                                 }
                                             />
                                         ))}
+                                        {availablePlatforms.length === 0 && (
+                                            <p className="text-sm text-red-500 font-bold">
+                                                Este cliente no tiene redes sociales vinculadas. Configúralas en "Client Settings" o en el panel de usuarios.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 

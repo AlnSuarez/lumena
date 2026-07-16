@@ -19,16 +19,63 @@ import {
     Loader2,
     Layout,
     Send,
-    RefreshCw
+    RefreshCw,
+    Heart,
+    Bookmark,
+    Maximize2,
+    Play,
+    Pause
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+
+function CardVideoPlayer({ src }) {
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const handlePlayPause = (e) => {
+        e.stopPropagation();
+        const video = e.currentTarget.closest('.video-container')?.querySelector('video');
+        if (!video) return;
+        if (video.paused) {
+            video.play().then(() => {
+                setIsPlaying(true);
+            }).catch(err => console.error("Error playing video:", err));
+        } else {
+            video.pause();
+            setIsPlaying(false);
+        }
+    };
+
+    return (
+        <div className="video-container relative w-full h-full bg-black flex items-center justify-center group/video">
+            <video 
+                src={src} 
+                className="w-full h-full object-contain" 
+                loop
+                playsInline
+                onClick={handlePlayPause}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+            />
+            <button
+                onClick={handlePlayPause}
+                className={`absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-lg z-10 duration-200 ${isPlaying ? 'opacity-0 group-hover/video:opacity-100' : 'opacity-100'}`}
+            >
+                {isPlaying ? (
+                    <Pause size={20} fill="white" />
+                ) : (
+                    <Play size={20} fill="white" className="ml-1" />
+                )}
+            </button>
+        </div>
+    );
+}
 
 const normalizeUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `http://localhost:8000${url}`;
+    return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${url}`;
 };
 
 export default function ClientReviewPage() {
@@ -39,6 +86,23 @@ export default function ClientReviewPage() {
     const [feedbackText, setFeedbackText] = useState("");
     const [previewRequest, setPreviewRequest] = useState(null);
     const [previewIndex, setPreviewIndex] = useState(0);
+    const [cardIndices, setCardIndices] = useState({});
+
+    const handlePrevCardItem = (e, reqId, totalItems) => {
+        e.stopPropagation();
+        setCardIndices(prev => ({
+            ...prev,
+            [reqId]: Math.max(0, (prev[reqId] || 0) - 1)
+        }));
+    };
+
+    const handleNextCardItem = (e, reqId, totalItems) => {
+        e.stopPropagation();
+        setCardIndices(prev => ({
+            ...prev,
+            [reqId]: Math.min(totalItems - 1, (prev[reqId] || 0) + 1)
+        }));
+    };
 
     const fetchPendingRequests = async () => {
         const userId = localStorage.getItem("userId");
@@ -119,7 +183,7 @@ export default function ClientReviewPage() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    status: requireQAReview ? "QA" : "IN_REVISION",
+                    status: "IN_REVISION",
                     feedback: feedbackText,
                     client_feedback: feedbackText
                 })
@@ -186,11 +250,11 @@ export default function ClientReviewPage() {
                             <p className="text-muted-foreground mt-2 max-w-sm">There are no pending content requests waiting for your approval right now.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
                             {pendingRequests.map((req) => {
                                 const Icon = getRequestTypeIcon(req.request_type);
                                 return (
-                                    <div key={req.id} className="bg-card border border-border rounded-3xl p-6 shadow-md flex flex-col gap-5 hover:shadow-lg transition-all">
+                                    <div key={req.id} className="bg-card border border-border rounded-3xl p-4 shadow-md flex flex-col gap-4 hover:shadow-lg transition-all max-w-sm w-full mx-auto">
                                         
                                         {/* Card Header */}
                                         <div className="flex items-center justify-between">
@@ -208,51 +272,174 @@ export default function ClientReviewPage() {
                                             </span>
                                         </div>
 
-                                        {/* Preview Mockup */}
-                                        <div
-                                            className="aspect-video bg-secondary/30 rounded-2xl overflow-hidden relative border border-border/50 flex items-center justify-center cursor-pointer group"
-                                            onClick={() => {
-                                                setPreviewRequest(req);
-                                                setPreviewIndex(0);
-                                            }}
-                                        >
-                                            {(() => {
-                                                const items = req.content_items || [];
-                                                if (req.linked_image_details && items.length === 0) {
-                                                    items.push({ media_type: 'IMAGE', gallery_image_details: req.linked_image_details });
-                                                }
-                                                if (items.length > 0) {
-                                                    const ci = items[0];
-                                                    const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || normalizeUrl(ci.file_url) || normalizeUrl(req.linked_image_details?.image_compressed) || normalizeUrl(req.linked_image_details?.image);
-                                                    if (src) {
-                                                        const isVideo = ci.media_type === 'VIDEO' || 
-                                                            (typeof src === 'string' && (
-                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
-                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
-                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
-                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
-                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
-                                                                src.toLowerCase().includes('/videos/')
-                                                            ));
-                                                        if (isVideo) {
-                                                            return <video src={src} controls className="absolute inset-0 w-full h-full object-cover" />;
-                                                        }
-                                                        return <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="absolute inset-0 w-full h-full object-cover" />;
-                                                    }
-                                                }
-                                                return (
-                                                    <div className="text-center p-4">
-                                                        <ImageIcon size={32} className="mx-auto text-muted-foreground/60 mb-2" />
-                                                        <p className="text-xs text-muted-foreground font-bold">Visual Asset Pending Upload</p>
+                                        {/* Preview Mockup - Styled as Social Media Post */}
+                                        <div className="border border-border/60 bg-card rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                                            {/* Mockup Header */}
+                                            <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-secondary/10">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
+                                                        {req.client_details?.client_profile?.logo ? (
+                                                            <img 
+                                                                src={normalizeUrl(req.client_details.client_profile.logo)} 
+                                                                alt="Logo" 
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-primary">
+                                                                {(req.client_details?.client_profile?.practice_name || req.client_details?.username || "C").charAt(0).toUpperCase()}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                );
-                                            })()}
-                                            {req.content_items?.length > 1 && (
-                                                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 group-hover:bg-black/80 transition-colors">
-                                                    <span className="text-[10px] font-mono text-white">{req.content_items.length} items</span>
+                                                    <div>
+                                                        <p className="text-xs font-black text-foreground leading-none">
+                                                            {req.client_details?.client_profile?.practice_name || req.client_details?.username || "Brand Account"}
+                                                        </p>
+                                                        <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Content Preview</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                                    Preview
+                                                </span>
+                                            </div>
+
+                                            {/* Media Viewer Area */}
+                                            <div className="aspect-square bg-black/5 relative flex items-center justify-center overflow-hidden group">
+                                                {(() => {
+                                                    const items = req.content_items || [];
+                                                    if (req.linked_image_details && items.length === 0) {
+                                                        items.push({ media_type: 'IMAGE', gallery_image_details: req.linked_image_details });
+                                                    }
+                                                    const totalItems = items.length;
+                                                    const currentIdx = cardIndices[req.id] || 0;
+                                                    const safeIdx = Math.min(currentIdx, Math.max(0, totalItems - 1));
+
+                                                    if (totalItems > 0) {
+                                                        const ci = items[safeIdx];
+                                                        const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || normalizeUrl(ci.file_url) || normalizeUrl(req.linked_image_details?.image_compressed) || normalizeUrl(req.linked_image_details?.image);
+
+                                                        if (src) {
+                                                            const isVideo = ci.media_type === 'VIDEO' || 
+                                                                (typeof src === 'string' && (
+                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
+                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
+                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
+                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
+                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                                                                    src.toLowerCase().includes('/videos/')
+                                                                ));
+                                                            return (
+                                                                <>
+                                                                    {isVideo ? (
+                                                                         <CardVideoPlayer src={src} />
+                                                                    ) : (
+                                                                        <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-cover" />
+                                                                    )}
+
+                                                                    {/* Maximize Button on Hover */}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setPreviewRequest(req);
+                                                                            setPreviewIndex(safeIdx);
+                                                                        }}
+                                                                        className="absolute top-3 right-3 z-30 p-2 bg-black/60 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/80 transition-all opacity-0 group-hover:opacity-100"
+                                                                        title="Expand Preview"
+                                                                    >
+                                                                        <Maximize2 size={14} />
+                                                                    </button>
+
+                                                                    {/* Carousel Arrows */}
+                                                                    {totalItems > 1 && (
+                                                                        <>
+                                                                            {safeIdx > 0 && (
+                                                                                <button
+                                                                                    onClick={(e) => handlePrevCardItem(e, req.id, totalItems)}
+                                                                                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all shadow-md"
+                                                                                >
+                                                                                    <ChevronLeft size={18} />
+                                                                                </button>
+                                                                            )}
+                                                                            {safeIdx < totalItems - 1 && (
+                                                                                <button
+                                                                                    onClick={(e) => handleNextCardItem(e, req.id, totalItems)}
+                                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all shadow-md"
+                                                                                >
+                                                                                    <ChevronRight size={18} />
+                                                                                </button>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        }
+                                                    }
+                                                    return (
+                                                        <div className="text-center p-4">
+                                                            <ImageIcon size={32} className="mx-auto text-muted-foreground/60 mb-2" />
+                                                            <p className="text-xs text-muted-foreground font-bold">Visual Asset Pending Upload</p>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* Mockup Action Bar */}
+                                            <div className="px-4 py-2.5 flex items-center justify-between border-t border-border/30 bg-secondary/5">
+                                                <div className="flex items-center gap-3">
+                                                    <button className="text-muted-foreground hover:text-red-500 transition-colors" disabled>
+                                                        <Heart size={16} />
+                                                    </button>
+                                                    <button className="text-muted-foreground" disabled>
+                                                        <MessageSquare size={16} />
+                                                    </button>
+                                                    <button className="text-muted-foreground" disabled>
+                                                        <Send size={14} className="-rotate-12" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Carousel indicators inside mockup */}
+                                                {(() => {
+                                                    const items = req.content_items || [];
+                                                    if (req.linked_image_details && items.length === 0) {
+                                                        items.push({ media_type: 'IMAGE', gallery_image_details: req.linked_image_details });
+                                                    }
+                                                    const totalItems = items.length;
+                                                    const currentIdx = cardIndices[req.id] || 0;
+                                                    const safeIdx = Math.min(currentIdx, Math.max(0, totalItems - 1));
+
+                                                    if (totalItems > 1) {
+                                                        return (
+                                                            <div className="flex gap-1">
+                                                                {items.map((_, idx) => (
+                                                                    <div 
+                                                                        key={idx} 
+                                                                        className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
+                                                                            idx === safeIdx ? 'bg-primary w-3' : 'bg-muted-foreground/30'
+                                                                        }`}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+
+                                                <div>
+                                                    <button className="text-muted-foreground" disabled>
+                                                        <Bookmark size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Mockup Caption */}
+                                            {(req.ai_caption || req.content_text) && (
+                                                <div className="px-4 pb-3 pt-1 text-xs border-t border-border/10 bg-secondary/5">
+                                                    <p className="text-foreground leading-relaxed font-medium line-clamp-3">
+                                                        <span className="font-black mr-1.5 text-foreground">
+                                                            {req.client_details?.client_profile?.practice_name || req.client_details?.username || "Brand Account"}
+                                                        </span>
+                                                        {req.ai_caption || req.content_text}
+                                                    </p>
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-2xl" />
                                         </div>
 
                                         {/* Strategist Text */}

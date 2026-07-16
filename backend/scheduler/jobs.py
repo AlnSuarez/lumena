@@ -28,21 +28,16 @@ def publish_due_posts():
             post.status = 'PUBLISHING'
             post.save(update_fields=['status'])
 
-            # TODO: Integrate with Postproxy.dev here
-            # Example:
-            # from .publisher import publish_to_postproxy
-            # result = publish_to_postproxy(post)
-            # if result['success']:
-            #     post.status = 'PUBLISHED'
-            #     post.published_at = now
-            #     post.error_message = None
-            # else:
-            #     post.status = 'FAILED'
-            #     post.error_message = result['error']
-
-            post.status = 'PUBLISHED'
-            post.published_at = now
-            post.error_message = None
+            # Integrate with Postproxy.dev here
+            from .publisher import publish_to_postproxy
+            result = publish_to_postproxy(post)
+            if result['success']:
+                post.status = 'PUBLISHED'
+                post.published_at = now
+                post.error_message = None
+            else:
+                post.status = 'FAILED'
+                post.error_message = result['error']
             post.save(update_fields=['status', 'published_at', 'error_message'])
 
             logger.info(f"[publish_due_posts] Post {post.id} published successfully")

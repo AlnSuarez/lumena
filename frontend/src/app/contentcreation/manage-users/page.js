@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
     UserPlus, Trash2, Edit, Save, X, Search,
-    Shield, ShieldCheck, Lock, BarChart3
+    Shield, ShieldCheck, Lock, BarChart3, Link2
 } from "lucide-react";
 
 export default function ManageUsersPage() {
@@ -68,6 +68,12 @@ export default function ManageUsersPage() {
     const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
     const [editingInsightsUser, setEditingInsightsUser] = useState(null);
 
+    // Social Accounts Connection State
+    const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+    const [socialModalUser, setSocialModalUser] = useState(null);
+    const [socialAccounts, setSocialAccounts] = useState([]);
+    const [isConnectingSocial, setIsConnectingSocial] = useState(false);
+
     // Form State
     const [formData, setFormData] = useState({
         username: "",
@@ -103,12 +109,20 @@ export default function ManageUsersPage() {
             setCurrentUserId(parseInt(userId));
         }
         fetchUsers();
+
+        // Check for redirect success from Postproxy
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('connect_success') === 'true') {
+            alert("Red social vinculada exitosamente a través de Postproxy!");
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
     }, []);
 
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/api/users/manage/');
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/');
             if (response.ok) {
                 const data = await response.json();
                 setUsers(data);
@@ -156,11 +170,60 @@ export default function ManageUsersPage() {
         setIsInsightsModalOpen(true);
     };
 
+    const handleSocialEditClick = async (user) => {
+        setSocialModalUser(user);
+        setIsSocialModalOpen(true);
+        fetchSocialAccounts(user.id);
+    };
+
+    const fetchSocialAccounts = async (userId) => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/scheduler/social-accounts/?client_id=${userId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setSocialAccounts(data);
+            }
+        } catch (error) {
+            console.error("Error fetching social accounts:", error);
+        }
+    };
+
+    const handleConnectNetwork = async (platform) => {
+        setIsConnectingSocial(true);
+        try {
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/scheduler/social-accounts/connect/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: socialModalUser.id,
+                    platform: platform
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert("No se pudo obtener la URL de conexión.");
+                }
+            } else {
+                const err = await response.json();
+                alert(err.error || "Error al iniciar conexión.");
+            }
+        } catch (error) {
+            console.error("Error connecting network:", error);
+            alert("Error de conexión al servidor.");
+        } finally {
+            setIsConnectingSocial(false);
+        }
+    };
+
+
     const handleDeleteClick = async (userId) => {
         if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/api/users/manage/${userId}/delete/`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/${userId}/delete/`, {
                 method: 'DELETE',
             });
             if (response.ok) {
@@ -217,7 +280,7 @@ export default function ManageUsersPage() {
         if (!editingInsightsUser) return;
 
         try {
-            const response = await fetch(`http://localhost:8000/api/users/manage/${editingInsightsUser.id}/update/`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/${editingInsightsUser.id}/update/`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ insights_metrics: insightsFormData })
@@ -243,8 +306,8 @@ export default function ManageUsersPage() {
         e.preventDefault();
 
         const url = modalMode === "add"
-            ? 'http://localhost:8000/api/users/manage/add/'
-            : `http://localhost:8000/api/users/manage/${editingUser.id}/update/`;
+            ? '${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/add/'
+            : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/${editingUser.id}/update/`;
 
         const method = modalMode === "add" ? 'POST' : 'PATCH';
 
@@ -370,13 +433,22 @@ export default function ManageUsersPage() {
                                                         <Edit size={18} />
                                                     </button>
                                                     {user.role === 'CLIENT' && (
-                                                        <button
-                                                            onClick={() => handleInsightsEditClick(user)}
-                                                            className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600 transition-colors"
-                                                            title="Edit Insights"
-                                                        >
-                                                            <BarChart3 size={18} />
-                                                        </button>
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleInsightsEditClick(user)}
+                                                                className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600 transition-colors"
+                                                                title="Edit Insights"
+                                                            >
+                                                                <BarChart3 size={18} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleSocialEditClick(user)}
+                                                                className="p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors"
+                                                                title="Manage Social Networks"
+                                                            >
+                                                                <Link2 size={18} />
+                                                            </button>
+                                                        </>
                                                     )}
                                                     <button
                                                         onClick={() => handleDeleteClick(user.id)}
@@ -677,6 +749,101 @@ export default function ManageUsersPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isSocialModalOpen && socialModalUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-3 md:p-5 animate-in fade-in duration-200">
+                    <div className="bg-card rounded-3xl border border-border shadow-2xl w-[96vw] max-w-2xl h-[70vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 md:p-7 flex items-center justify-between text-white border-b border-white/15">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <Link2 size={24} />
+                                Redes Sociales - @{socialModalUser.username}
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setIsSocialModalOpen(false);
+                                    setSocialModalUser(null);
+                                }}
+                                className="hover:bg-white/10 p-2 rounded-full transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="h-[calc(70vh-92px)] flex flex-col p-6 md:p-8 space-y-6 overflow-y-auto">
+                            <div>
+                                <h3 className="text-sm font-bold text-foreground uppercase mb-3">Redes Vinculadas</h3>
+                                {socialAccounts.length === 0 ? (
+                                    <div className="text-center py-6 bg-muted/40 border border-dashed border-border rounded-2xl text-muted-foreground text-sm">
+                                        No hay redes sociales vinculadas a este cliente.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {socialAccounts.map(account => (
+                                            <div key={account.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-2xl border border-border">
+                                                <div className="flex items-center gap-3">
+                                                    {account.avatar_url ? (
+                                                        <img src={account.avatar_url} alt={account.name} className="w-10 h-10 rounded-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
+                                                            {account.platform.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="font-bold text-foreground text-sm">{account.name}</p>
+                                                        <p className="text-xs text-muted-foreground uppercase">{account.platform}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                                    {account.status}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t border-border pt-6">
+                                <h3 className="text-sm font-bold text-foreground uppercase mb-3">Vincular Nueva Red</h3>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <button
+                                        disabled={isConnectingSocial}
+                                        onClick={() => handleConnectNetwork("linkedin")}
+                                        className="flex items-center justify-center gap-2 p-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-2xl font-bold transition-all shadow-md hover:-translate-y-0.5 active:translate-y-0 text-sm"
+                                    >
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                                        </svg>
+                                        LinkedIn
+                                    </button>
+                                    <button
+                                        disabled={isConnectingSocial}
+                                        onClick={() => handleConnectNetwork("instagram")}
+                                        className="flex items-center justify-center gap-2 p-4 bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 hover:opacity-90 disabled:opacity-50 text-white rounded-2xl font-bold transition-all shadow-md hover:-translate-y-0.5 active:translate-y-0 text-sm"
+                                    >
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                        </svg>
+                                        Instagram
+                                    </button>
+                                    <button
+                                        disabled={isConnectingSocial}
+                                        onClick={() => handleConnectNetwork("tiktok")}
+                                        className="flex items-center justify-center gap-2 p-4 bg-slate-900 hover:bg-slate-950 disabled:opacity-50 text-white rounded-2xl font-bold transition-all shadow-md hover:-translate-y-0.5 active:translate-y-0 text-sm"
+                                    >
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.74-3.94-1.74-.22-.2-.43-.43-.62-.67-.02 3.28.01 6.56-.01 9.84-.04 1.66-.56 3.37-1.68 4.6-1.52 1.73-4.01 2.58-6.26 2.1-2.6-.53-4.63-2.79-4.88-5.4-.33-3.04 1.73-6.02 4.74-6.53v4.07c-1.46.22-2.58 1.56-2.45 3.05.12 1.34 1.25 2.42 2.6 2.42 1.5 0 2.65-1.3 2.51-2.79.03-4.73.01-9.46.02-14.19-.01-.33.01-.67-.01-1z"/>
+                                        </svg>
+                                        TikTok
+                                    </button>
+                                </div>
+                                {isConnectingSocial && (
+                                    <p className="text-xs text-muted-foreground text-center mt-4 animate-pulse">Redireccionando al portal de autorización...</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

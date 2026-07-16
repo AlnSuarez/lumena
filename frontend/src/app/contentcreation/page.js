@@ -68,7 +68,7 @@ export default function ContentBoardPage() {
 
         try {
             const userId = localStorage.getItem('userId');
-            const createUrl = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            const createUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
             if (userId) createUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(createUrl.toString(), {
@@ -115,7 +115,7 @@ export default function ContentBoardPage() {
         setCreateSearchedImage(null);
 
         try {
-            const response = await fetch(`http://localhost:8000/api/gallery/images/search/?folio=${createFolioSearch.trim()}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/gallery/images/search/?folio=${createFolioSearch.trim()}`, {
                 credentials: 'include',
             });
 
@@ -166,15 +166,15 @@ export default function ContentBoardPage() {
     const fetchData = async (role = currentUserRole, userId = currentUserId) => {
         setIsLoading(true);
         try {
-            const reqUrl = new URL('http://localhost:8000/api/contents/monthly-requests/');
+            const reqUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
             if (role) reqUrl.searchParams.append('role', role);
             if (userId) reqUrl.searchParams.append('user_id', userId);
 
             const [reqResponse, userResponse, creatorsResponse, clientsResponse] = await Promise.all([
                 fetch(reqUrl.toString()),
-                fetch('http://localhost:8000/api/users/manage/'), // Fetch all users for filter
-                fetch('http://localhost:8000/api/users/content-creators/'), // Fetch content creators
-                fetch('http://localhost:8000/api/users/clients/') // Fetch clients
+                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/'), // Fetch all users for filter
+                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/'), // Fetch content creators
+                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/clients/') // Fetch clients
             ]);
 
             if (reqResponse.ok) {
@@ -255,7 +255,7 @@ export default function ContentBoardPage() {
     const handleConfirmAssignment = async (requestId) => {
         try {
             const userId = localStorage.getItem('userId');
-            const confirmUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
+            const confirmUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
             if (userId) confirmUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(
@@ -277,7 +277,7 @@ export default function ContentBoardPage() {
     const handleReassign = async (requestId, creatorId) => {
         try {
             const userId = localStorage.getItem('userId');
-            const reassignUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${requestId}/reassign/`);
+            const reassignUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/reassign/`);
             if (userId) reassignUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(
@@ -509,7 +509,7 @@ export default function ContentBoardPage() {
                                         {/* Header */}
                                         <div className="flex items-center gap-4 mb-6">
                                             {selectedRequest.client_details?.client_profile?.logo ? (
-                                                <img src={`http://localhost:8000${selectedRequest.client_details.client_profile.logo}`} alt="Client Logo" className="w-12 h-12 rounded-full border border-border object-cover" />
+                                                <img src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${selectedRequest.client_details.client_profile.logo}`} alt="Client Logo" className="w-12 h-12 rounded-full border border-border object-cover" />
                                             ) : (
                                                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-lg">
                                                     {(selectedRequest.client_details?.username?.[0] || 'C').toUpperCase()}

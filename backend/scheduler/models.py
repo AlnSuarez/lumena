@@ -52,3 +52,26 @@ class ScheduledPost(models.Model):
 
     def __str__(self):
         return f"{self.content} @ {self.scheduled_at}"
+
+
+class SocialAccount(models.Model):
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='social_accounts',
+        verbose_name=_("Client")
+    )
+    platform = models.CharField(max_length=50, verbose_name=_("Platform"))
+    postproxy_profile_id = models.CharField(max_length=50, unique=True, verbose_name=_("Postproxy Profile ID"))
+    name = models.CharField(max_length=100, verbose_name=_("Name"))
+    avatar_url = models.URLField(blank=True, null=True, verbose_name=_("Avatar URL"))
+    status = models.CharField(max_length=20, default='active', verbose_name=_("Status"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Social Account")
+        verbose_name_plural = _("Social Accounts")
+
+    def __str__(self):
+        return f"{self.name} ({self.platform}) for {self.client.username}"
+
