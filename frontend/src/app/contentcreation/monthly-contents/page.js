@@ -1,15 +1,26 @@
 "use client";
-import React, { useState } from 'react';
-import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2, MessageSquare, Trash2, AlertTriangle } from 'lucide-react';
+import { useTheme } from "../../../context/ThemeContext";
 
 export default function MonthlyContentsPage() {
+    const { requireQAReview } = useTheme();
     const [clientName, setClientName] = useState("");
 
-    // Dummy clients list
+    // Superuser check
+    const isSuperuser = typeof window !== 'undefined'
+        ? localStorage.getItem('userRole') === 'SUPERUSER'
+        : false;
+
+    // Delete confirmation modal state
+    const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Combined list of Monthly Clients and Adhoc Requests
     const [items, setItems] = useState([]);
     const [activeItemIndex, setActiveItemIndex] = useState(0);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [activeContentIndex, setActiveContentIndex] = useState(0);
     const [expandedSections, setExpandedSections] = useState({
         newRequests: true,
         returnedQA: true,
@@ -23,12 +34,41 @@ export default function MonthlyContentsPage() {
         }));
     };
 
-    const [counts, setCounts] = useState({
-        photos: 4,
-        carousels: 4,
-        videos: 4,
-        stories: 4
-    });
+    const DEFAULT_COUNTS = { photos: 4, carousels: 4, videos: 4, stories: 4 };
+
+    const parseCountsFromNotes = (notes) => {
+        if (!notes) return null;
+        const photos = notes.match(/Photos:\s*(\d+)/)?.[1];
+        const carousels = notes.match(/Carousels:\s*(\d+)/)?.[1];
+        const videos = notes.match(/Videos:\s*(\d+)/)?.[1];
+        const stories = notes.match(/Stories:\s*(\d+)/)?.[1];
+        if (photos !== undefined || carousels !== undefined || videos !== undefined || stories !== undefined) {
+            return {
+                photos: photos !== undefined ? parseInt(photos, 10) : 4,
+                carousels: carousels !== undefined ? parseInt(carousels, 10) : 4,
+                videos: videos !== undefined ? parseInt(videos, 10) : 4,
+                stories: stories !== undefined ? parseInt(stories, 10) : 4,
+            };
+        }
+        return null;
+    };
+
+    const updateCountsInNotes = (notes, counts) => {
+        if (!notes) return notes;
+        let updated = notes;
+        if (counts.photos !== undefined) updated = updated.replace(/Photos:\s*\d+/, `Photos: ${counts.photos}`);
+        if (counts.carousels !== undefined) updated = updated.replace(/Carousels:\s*\d+/, `Carousels: ${counts.carousels}`);
+        if (counts.videos !== undefined) updated = updated.replace(/Videos:\s*\d+/, `Videos: ${counts.videos}`);
+        if (counts.stories !== undefined) updated = updated.replace(/Stories:\s*\d+/, `Stories: ${counts.stories}`);
+        const p = parseInt(updated.match(/Photos:\s*(\d+)/)?.[1]) || 0;
+        const c = parseInt(updated.match(/Carousels:\s*(\d+)/)?.[1]) || 0;
+        const v = parseInt(updated.match(/Videos:\s*(\d+)/)?.[1]) || 0;
+        const s = parseInt(updated.match(/Stories:\s*(\d+)/)?.[1]) || 0;
+        updated = updated.replace(/Total:\s*\d+/, `Total: ${p + c + v + s}`);
+        return updated;
+    };
+
+    const [counts, setCounts] = useState({ ...DEFAULT_COUNTS });
 
     const steps = [
         { id: 'photos', label: 'Photos', count: counts.photos },
@@ -86,23 +126,27 @@ export default function MonthlyContentsPage() {
                         .map(req => {
                             const isAdhoc = req.request_type !== 'MONTHLY_CONTENT';
                             const isReturned = req.status === 'IN_REVISION';
-                            const returnedByClient = isReturned && req.history?.some(h => 
-                                h.new_status === 'IN_REVISION' && h.changed_by_details?.role === 'CLIENT'
-                            );
+                            // returnedByClient: has client_feedback AND no QA-only feedback scenario.
+                            // If client_feedback is set → client returned it.
+                            // If only feedback (QA) is set → QA returned it.
+                            // If both are set → client was the last to return (client_feedback wins).
+                            const returnedByClient = isReturned && !!req.client_feedback;
+                            const parsedCounts = isAdhoc ? null : parseCountsFromNotes(req.notes);
                             return {
                                 id: req.id,
                                 type: isAdhoc ? 'adhoc_request' : 'client',
                                 name: req.client_details ? req.client_details.username : `Client #${req.client}`,
-                                completed: false, // Since we filter, all remaining are "pending" for user
+                                completed: false,
                                 month: req.month,
                                 status: req.status,
                                 returnedByClient: !!returnedByClient,
-                                // If adhoc, we need some fields mapped or extracted from notes if possible
                                 contentType: isAdhoc ? (req.notes?.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
                                 instructions: req.notes,
                                 asignee: req.assigned_to_details?.username,
                                 feedback: req.feedback,
-                                originalData: req // Keep original data for robust usage
+                                clientFeedback: req.client_feedback,
+                                planCounts: parsedCounts,
+                                originalData: req
                             };
                         });
 
@@ -139,6 +183,7 @@ export default function MonthlyContentsPage() {
     const [folderImages, setFolderImages] = useState([]);
     const [isLoadingImages, setIsLoadingImages] = useState(false);
     const [searchError, setSearchError] = useState('');
+    const [selectionAction, setSelectionAction] = useState('add'); // 'add' or 'change'
 
     // Upload functionality
     const [uploadSelectedFiles, setUploadSelectedFiles] = useState([]);
@@ -147,36 +192,110 @@ export default function MonthlyContentsPage() {
     const [contentFolderId, setContentFolderId] = useState(null);
     const CREATED_CONTENT_FOLDER_NAME = "Created";
     const API_BASE = 'http://localhost:8000/api';
+    const API_ORIGIN = 'http://localhost:8000';
+
+    const normalizeUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `${API_ORIGIN}${url}`;
+    };
     const [csrfToken, setCsrfToken] = useState('');
 
     // Reset inputs when active item changes
-    React.useEffect(() => {
-        if (items[activeItemIndex]) {
-            // If the item already has these fields (e.g. if we fetched them), load them
-            // For now, assuming we start fresh or from previous props if available
-            setContentText(items[activeItemIndex].originalData?.content_text || "");
-            setAiCaption(items[activeItemIndex].originalData?.ai_caption || "");
+    const prevItemIdRef = useRef(null);
 
-            // Reset Image Selection State
-            setIsImageSelectionOpen(false);
-            setFoundImage(null);
-            setClientFolders([]);
-            setSelectedFolderId(null);
-            setFolderImages([]);
-            setImageSearchQuery('');
-            setSearchError('');
-            setUploadSelectedFiles([]);
-            setIsUploading(false);
-            setIsGeneratingCaption(false);
-            setImageSearchMode('search');
+    React.useEffect(() => {
+        const currentItem = items[activeItemIndex];
+        if (!currentItem) return;
+
+        if (currentItem.id === prevItemIdRef.current) return;
+
+        prevItemIdRef.current = currentItem.id;
+
+        setContentText(currentItem.originalData?.content_text || "");
+        setAiCaption(currentItem.originalData?.ai_caption || "");
+
+        if (currentItem.planCounts) {
+            setCounts({ ...currentItem.planCounts });
+        } else if (currentItem.type !== 'adhoc_request') {
+            setCounts({ ...DEFAULT_COUNTS });
         }
+        setCurrentStepIndex(0);
+        setActiveContentIndex(0);
+
+        setIsImageSelectionOpen(false);
+        setFoundImage(null);
+        setClientFolders([]);
+        setSelectedFolderId(null);
+        setFolderImages([]);
+        setImageSearchQuery('');
+        setSearchError('');
+        setUploadSelectedFiles([]);
+        setIsUploading(false);
+        setIsGeneratingCaption(false);
+        setImageSearchMode('search');
     }, [activeItemIndex, items]);
+
+    // Reset content index when step changes
+    React.useEffect(() => {
+        setActiveContentIndex(0);
+    }, [currentStepIndex]);
 
     const activeItem = items[activeItemIndex] || {};
     const isAdhoc = activeItem.type === 'adhoc_request';
 
+    const getDisplayItems = () => {
+        const contentItems = activeItem.originalData?.content_items || [];
+        if (contentItems.length === 0 && activeItem.originalData?.linked_image_details) {
+            return [{ media_type: 'IMAGE', gallery_image_details: activeItem.originalData.linked_image_details }];
+        }
+        return contentItems;
+    };
+    const displayItems = getDisplayItems();
+
+    const getStepMediaType = (stepId) => {
+        if (!stepId) return null;
+        const map = { photos: 'IMAGE', carousels: 'CAROUSEL_IMAGE', videos: 'VIDEO', stories: 'STORY' };
+        return map[stepId] || null;
+    };
+    const currentStepMediaType = !isAdhoc ? getStepMediaType(steps[currentStepIndex]?.id) : null;
+    const stepItems = currentStepMediaType
+        ? displayItems.filter(ci => ci.media_type === currentStepMediaType)
+        : displayItems;
+
     // Mock ID for the current item
     const currentId = isAdhoc ? `REQ-${activeItem.id}`.slice(0, 12) : "IMG-2024-00" + (5 - steps[currentStepIndex].count);
+
+    const handleDeleteRequest = async (item) => {
+        setIsDeleting(true);
+        try {
+            const userId = localStorage.getItem('userId');
+            const deleteUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${item.id}/`);
+            if (userId) deleteUrl.searchParams.append('user_id', userId);
+
+            const response = await fetch(deleteUrl.toString(), {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (response.ok || response.status === 204) {
+                setItems(prev => {
+                    const updated = prev.filter(i => i.id !== item.id);
+                    return updated;
+                });
+                setActiveItemIndex(prev => Math.max(0, prev - 1));
+                setDeleteModal({ open: false, item: null });
+            } else {
+                const errBody = await response.text().catch(() => '');
+                alert(`Error al eliminar: ${response.status}${errBody ? '\n' + errBody.slice(0, 300) : ''}`);
+            }
+        } catch (error) {
+            console.error('Error deleting request:', error);
+            alert(`Error de red al eliminar: ${error.message}`);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const updateRequestStatus = async (id, status, extraData = {}) => {
         try {
@@ -184,7 +303,7 @@ export default function MonthlyContentsPage() {
             const updateUrl = new URL(`http://localhost:8000/api/contents/monthly-requests/${id}/`);
             if (userId) updateUrl.searchParams.append('user_id', userId);
 
-            await fetch(updateUrl.toString(), {
+            const response = await fetch(updateUrl.toString(), {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -192,14 +311,18 @@ export default function MonthlyContentsPage() {
                 body: JSON.stringify({ status: status, ...extraData })
             });
 
+            if (!response.ok) {
+                const errBody = await response.text().catch(() => '');
+                const msg = `Error updating request #${id}: ${response.status} ${response.statusText}${errBody ? ' — ' + errBody : ''}`;
+                console.error(msg);
+                alert(`Failed to update: ${response.status}${errBody ? '\n\n' + errBody.slice(0, 300) : ''}`);
+                return;
+            }
+
             // If we updated the image, we should update the local state to reflect it immediately
             if (extraData.linked_image) {
                 setItems(prev => prev.map(item => {
                     if (item.id === id) {
-                        // We need the full image object to display it properly, 
-                        // but extraData only has the ID. 
-                        // For now, relying on the 'foundImage' state to update the view or fetching again would be better.
-                        // Let's manually patch the originalData.linked_image_details with foundImage if available.
                         const newItem = { ...item };
                         if (foundImage && foundImage.id === extraData.linked_image) {
                             newItem.originalData = {
@@ -216,6 +339,7 @@ export default function MonthlyContentsPage() {
 
         } catch (error) {
             console.error("Error updating status:", error);
+            alert(`Network error updating request #${id}: ${error.message}`);
         }
     };
 
@@ -307,11 +431,68 @@ export default function MonthlyContentsPage() {
     };
 
     const handleSelectImage = async (image) => {
-        const stepKey = steps[currentStepIndex]?.id || 'photos';
-        const mediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
-        const currentItems = activeItem.originalData?.content_items || [];
-        const newItem = { media_type: mediaType, order: currentItems.length, gallery_image: image.id };
-        const updatedItems = [...currentItems, newItem];
+        let mediaType = 'IMAGE';
+        if (isAdhoc) {
+            const typeUpper = activeItem.contentType?.toUpperCase();
+            if (typeUpper === 'CAROUSEL') {
+                mediaType = 'CAROUSEL_IMAGE';
+            } else if (typeUpper === 'STORY') {
+                mediaType = 'STORY';
+            } else if (typeUpper === 'VIDEO') {
+                mediaType = 'VIDEO';
+            }
+        } else {
+            const stepKey = steps[currentStepIndex]?.id || 'photos';
+            mediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
+        }
+
+        let currentItems = activeItem.originalData?.content_items || [];
+        if (currentItems.length === 0 && activeItem.originalData?.linked_image) {
+            currentItems = [{
+                media_type: mediaType,
+                order: 0,
+                gallery_image: activeItem.originalData.linked_image,
+                gallery_image_details: activeItem.originalData.linked_image_details
+            }];
+        }
+        let updatedItems = [];
+
+        if (selectionAction === 'change' && currentItems.length > 0) {
+            const safeIndex = Math.min(activeContentIndex, Math.max(0, currentItems.length - 1));
+            updatedItems = currentItems.map((item, idx) => {
+                if (idx === safeIndex) {
+                    return {
+                        ...item,
+                        media_type: mediaType,
+                        gallery_image: image.id,
+                        gallery_image_details: image,
+                        file_url: '',
+                        file_name: ''
+                    };
+                }
+                return item;
+            });
+        } else {
+            if (mediaType === 'CAROUSEL_IMAGE' || mediaType === 'STORY') {
+                const sameTypeItems = currentItems.filter(item => item.media_type === mediaType);
+                const newItem = {
+                    media_type: mediaType,
+                    order: sameTypeItems.length,
+                    gallery_image: image.id,
+                    gallery_image_details: image
+                };
+                updatedItems = [...currentItems, newItem];
+            } else {
+                const newItem = { 
+                    media_type: mediaType, 
+                    order: 0, 
+                    gallery_image: image.id,
+                    gallery_image_details: image
+                };
+                const itemsOtherTypes = currentItems.filter(item => item.media_type !== mediaType);
+                updatedItems = [...itemsOtherTypes, newItem];
+            }
+        }
 
         await updateRequestStatus(activeItem.id, activeItem.status, {
             content_items: updatedItems,
@@ -334,6 +515,7 @@ export default function MonthlyContentsPage() {
         }));
 
         setIsImageSelectionOpen(false);
+        setActiveContentIndex(0);
         setFoundImage(null);
         setSelectedFolderId(null);
         setFolderImages([]);
@@ -393,52 +575,170 @@ export default function MonthlyContentsPage() {
 
     const handleUploadNewImage = async () => {
         if (uploadSelectedFiles.length === 0) {
-            alert('Por favor selecciona al menos una imagen');
+            alert('Por favor selecciona al menos un archivo');
             return;
         }
 
         setIsUploading(true);
         try {
-            // 1. Obtener o crear carpeta "Created"
-            const folderId = await findOrCreateContentFolder(activeItem.originalData.client);
-
-            // 2. Preparar FormData con las imágenes
-            const formData = new FormData();
-            uploadSelectedFiles.forEach(file => {
-                formData.append('images', file);
-            });
-
-            // 3. Subir imágenes
-            const uploadResponse = await fetch(
-                `${API_BASE}/gallery/folders/${folderId}/images/upload/`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                    },
-                    body: formData,
+            const stepKey = steps[currentStepIndex]?.id || 'photos';
+            let targetMediaType = 'IMAGE';
+            if (isAdhoc) {
+                const typeUpper = activeItem.contentType?.toUpperCase();
+                if (typeUpper === 'CAROUSEL') {
+                    targetMediaType = 'CAROUSEL_IMAGE';
+                } else if (typeUpper === 'STORY') {
+                    targetMediaType = 'STORY';
+                } else if (typeUpper === 'VIDEO') {
+                    targetMediaType = 'VIDEO';
+                } else {
+                    const firstFile = uploadSelectedFiles[0];
+                    const isVideoFile = firstFile && (firstFile.type?.startsWith('video/') || 
+                        ['.mp4', '.mov', '.webm', '.mkv', '.avi'].some(ext => firstFile.name?.toLowerCase().endsWith(ext)));
+                    targetMediaType = isVideoFile ? 'VIDEO' : 'IMAGE';
                 }
-            );
-
-            if (!uploadResponse.ok) {
-                throw new Error('Upload failed');
+            } else {
+                targetMediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
             }
 
-            const uploadResult = await uploadResponse.json();
-            const uploadedImages = uploadResult.images || [uploadResult];
+            let currentItems = activeItem.originalData?.content_items || [];
+            if (currentItems.length === 0 && activeItem.originalData?.linked_image) {
+                currentItems = [{
+                    media_type: targetMediaType,
+                    order: 0,
+                    gallery_image: activeItem.originalData.linked_image,
+                    gallery_image_details: activeItem.originalData.linked_image_details
+                }];
+            }
 
-            // 4. Vincular imágenes al request como ContentItems
-            if (uploadedImages.length > 0) {
-                const stepKey = steps[currentStepIndex]?.id || 'photos';
-                const mediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
-                const currentItems = activeItem.originalData?.content_items || [];
-                const newItems = uploadedImages.map((img, idx) => ({
-                    media_type: mediaType,
-                    order: currentItems.length + idx,
-                    gallery_image: img.id,
-                }));
-                const updatedItems = [...currentItems, ...newItems];
+            // Group files into images and videos
+            const imagesToUpload = [];
+            const videosToUpload = [];
+
+            uploadSelectedFiles.forEach(file => {
+                const isVideo = file.type?.startsWith('video/') || 
+                    ['.mp4', '.mov', '.webm', '.mkv', '.avi'].some(ext => file.name?.toLowerCase().endsWith(ext));
+                if (isVideo) {
+                    videosToUpload.push(file);
+                } else {
+                    imagesToUpload.push(file);
+                }
+            });
+
+            let newItems = [];
+            let linkedImageId = activeItem.originalData?.linked_image || null;
+            let orderCounter = currentItems.length;
+
+            // 1. Upload Videos
+            for (let i = 0; i < videosToUpload.length; i++) {
+                const file = videosToUpload[i];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const uploadRes = await fetch(
+                    `${API_BASE}/contents/upload-content-video/`,
+                    {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        body: formData,
+                    }
+                );
+
+                if (!uploadRes.ok) {
+                    const errData = await uploadRes.json();
+                    throw new Error(errData.error || 'Video upload failed');
+                }
+
+                const uploadData = await uploadRes.json();
+                newItems.push({
+                    media_type: targetMediaType,
+                    order: orderCounter++,
+                    file_url: uploadData.url,
+                    file_name: uploadData.filename,
+                });
+            }
+
+            // 2. Upload Images
+            if (imagesToUpload.length > 0) {
+                const folderId = await findOrCreateContentFolder(activeItem.originalData.client);
+
+                const formData = new FormData();
+                imagesToUpload.forEach(file => {
+                    formData.append('images', file);
+                });
+
+                const uploadResponse = await fetch(
+                    `${API_BASE}/gallery/folders/${folderId}/images/upload/`,
+                    {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        body: formData,
+                    }
+                );
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const uploadResult = await uploadResponse.json();
+                const uploadedImages = uploadResult.images || [uploadResult];
+
+                uploadedImages.forEach(img => {
+                    newItems.push({
+                        media_type: targetMediaType,
+                        order: orderCounter++,
+                        gallery_image: img.id,
+                        gallery_image_details: img
+                    });
+                });
+
+                linkedImageId = uploadedImages[0].id;
+            }
+        
+            // We use targetMediaType below to filter and link
+            const mediaType = targetMediaType;
+
+            // 4. Vincular al request como ContentItems
+            if (newItems.length > 0) {
+                let updatedItems = [];
+                if (selectionAction === 'change' && currentItems.length > 0) {
+                    const firstNewItem = newItems[0];
+                    const safeIndex = Math.min(activeContentIndex, Math.max(0, currentItems.length - 1));
+                    const replacedItems = currentItems.map((item, idx) => {
+                        if (idx === safeIndex) {
+                            return {
+                                ...item,
+                                media_type: mediaType,
+                                gallery_image: firstNewItem.gallery_image || null,
+                                file_url: firstNewItem.file_url || '',
+                                file_name: firstNewItem.file_name || ''
+                            };
+                        }
+                        return item;
+                    });
+                    const additionalItems = newItems.slice(1).map((item, idx) => ({
+                        ...item,
+                        order: replacedItems.length + idx
+                    }));
+                    updatedItems = [...replacedItems, ...additionalItems];
+                } else {
+                    if (mediaType === 'CAROUSEL_IMAGE' || mediaType === 'STORY') {
+                        updatedItems = [...currentItems, ...newItems];
+                    } else {
+                        const itemsOtherTypes = currentItems.filter(item => item.media_type !== mediaType);
+                        updatedItems = [...itemsOtherTypes, ...newItems];
+                    }
+                }
+
+                const updatePayload = {
+                    status: activeItem.originalData.status,
+                    content_items: updatedItems,
+                };
+                if (linkedImageId) {
+                    updatePayload.linked_image = linkedImageId;
+                }
 
                 const updateResponse = await fetch(
                     `${API_BASE}/contents/monthly-requests/${activeItem.id}/`,
@@ -449,32 +749,37 @@ export default function MonthlyContentsPage() {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': csrfToken,
                         },
-                        body: JSON.stringify({
-                            status: activeItem.originalData.status,
-                            content_items: updatedItems,
-                            linked_image: uploadedImages[0].id,
-                        }),
+                        body: JSON.stringify(updatePayload),
                     }
                 );
 
                 if (!updateResponse.ok) {
-                    throw new Error('Failed to link images');
+                    throw new Error('Failed to link content items');
                 }
 
+                const updatedRequestData = await updateResponse.json();
+
                 setItems(prevItems =>
-                    prevItems.map(itm =>
-                        itm.id === activeItem.id
-                            ? {
+                    prevItems.map(itm => {
+                        if (itm.id === activeItem.id) {
+                            const isAdhoc = updatedRequestData.request_type !== 'MONTHLY_CONTENT';
+                            const isReturned = updatedRequestData.status === 'IN_REVISION';
+                            const returnedByClient = isReturned && !!updatedRequestData.client_feedback;
+                            const parsedCounts = isAdhoc ? null : parseCountsFromNotes(updatedRequestData.notes);
+                            return {
                                 ...itm,
-                                originalData: {
-                                    ...itm.originalData,
-                                    content_items: updatedItems,
-                                    linked_image: uploadedImages[0].id,
-                                    linked_image_details: uploadedImages[0],
-                                },
-                            }
-                            : itm
-                    )
+                                status: updatedRequestData.status,
+                                returnedByClient: !!returnedByClient,
+                                contentType: isAdhoc ? (updatedRequestData.notes?.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
+                                instructions: updatedRequestData.notes,
+                                feedback: updatedRequestData.feedback,
+                                clientFeedback: updatedRequestData.client_feedback,
+                                planCounts: parsedCounts,
+                                originalData: updatedRequestData,
+                            };
+                        }
+                        return itm;
+                    })
                 );
             }
 
@@ -484,13 +789,16 @@ export default function MonthlyContentsPage() {
             if (fileInput) fileInput.value = '';
             setIsImageSelectionOpen(false);
 
-            const folios = uploadedImages.map(img => img.folio).filter(Boolean);
-            const folioMsg = folios.length ? ` Folio(s): ${folios.join(', ')}` : '';
-            alert(`${uploadedImages.length} image(s) uploaded and linked successfully.${folioMsg}`);
+            const targetStepIndex = steps.findIndex(s => s.id === stepKey);
+            setCurrentStepIndex(targetStepIndex >= 0 ? targetStepIndex : 0);
+            setActiveContentIndex(0);
+
+            const label = videosToUpload.length > 0 ? (imagesToUpload.length > 0 ? 'media file(s)' : 'video(s)') : 'image(s)';
+            alert(`${newItems.length} ${label} uploaded and linked successfully.`);
 
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Error al subir la imagen. Por favor intenta de nuevo.');
+            alert('Error al subir el archivo. Por favor intenta de nuevo.');
         } finally {
             setIsUploading(false);
         }
@@ -572,90 +880,67 @@ export default function MonthlyContentsPage() {
         };
 
         if (isAdhoc) {
-            // Logic for completing a request
-            // remove item from list
             const updatedItems = items.filter((_, idx) => idx !== activeItemIndex);
-
-            // Adjust active index
             let newIndex = activeItemIndex;
             if (newIndex >= updatedItems.length) {
                 newIndex = Math.max(0, updatedItems.length - 1);
             }
-
             setItems(updatedItems);
             setActiveItemIndex(newIndex);
-
-            // Update status to QA in backend with content
             updateRequestStatus(activeItem.id, 'QA', dataToUpdate);
-
             if (updatedItems.length === 0) {
                 alert("All pending items reviewed!");
             }
             return;
         }
 
-        // Logic for Monthly Client Stepper
         const currentStepKey = steps[currentStepIndex].id;
+        const newCounts = counts[currentStepKey] > 1
+            ? { ...counts, [currentStepKey]: counts[currentStepKey] - 1 }
+            : { ...counts, [currentStepKey]: 0 };
+
+        setCounts(newCounts);
+
+        const updatedNotes = updateCountsInNotes(activeItem.originalData?.notes, newCounts);
+        const saveData = { ...dataToUpdate, notes: updatedNotes };
+
+        // Update local state immediately
+        setItems(prev => prev.map(item =>
+            item.id === activeItem.id
+                ? { ...item, originalData: { ...item.originalData, notes: updatedNotes } }
+                : item
+        ));
 
         if (counts[currentStepKey] > 1) {
-            setCounts(prev => ({
-                ...prev,
-                [currentStepKey]: prev[currentStepKey] - 1
-            }));
-            // We should probably save the content for this specific item/step, but for now
-            // as per simplified requirements, we are updating the request itself.
-            // CAUTION: If we update the request on every step, we overwrite. 
-            // The user request implies "resolve a content request... what was written... has to appear".
-            // Since Monthly Request is one big object for the whole month, this might be tricky if there are multiple assets.
-            // But the current implementation seems to treat the whole "Request" as one item in the sidebar, 
-            // even though the counters imply multiple assets.
-            // Ideally, we'd have a separate model for ContentItem.
-            // But I will stick to the requested scope: save what is written when "Resolving".
-
-            // However, the "Approve & Next" button is here.
-            // If I save now, it overwrites.
-            // But since I don't have a ContentItem model, I will update the MonthlyRequest.
-            // This might mean only the LAST written content is saved if multiple assets are made.
-            // Given the constraints and the user prompt "what was written... has to appear", I will save it.
-            updateRequestStatus(activeItem.id, 'IN_PROGRESS', dataToUpdate); // Keep it safe or update partial?
-            // Actually, the user says "resolved a content request", which implies finishing it.
-            // Finishing happens when `counts` reach 0 or `Finish All`.
-
-            // For now, I will clear the inputs for the next asset to simulate fresh start,
-            // but I can't really "save" multiple contents without a new model.
-            // I will assume the prompt refers to the Request level text.
+            updateRequestStatus(activeItem.id, activeItem.status, saveData);
             setContentText("");
             setAiCaption("");
-
         } else {
             if (currentStepIndex < steps.length - 1) {
-                setCounts(prev => ({ ...prev, [currentStepKey]: 0 }));
+                updateRequestStatus(activeItem.id, 'IN_PROGRESS', saveData);
                 setCurrentStepIndex(prev => prev + 1);
-                setContentText(""); // Clear for next step
+                setContentText("");
                 setAiCaption("");
             } else {
-                setCounts(prev => ({ ...prev, [currentStepKey]: 0 }));
+                const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
+                updateRequestStatus(activeItem.id, nextStatus, saveData);
 
-                // Remove item from list
                 const updatedItems = items.filter((_, idx) => idx !== activeItemIndex);
-
-                // Adjust active index
                 let newIndex = activeItemIndex;
                 if (newIndex >= updatedItems.length) {
                     newIndex = Math.max(0, updatedItems.length - 1);
                 }
-
                 setItems(updatedItems);
                 setActiveItemIndex(newIndex);
 
-                // Update status to QA in backend
-                updateRequestStatus(activeItem.id, 'QA', dataToUpdate);
-
-                // Reset internal steps for the new item now at activeItemIndex
                 if (updatedItems.length > 0) {
-                    setCounts({ photos: 4, carousels: 4, videos: 4, stories: 4 });
+                    const nextItem = updatedItems[newIndex];
+                    if (nextItem?.planCounts) {
+                        setCounts({ ...nextItem.planCounts });
+                    } else {
+                        setCounts({ ...DEFAULT_COUNTS });
+                    }
                     setCurrentStepIndex(0);
-                    // Content fields will be reset by useEffect
                 } else {
                     alert("All clients completed!");
                 }
@@ -664,6 +949,7 @@ export default function MonthlyContentsPage() {
     };
 
     return (
+        <>
         <div className="w-full h-full flex flex-col p-6 lg:p-8 animate-in fade-in duration-500">
             <div className="flex flex-col h-[calc(100vh-140px)] min-h-[600px] w-full max-w-[1800px] mx-auto">
                 {/* Header Area */}
@@ -805,6 +1091,23 @@ export default function MonthlyContentsPage() {
                                                                     {!isSidebarCollapsed && isActive && (
                                                                         <ChevronRight size={18} className="text-primary-foreground/50 ml-auto" />
                                                                     )}
+
+                                                                    {/* Delete button - superuser only */}
+                                                                    {!isSidebarCollapsed && isSuperuser && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setDeleteModal({ open: true, item });
+                                                                            }}
+                                                                            title="Eliminar request"
+                                                                            className={`ml-auto p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0
+                                                                                ${isActive
+                                                                                    ? 'hover:bg-white/20 text-primary-foreground/70 hover:text-primary-foreground'
+                                                                                    : 'hover:bg-destructive/10 text-muted-foreground hover:text-destructive'}`}
+                                                                        >
+                                                                            <Trash2 size={13} />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })}
@@ -893,46 +1196,137 @@ export default function MonthlyContentsPage() {
                                             </div>
                                         )}
 
+                                        {/* Publication Navigation */}
+                                        <div className="flex items-center justify-between shrink-0 bg-card/40 rounded-2xl border border-border/50 px-3 py-2">
+                                            <button
+                                                onClick={() => {
+                                                    setActiveItemIndex(Math.max(0, activeItemIndex - 1));
+                                                    setActiveContentIndex(0);
+                                                }}
+                                                disabled={activeItemIndex === 0}
+                                                className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors px-3 py-1.5 rounded-xl hover:bg-muted/50"
+                                            >
+                                                <ChevronLeft size={14} />
+                                                Previous
+                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-foreground truncate max-w-[200px]">
+                                                    {activeItem.name || 'Publication'}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+                                                    {activeItemIndex + 1}/{items.length}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setActiveItemIndex(Math.min(items.length - 1, activeItemIndex + 1));
+                                                    setActiveContentIndex(0);
+                                                }}
+                                                disabled={activeItemIndex >= items.length - 1}
+                                                className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors px-3 py-1.5 rounded-xl hover:bg-muted/50"
+                                            >
+                                                Next
+                                                <ChevronRight size={14} />
+                                            </button>
+                                        </div>
+
                                         {/* Visualizer Frame */}
                                         <div className="flex-1 bg-secondary/30 rounded-3xl border border-border/50 relative flex items-center justify-center overflow-hidden group min-h-[350px] shadow-inner">
 
                                             {/* Pattern Overlay */}
                                             <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
-                                            {/* ID Badge */}
-                                            <div className="absolute top-6 left-6 bg-card/80 backdrop-blur-md px-4 py-2 rounded-xl border border-border/50 shadow-sm z-20">
-                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-0.5">Asset ID</span>
-                                                <span className="text-sm font-black text-foreground">{currentId}</span>
-                                            </div>
-
-                                            {/* Content Container */}
-                                            <div className="w-[85%] h-[85%] bg-card rounded-2xl border border-border shadow-2xl shadow-black/5 flex items-center justify-center relative overflow-hidden transition-all duration-700 group-hover:scale-[1.02] group-hover:shadow-xl">
+                                            {/* Media - Instagram style */}
+                                            <div className="w-full h-full relative flex items-center justify-center bg-black/5">
                                                 {(() => {
-                                                    const items = activeItem.originalData?.content_items || [];
-                                                    if (activeItem.originalData?.linked_image_details && items.length === 0) {
-                                                        items.push({ media_type: 'IMAGE', gallery_image_details: activeItem.originalData.linked_image_details });
-                                                    }
-                                                    if (items.length > 0) {
-                                                        const ci = items[0];
-                                                        const imgSrc = ci.gallery_image_details?.image_url || ci.file_url || activeItem.originalData?.linked_image_details?.image_url;
-                                                        if (imgSrc) {
-                                                            if (ci.media_type === 'VIDEO') {
-                                                                return (
+                                                    const totalItems = stepItems.length;
+                                                    const safeIndex = Math.min(activeContentIndex, Math.max(0, totalItems - 1));
+                                                    const ci = stepItems[safeIndex] || {};
+                                                    // Resolve media source: prioritize the content item's own sources first.
+                                                    // Only fall back to linked_image_details if there are NO content_items at all.
+                                                    const hasContentItems = (activeItem.originalData?.content_items?.length || 0) > 0;
+                                                    const imgSrc = 
+                                                        ci.gallery_image_details?.image_url ||
+                                                        ci.gallery_image_details?.image_compressed ||
+                                                        ci.gallery_image_details?.image ||
+                                                        normalizeUrl(ci.file_url) ||
+                                                        (!hasContentItems ? (
+                                                            normalizeUrl(activeItem.originalData?.linked_image_details?.image_url) ||
+                                                            normalizeUrl(activeItem.originalData?.linked_image_details?.image_compressed) ||
+                                                            normalizeUrl(activeItem.originalData?.linked_image_details?.image)
+                                                        ) : null);
+                                                    const isCarousel = currentStepMediaType === 'CAROUSEL_IMAGE' || (isAdhoc && activeItem.contentType?.toUpperCase() === 'CAROUSEL');
+
+                                                    if (imgSrc) {
+                                                        const isVideo = ci.media_type === 'VIDEO' || 
+                                                            (typeof imgSrc === 'string' && (
+                                                                imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
+                                                                imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
+                                                                imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
+                                                                imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
+                                                                imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                                                                imgSrc.toLowerCase().includes('/videos/')
+                                                            ));
+                                                        return (
+                                                            <>
+                                                                {isVideo ? (
                                                                     <video
+                                                                        key={imgSrc}
                                                                         src={imgSrc}
                                                                         controls
+                                                                        playsInline
+                                                                        preload="metadata"
+                                                                        className="w-full h-full min-h-[300px] object-contain bg-black rounded-xl"
+                                                                    />
+                                                                ) : (
+                                                                    <img
+                                                                        src={imgSrc}
+                                                                        alt={ci.gallery_image_details?.title || ci.file_name || "Media"}
                                                                         className="w-full h-full object-contain"
                                                                     />
-                                                                );
-                                                            }
-                                                            return (
-                                                                <img
-                                                                    src={imgSrc}
-                                                                    alt={ci.gallery_image_details?.title || ci.file_name || "Media"}
-                                                                    className="w-full h-full object-contain"
-                                                                />
-                                                            );
-                                                        }
+                                                                )}
+
+                                                                {/* Carousel-only navigation */}
+                                                                {isCarousel && totalItems > 1 && (
+                                                                    <>
+                                                                        {safeIndex > 0 && (
+                                                                            <button
+                                                                                onClick={() => setActiveContentIndex(safeIndex - 1)}
+                                                                                className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-all"
+                                                                            >
+                                                                                <ChevronLeft size={20} />
+                                                                            </button>
+                                                                        )}
+                                                                        {safeIndex < totalItems - 1 && (
+                                                                            <button
+                                                                                onClick={() => setActiveContentIndex(safeIndex + 1)}
+                                                                                className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-all"
+                                                                            >
+                                                                                <ChevronRight size={20} />
+                                                                            </button>
+                                                                        )}
+                                                                        {/* Instagram-style dots */}
+                                                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
+                                                                            {stepItems.map((_ci, ciIdx) => (
+                                                                                <button
+                                                                                    key={_ci.id || ciIdx}
+                                                                                    onClick={() => setActiveContentIndex(ciIdx)}
+                                                                                    className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                                                                        ciIdx === activeContentIndex
+                                                                                            ? 'bg-white scale-110'
+                                                                                            : 'bg-white/40 hover:bg-white/60'
+                                                                                    }`}
+                                                                                />
+                                                                            ))}
+                                                                        </div>
+                                                                        {/* Counter badge */}
+                                                                        <div className="absolute top-3 right-14 z-30 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] text-white font-medium">
+                                                                            {activeContentIndex + 1}/{stepItems.length}
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        );
                                                     }
                                                     return (
                                                         <div className="text-center p-8">
@@ -947,30 +1341,38 @@ export default function MonthlyContentsPage() {
                                                     );
                                                 })()}
 
-                                                                                        {activeItem.originalData?.content_items?.length > 1 && (
-                                                    <div className="absolute top-4 left-4 z-30 flex gap-1">
-                                                        {activeItem.originalData.content_items.map((ci, ciIdx) => (
-                                                            <div
-                                                                key={ci.id || ciIdx}
-                                                                className={`w-2 h-2 rounded-full ${ciIdx === 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {/* Change Image Button Overlay */}
-                                                <div className="absolute top-4 right-4 z-30">
+                                                {/* Media Control Buttons */}
+                                                <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+                                                    {/* Change Media or Select Image */}
                                                     <button
                                                         onClick={() => {
+                                                            setSelectionAction(stepItems.length > 0 ? 'change' : 'add');
                                                             setIsImageSelectionOpen(true);
-                                                            // Fetch folders initially just in case they want to switch mode
                                                             fetchClientFolders();
                                                         }}
-                                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
+                                                        className="flex items-center gap-2 bg-black/60 backdrop-blur-md hover:bg-black/85 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-white/10"
                                                     >
                                                         <RefreshCw size={12} />
-                                                        {activeItem.originalData?.content_items?.length ? 'Add Media' : 'Select Image'}
+                                                        {stepItems.length > 0 ? 'Change Media' : 'Select Image'}
                                                     </button>
+
+                                                    {/* Add Photo/Video to Carousel */}
+                                                    {(() => {
+                                                        const isCarousel = currentStepMediaType === 'CAROUSEL_IMAGE' || (isAdhoc && activeItem.contentType?.toUpperCase() === 'CAROUSEL');
+                                                        return isCarousel && stepItems.length > 0 && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectionAction('add');
+                                                                    setIsImageSelectionOpen(true);
+                                                                    fetchClientFolders();
+                                                                }}
+                                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg border border-emerald-500/20"
+                                                            >
+                                                                <Upload size={12} />
+                                                                Add Photo/Video
+                                                            </button>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
 
@@ -1234,11 +1636,29 @@ export default function MonthlyContentsPage() {
                                                         </p>
                                                     </div>
 
+                                                    {/* Client Feedback Banner */}
+                                                    {activeItem.clientFeedback && (
+                                                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-5 relative overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                                                                    <MessageSquare size={12} className="text-orange-500" />
+                                                                </div>
+                                                                <label className="text-[11px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+                                                                    {activeItem.name} · Client Feedback
+                                                                </label>
+                                                            </div>
+                                                            <p className="text-orange-800 dark:text-orange-300 text-sm leading-relaxed font-semibold">
+                                                                {activeItem.clientFeedback}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
                                                     {/* QA Feedback Display */}
-                                                    {activeItem.feedback && (
+                                                    {activeItem.feedback && !activeItem.clientFeedback && (
                                                         <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
                                                             <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-2">
-                                                                {activeItem.returnedByClient ? `${activeItem.name} requested a change` : 'QA Feedback'}
+                                                                QA Feedback
                                                             </label>
                                                             <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
@@ -1315,11 +1735,29 @@ export default function MonthlyContentsPage() {
 
                                                 <div className="space-y-5 flex-1">
 
+                                                    {/* Client Feedback Banner for Monthly Content */}
+                                                    {activeItem.clientFeedback && (
+                                                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-5 relative overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                                                                    <MessageSquare size={12} className="text-orange-500" />
+                                                                </div>
+                                                                <label className="text-[11px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+                                                                    {activeItem.name} · Client Feedback
+                                                                </label>
+                                                            </div>
+                                                            <p className="text-orange-800 dark:text-orange-300 text-sm leading-relaxed font-semibold">
+                                                                {activeItem.clientFeedback}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
                                                     {/* QA Feedback Display for Monthly Content */}
-                                                    {activeItem.feedback && (
+                                                    {activeItem.feedback && !activeItem.clientFeedback && (
                                                         <div className="bg-destructive/5 p-5 rounded-2xl border border-destructive/10">
                                                             <label className="text-[11px] font-bold text-destructive uppercase tracking-widest block mb-1">
-                                                                {activeItem.returnedByClient ? `${activeItem.name} requested a change` : 'QA Feedback'}
+                                                                QA Feedback
                                                             </label>
                                                             <p className="text-destructive text-sm leading-relaxed font-bold">
                                                                 {activeItem.feedback}
@@ -1389,5 +1827,86 @@ export default function MonthlyContentsPage() {
                 </div>
             </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {deleteModal.open && deleteModal.item && (
+            <div
+                className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                onClick={() => !isDeleting && setDeleteModal({ open: false, item: null })}
+            >
+
+                {/* Backdrop */}
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" />
+
+                {/* Modal */}
+                <div
+                    className="relative bg-card border border-border rounded-3xl shadow-2xl w-full max-w-sm animate-in zoom-in-95 fade-in duration-200 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Red accent top bar */}
+                    <div className="h-1 w-full bg-gradient-to-r from-destructive/80 via-destructive to-destructive/80" />
+
+                    <div className="p-7">
+                        {/* Icon */}
+                        <div className="flex justify-center mb-5">
+                            <div className="w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+                                <AlertTriangle className="text-destructive" size={30} />
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-xl font-black text-foreground text-center mb-1">
+                            Delete Request
+                        </h2>
+                        <p className="text-sm text-muted-foreground text-center mb-6 leading-relaxed">
+                            Are you sure you want to delete the request for{' '}
+                            <span className="font-bold text-foreground">{deleteModal.item.name}</span>?
+                            This action is <span className="font-bold text-destructive">permanent</span> and cannot be undone.
+                        </p>
+
+                        {/* Info card */}
+                        <div className="bg-secondary/40 rounded-2xl p-4 mb-6 border border-border/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-black text-muted-foreground">
+                                        {deleteModal.item.type === 'adhoc_request' ? 'R' : '#'}
+                                    </span>
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-foreground text-sm truncate">{deleteModal.item.name}</p>
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                        {deleteModal.item.type === 'adhoc_request' ? 'Adhoc Request' : 'Monthly Plan'}{' '}·{' '}
+                                        ID {deleteModal.item.id}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteModal({ open: false, item: null })}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground font-bold text-sm transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteRequest(deleteModal.item)}
+                                disabled={isDeleting}
+                                className="flex-1 py-3 rounded-xl bg-destructive hover:bg-destructive/90 text-white font-bold text-sm transition-all shadow-lg shadow-destructive/20 disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <><Loader2 size={15} className="animate-spin" /> Deleting...</>
+                                ) : (
+                                    <><Trash2 size={15} /> Delete</>  
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

@@ -10,6 +10,7 @@ import {
     Facebook,
     CheckCircle2,
     Image as ImageIcon,
+    ChevronLeft,
     ChevronRight,
     Sparkles,
     X,
@@ -19,6 +20,12 @@ import {
     Save,
     AlertCircle,
     Check,
+    Heart,
+    MessageCircle,
+    Bookmark,
+    Play,
+    MoreHorizontal,
+    Video,
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
@@ -127,16 +134,16 @@ function ClientCard({ client, selected, onClick, primaryColor }) {
     );
 }
 
-function ContentCard({ item, selected, onClick, primaryColor }) {
+function ContentCard({ item, onPreview, primaryColor }) {
+    const contentItems = item.content_items || [];
+    const typeLabel = contentItems[0]?.media_type
+        ? { STORY: 'Story', VIDEO: 'Video', CAROUSEL_IMAGE: 'Carousel', IMAGE: 'Photo' }[contentItems[0].media_type] || 'Photo'
+        : 'Photo';
+
     return (
         <button
-            onClick={onClick}
-            className={`w-full text-left rounded-2xl border-2 overflow-hidden transition-all duration-200 hover:shadow-lg group ${
-                selected
-                    ? "shadow-lg"
-                    : "border-border bg-card hover:border-border/80"
-            }`}
-            style={selected ? { borderColor: primaryColor } : {}}
+            onClick={() => onPreview(item)}
+            className="w-full text-left rounded-2xl border-2 border-border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-primary/40 group"
         >
             {/* Thumbnail */}
             <div className="relative w-full aspect-square bg-gradient-to-br from-purple-100 to-indigo-200 dark:from-purple-900/30 dark:to-indigo-900/30 flex items-center justify-center overflow-hidden">
@@ -144,7 +151,7 @@ function ContentCard({ item, selected, onClick, primaryColor }) {
                     <img
                         src={item.thumbnail}
                         alt={item.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : (
                     <ImageIcon
@@ -152,27 +159,26 @@ function ContentCard({ item, selected, onClick, primaryColor }) {
                         className="text-purple-300 group-hover:scale-110 transition-transform duration-300"
                     />
                 )}
-                {selected && (
-                    <div className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: primaryColor }}>
-                        <Check size={14} className="text-white" />
-                    </div>
-                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Type badge */}
+                <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold">
+                    {typeLabel}
+                </div>
+                {/* Preview hint */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="px-4 py-2 rounded-xl bg-white/90 dark:bg-gray-900/90 shadow-lg text-xs font-bold text-gray-900 dark:text-white backdrop-blur-sm flex items-center gap-1.5">
+                        <Play size={12} />
+                        Preview
+                    </div>
+                </div>
             </div>
             {/* Footer */}
             <div className="px-4 py-3 flex items-center justify-between bg-card">
                 <span className="font-semibold text-foreground text-sm truncate">
                     {item.title}
                 </span>
-                <span
-                    className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ml-2 ${
-                        selected
-                            ? ""
-                            : "text-muted-foreground border border-border"
-                    }`}
-                    style={selected ? { color: primaryColor } : {}}
-                >
-                    {selected ? "Scheduling..." : "Schedule"}
+                <span className="text-xs font-bold text-muted-foreground border border-border px-2 py-1 rounded-full flex-shrink-0 ml-2">
+                    Preview
                 </span>
             </div>
         </button>
@@ -238,6 +244,285 @@ function Toast({ message, type, onClose, primaryColor }) {
     );
 }
 
+// ─── Instagram Preview Card ────────────────────────────────────────────
+function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const videoRef = useRef(null);
+
+    const normalizeUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `http://localhost:8000${url}`;
+    };
+
+    const contentItems = item.content_items || [];
+    const hasContentItems = contentItems.length > 0;
+
+    const primaryType = hasContentItems
+        ? contentItems[0]?.media_type || 'IMAGE'
+        : 'IMAGE';
+
+    const isCarousel = primaryType === 'CAROUSEL_IMAGE';
+    const isStory = primaryType === 'STORY';
+    const isVideo = primaryType === 'VIDEO';
+    const images = contentItems.length > 0
+        ? contentItems
+        : [{ media_type: 'IMAGE', file_url: item.thumbnail, gallery_image_details: null }];
+    const current = images[currentIndex] || images[0];
+
+    const getImageUrl = (ci) => {
+        if (!ci) return normalizeUrl(item.thumbnail);
+        return ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || normalizeUrl(ci.file_url) || normalizeUrl(item.thumbnail);
+    };
+
+    const currentUrl = getImageUrl(current);
+    const videoUrl = isVideo ? normalizeUrl(current.file_url) : null;
+
+    const nextSlide = () => { setCurrentIndex((prev) => (prev + 1) % images.length); setIsPlaying(false); };
+    const prevSlide = () => { setCurrentIndex((prev) => (prev - 1 + images.length) % images.length); setIsPlaying(false); };
+
+    useEffect(() => {
+        setCurrentIndex(0);
+        setIsPlaying(false);
+    }, [item]);
+
+    useEffect(() => {
+        if (!isPlaying && videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.currentTime = 0;
+        }
+    }, [isPlaying, currentIndex]);
+
+    const typeLabel = { STORY: 'Story', VIDEO: 'Video', CAROUSEL_IMAGE: 'Carousel', IMAGE: 'Photo' }[primaryType] || 'Photo';
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div
+                className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-3xl animate-in zoom-in-95 duration-200 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border">
+                    <div>
+                        <h3 className="text-lg font-bold text-foreground">Instagram Preview</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {item.title} &middot; <span className="font-semibold" style={{ color: primaryColor }}>{typeLabel}</span>
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-xl bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                    >
+                        <X size={16} className="text-muted-foreground" />
+                    </button>
+                </div>
+
+                {/* Card Body */}
+                <div className="flex flex-col lg:flex-row items-center gap-6 p-6 overflow-y-auto max-h-[80vh]">
+                    {/* Phone frame */}
+                    <div className={`relative w-[340px] max-w-full bg-black rounded-[2rem] border-[3px] border-gray-700 shadow-xl overflow-hidden shrink-0 ${isStory ? 'max-h-[620px]' : ''}`}>
+                        {/* Notch */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100px] h-5 bg-gray-700 rounded-b-xl z-20" />
+
+                        {/* Screen */}
+                        <div className={`bg-white dark:bg-black ${isStory ? 'h-[620px]' : ''} pt-0.5`}>
+                            {/* Instagram Header (not for stories) */}
+                            {!isStory && (
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 flex items-center justify-center text-white text-[8px] font-bold">
+                                            L
+                                        </div>
+                                        <span className="font-bold text-[11px] text-gray-900 dark:text-white">lumena</span>
+                                    </div>
+                                    <MoreHorizontal size={14} className="text-gray-900 dark:text-white" />
+                                </div>
+                            )}
+
+                            {/* Content Area */}
+                            <div className={`relative ${isStory ? 'h-[calc(620px-2px)]' : ''}`}>
+                                {isStory ? (
+                                    <div className="relative h-full">
+                                        <div className="absolute top-2 left-3 right-3 z-10 flex gap-1">
+                                            <div className="h-[2px] flex-1 bg-white/40 rounded-full overflow-hidden">
+                                                <div className="h-full w-3/4 bg-white rounded-full animate-pulse" />
+                                            </div>
+                                        </div>
+                                        {currentUrl ? (
+                                            <img src={currentUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
+                                                <ImageIcon size={40} className="text-white/40" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60" />
+                                        <div className="absolute top-7 left-3 right-3 z-10 flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-full border-2 border-white overflow-hidden flex-shrink-0 bg-gradient-to-br from-yellow-400 to-purple-600" />
+                                            <span className="text-white font-bold text-[11px]">lumena</span>
+                                            <span className="text-white/60 text-[9px] ml-auto">2h</span>
+                                        </div>
+                                        <div className="absolute bottom-3 left-3 right-3 z-10">
+                                            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-3 py-2 border border-white/10">
+                                                <input type="text" placeholder="Send message..." className="flex-1 bg-transparent text-white text-[10px] placeholder:text-white/50 outline-none" readOnly />
+                                                <Send size={12} className="text-white/60 -rotate-45" />
+                                            </div>
+                                            {item.caption && (
+                                                <p className="text-white/90 text-[10px] mt-1.5 px-1 font-medium leading-relaxed line-clamp-2">{item.caption}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : isVideo ? (
+                                    <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ minHeight: '340px' }}>
+                                        {videoUrl && isPlaying ? (
+                                            <video
+                                                ref={videoRef}
+                                                src={videoUrl}
+                                                className="w-full max-h-[420px]"
+                                                controls
+                                                autoPlay
+                                                playsInline
+                                                onEnded={() => setIsPlaying(false)}
+                                            />
+                                        ) : (
+                                            <>
+                                                {currentUrl ? (
+                                                    <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain" />
+                                                ) : (
+                                                    <div className="bg-gradient-to-br from-blue-500 to-violet-600 w-full flex items-center justify-center py-20">
+                                                        <Video size={40} className="text-white/40" />
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <button
+                                                        onClick={() => setIsPlaying(true)}
+                                                        className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-xl shadow-black/30 hover:scale-110 transition-transform"
+                                                    >
+                                                        <Play size={22} className="text-gray-900 ml-0.5" />
+                                                    </button>
+                                                </div>
+                                                <div className="absolute bottom-2.5 right-2.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">▶ Video</div>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="relative bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                                        {currentUrl ? (
+                                            <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain" />
+                                        ) : (
+                                            <div className="bg-gradient-to-br from-purple-100 to-indigo-200 dark:from-purple-900/30 dark:to-indigo-900/30 w-full flex items-center justify-center py-20">
+                                                <ImageIcon size={40} className="text-purple-300 dark:text-purple-500/50" />
+                                            </div>
+                                        )}
+                                        {isCarousel && images.length > 1 && (
+                                            <>
+                                                {currentIndex > 0 && (
+                                                    <button onClick={prevSlide} className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition-colors">
+                                                        <ChevronLeft size={14} className="text-gray-800" />
+                                                    </button>
+                                                )}
+                                                {currentIndex < images.length - 1 && (
+                                                    <button onClick={nextSlide} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white transition-colors">
+                                                        <ChevronRight size={14} className="text-gray-800" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                        {isCarousel && images.length > 1 && (
+                                            <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1">
+                                                {images.map((_, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setCurrentIndex(i)}
+                                                        className={`transition-all duration-300 rounded-full ${
+                                                            i === currentIndex ? 'w-4 h-1 bg-primary' : 'w-1 h-1 bg-gray-400/50'
+                                                        }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                        {isCarousel && images.length > 1 && (
+                                            <div className="absolute top-2 right-2 bg-black/50 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                                                {currentIndex + 1}/{images.length}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Instagram Actions (not for stories) */}
+                            {!isStory && (
+                                <>
+                                    <div className="flex items-center justify-between px-3 py-1.5">
+                                        <div className="flex items-center gap-3">
+                                            <Heart size={16} className="text-gray-900 dark:text-white" />
+                                            <MessageCircle size={16} className="text-gray-900 dark:text-white" />
+                                            <Send size={16} className="text-gray-900 dark:text-white" />
+                                        </div>
+                                        <Bookmark size={16} className="text-gray-900 dark:text-white" />
+                                    </div>
+                                    <div className="px-3 pb-2.5 space-y-0.5">
+                                        <p className="text-[10px] font-bold text-gray-900 dark:text-white">100 likes</p>
+                                        <p className="text-[10px] leading-relaxed text-gray-800 dark:text-gray-200">
+                                            <span className="font-bold text-gray-900 dark:text-white">lumena </span>
+                                            {item.caption || 'No caption'}
+                                        </p>
+                                        {item.hashtags?.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 pt-0.5">
+                                                {item.hashtags.map((tag, i) => (
+                                                    <span key={i} className="text-[10px] text-blue-500 dark:text-blue-400 font-medium">{tag}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wider pt-0.5">View 1 comment</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Info Panel */}
+                    <div className="flex flex-col gap-4 w-full lg:w-56 self-stretch justify-between">
+                        <div className="space-y-3">
+                            <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Content Type</p>
+                                <p className="text-sm font-bold text-foreground">{typeLabel}</p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Title</p>
+                                <p className="text-sm font-bold text-foreground truncate">{item.title}</p>
+                            </div>
+                            {item.caption && (
+                                <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Caption</p>
+                                    <p className="text-xs text-foreground/80 line-clamp-3 leading-relaxed">{item.caption}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-2">
+                            <button
+                                onClick={onSelect}
+                                className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
+                                style={{ backgroundColor: primaryColor, boxShadow: `0 4px 20px ${primaryColor}55` }}
+                            >
+                                <Check size={16} />
+                                Select & Schedule
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-full py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-semibold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────
 export default function SchedulerPage() {
     const { primaryColor, borderRadius, density } = useTheme();
@@ -252,6 +537,7 @@ export default function SchedulerPage() {
     const [contentItems, setContentItems] = useState([]);
     const [selectedContent, setSelectedContent] = useState(null);
     const [loadingContent, setLoadingContent] = useState(false);
+    const [previewItem, setPreviewItem] = useState(null);
 
     // Step 3
     const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram"]);
@@ -265,6 +551,12 @@ export default function SchedulerPage() {
 
     const [toast, setToast] = useState(null);
     const hashtagInputRef = useRef(null);
+
+    const normalizeUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `http://localhost:8000${url}`;
+    };
 
     // Load clients
     useEffect(() => {
@@ -346,7 +638,7 @@ export default function SchedulerPage() {
                             content_items: item.content_items || [],
                             thumbnail: (() => {
                                 const ci = item.content_items?.[0];
-                                if (ci) return ci.gallery_image_details?.image_url || ci.file_url || null;
+                                if (ci) return ci.gallery_image_details?.image_url || normalizeUrl(ci.file_url) || null;
                                 return item.linked_image_details?.image_compressed || item.linked_image_details?.image || null;
                             })(),
                             // Caption is ai_caption; fallback to content_text
@@ -387,9 +679,19 @@ export default function SchedulerPage() {
         setStep(2);
     };
 
-    const handleSelectContent = (item) => {
-        setSelectedContent(item);
+    const handleOpenPreview = (item) => {
+        setPreviewItem(item);
+    };
+
+    const handleSelectContent = () => {
+        if (!previewItem) return;
+        setSelectedContent(previewItem);
+        setPreviewItem(null);
         setStep(3);
+    };
+
+    const handleClosePreview = () => {
+        setPreviewItem(null);
     };
 
     const togglePlatform = (id) => {
@@ -416,6 +718,7 @@ export default function SchedulerPage() {
     const handleDiscard = () => {
         setSelectedClient(null);
         setSelectedContent(null);
+        setPreviewItem(null);
         setStep(1);
         setSelectedPlatforms(["instagram"]);
         setScheduleDate(getToday());
@@ -627,8 +930,7 @@ export default function SchedulerPage() {
                                     <ContentCard
                                         key={item.id}
                                         item={item}
-                                        selected={selectedContent?.id === item.id}
-                                        onClick={() => handleSelectContent(item)}
+                                        onPreview={handleOpenPreview}
                                         primaryColor={primaryColor}
                                     />
                                 ))
@@ -853,6 +1155,16 @@ export default function SchedulerPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Instagram Preview */}
+            {previewItem && (
+                <InstagramPreview
+                    item={previewItem}
+                    onClose={handleClosePreview}
+                    onSelect={handleSelectContent}
+                    primaryColor={primaryColor}
+                />
+            )}
 
             {/* Toast */}
             {toast && (

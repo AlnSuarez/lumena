@@ -12,6 +12,8 @@ import {
     X,
     AlertCircle,
     Download,
+    Lock,
+    Eye,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8000/api";
@@ -42,6 +44,7 @@ export default function ClientGalleryPage() {
     const [newFolderName, setNewFolderName] = useState("");
     const [folderNameError, setFolderNameError] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [deleteConfirmType, setDeleteConfirmType] = useState('image');
 
     // CSRF Token
     const [csrfToken, setCsrfToken] = useState("");
@@ -187,6 +190,31 @@ export default function ClientGalleryPage() {
                 }
             }
 
+            // Auto-create/get the "shared content" system folder
+            try {
+                const sharedResponse = await fetch(
+                    `${API_BASE}/gallery/clients/${clientId}/shared-content/`,
+                    {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                            "X-CSRFToken": csrfToken || getCsrfToken(),
+                        },
+                    }
+                );
+                if (sharedResponse.ok) {
+                    const sharedFolder = await sharedResponse.json();
+                    const hasShared = nextFolders.some(
+                        (f) => f.folder_name?.trim().toLowerCase() === "shared content"
+                    );
+                    if (!hasShared) {
+                        nextFolders = [sharedFolder, ...nextFolders];
+                    }
+                }
+            } catch (_) {
+                /* non-critical */
+            }
+
             setFolders(nextFolders);
             setSelectedFolder(null);
             setImages([]);
@@ -202,7 +230,12 @@ export default function ClientGalleryPage() {
         try {
             setLoadingImages(true);
             setError(null);
-            const response = await fetch(`${API_BASE}/gallery/folders/${folderId}/images/`, {
+            const isShared = selectedFolder?.folder_name?.toLowerCase() === "shared content";
+            const url = isShared && selectedClient
+                ? `${API_BASE}/gallery/clients/${selectedClient.id}/shared-content/images/`
+                : `${API_BASE}/gallery/folders/${folderId}/images/`;
+
+            const response = await fetch(url, {
                 credentials: 'include',
             });
 
@@ -223,6 +256,11 @@ export default function ClientGalleryPage() {
 
         if (!newFolderName.trim()) {
             setFolderNameError("Folder name is required");
+            return;
+        }
+
+        if (newFolderName.trim().toLowerCase() === "shared content") {
+            setFolderNameError("This folder name is reserved");
             return;
         }
 
@@ -271,7 +309,7 @@ export default function ClientGalleryPage() {
 
     const handleUploadImages = async () => {
         if (selectedFiles.length === 0) {
-            setError("Please select at least one image");
+            setError("Please select at least one file");
             return;
         }
 
@@ -279,29 +317,32 @@ export default function ClientGalleryPage() {
             setUploading(true);
             setError(null);
 
+            const isShared = selectedFolder?.folder_name?.toLowerCase() === "shared content";
             const formData = new FormData();
+            const fieldName = isShared ? "files" : "images";
             selectedFiles.forEach(file => {
-                formData.append("images", file);
+                formData.append(fieldName, file);
             });
 
-            const response = await fetch(
-                `${API_BASE}/gallery/folders/${selectedFolder.id}/images/upload/`,
-                {
-                    method: "POST",
-                    credentials: 'include',
-                    headers: {
-                        "X-CSRFToken": csrfToken,
-                    },
-                    body: formData,
-                }
-            );
+            const url = isShared && selectedClient
+                ? `${API_BASE}/gallery/clients/${selectedClient.id}/shared-content/upload/`
+                : `${API_BASE}/gallery/folders/${selectedFolder.id}/images/upload/`;
+
+            const response = await fetch(url, {
+                method: "POST",
+                credentials: 'include',
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                },
+                body: formData,
+            });
 
             const responseData = await response.json().catch(() => null);
             if (!response.ok) {
                 let errorMessage =
                     responseData?.error ||
                     responseData?.message ||
-                    `Failed to upload images (HTTP ${response.status})`;
+                    `Failed to upload (HTTP ${response.status})`;
 
                 const details = responseData?.details || responseData?.errors;
                 if (Array.isArray(details) && details.length > 0) {
@@ -316,33 +357,36 @@ export default function ClientGalleryPage() {
                 throw new Error(errorMessage);
             }
 
-            const uploadedImages = responseData.images || responseData;
+            const uploadedItems = responseData.documents || responseData.images || responseData;
 
-            setImages([...uploadedImages, ...images]);
+            setImages([...uploadedItems, ...images]);
             setSelectedFiles([]);
 
-            // Show success message with any warnings about failed uploads
-            let message = `${uploadedImages.length} image(s) uploaded successfully!`;
+            let message = `${uploadedItems.length} file(s) uploaded successfully!`;
             if (responseData.errors && responseData.errors.length > 0) {
                 message += ` (${responseData.errors.length} failed)`;
             }
             setSuccessMessage(message);
             setTimeout(() => setSuccessMessage(null), 3000);
 
-            // Reset file input
             const fileInput = document.getElementById("imageInput");
             if (fileInput) fileInput.value = "";
         } catch (err) {
             setError(err.message);
-            console.error("Error uploading images:", err);
+            console.error("Error uploading:", err);
         } finally {
             setUploading(false);
         }
     };
 
-    const handleDeleteImage = async (imageId) => {
+    const handleDeleteImage = async (imageId, itemType) => {
         try {
-            const response = await fetch(`${API_BASE}/gallery/images/${imageId}/`, {
+            const isDoc = itemType === 'document';
+            const url = isDoc
+                ? `${API_BASE}/gallery/shared-documents/${imageId}/`
+                : `${API_BASE}/gallery/images/${imageId}/`;
+
+            const response = await fetch(url, {
                 method: "DELETE",
                 credentials: 'include',
                 headers: {
@@ -350,15 +394,15 @@ export default function ClientGalleryPage() {
                 },
             });
 
-            if (!response.ok) throw new Error("Failed to delete image");
+            if (!response.ok) throw new Error("Failed to delete");
 
             setImages(images.filter(img => img.id !== imageId));
             setDeleteConfirm(null);
-            setSuccessMessage("Image deleted successfully!");
+            setSuccessMessage("Deleted successfully!");
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (err) {
             setError(err.message);
-            console.error("Error deleting image:", err);
+            console.error("Error deleting:", err);
         }
     };
 
@@ -518,15 +562,18 @@ export default function ClientGalleryPage() {
                                             <button
                                                 key={folder.id}
                                                 onClick={() => setSelectedFolder(folder)}
-                                                className="p-6 text-left bg-card border border-border rounded-2xl hover:border-primary hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all group"
+                                                className={`p-6 text-left bg-card border border-border rounded-2xl hover:border-primary hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all group ${folder.is_system_folder ? "border-dashed border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/10" : ""}`}
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-3 mb-2">
-                                                            <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                                                <Folder size={24} />
+                                                            <div className={`p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors ${folder.is_system_folder ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" : "bg-primary/10"}`}>
+                                                                {folder.is_system_folder ? <Lock size={24} /> : <Folder size={24} />}
                                                             </div>
                                                             <p className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">{folder.folder_name}</p>
+                                                            {folder.is_system_folder && (
+                                                                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">System</span>
+                                                            )}
                                                         </div>
                                                         <p className="text-sm text-muted-foreground pl-11">
                                                             {folder.image_count} image{folder.image_count !== 1 ? "s" : ""}
@@ -574,7 +621,7 @@ export default function ClientGalleryPage() {
                                         id="imageInput"
                                         type="file"
                                         multiple
-                                        accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
+                                        accept={selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "*/*" : "image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"}
                                         onChange={handleFileSelect}
                                         className="hidden"
                                     />
@@ -583,8 +630,12 @@ export default function ClientGalleryPage() {
                                             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                                                 <Upload className="text-primary" size={32} />
                                             </div>
-                                            <p className="font-bold text-foreground text-lg">Click to select images or videos</p>
-                                            <p className="text-sm text-muted-foreground mt-1">Supports JPG, PNG, GIF, WebP, MP4, MOV, AVI</p>
+                                            <p className="font-bold text-foreground text-lg">
+                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "Click to select any file type" : "Click to select images or videos"}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "Supports PDFs, Word, Excel, images, videos, and more" : "Supports JPG, PNG, GIF, WebP, MP4, MOV, AVI"}
+                                            </p>
                                         </div>
                                     </label>
 
@@ -618,54 +669,96 @@ export default function ClientGalleryPage() {
                                     </div>
                                 ) : images.length === 0 ? (
                                     <div className="text-center py-12 bg-muted/30 rounded-2xl border border-dashed border-border/50">
-                                        <p className="text-muted-foreground text-lg">No images in this folder</p>
-                                        <p className="text-muted-foreground/60 text-sm">Upload images to get started</p>
+                                        <p className="text-muted-foreground text-lg">No files in this folder</p>
+                                        <p className="text-muted-foreground/60 text-sm">Upload files to get started</p>
                                     </div>
                                 ) : filteredImages.length === 0 ? (
                                     <div className="text-center py-12">
-                                        <p className="text-muted-foreground text-lg">No images match your search</p>
+                                        <p className="text-muted-foreground text-lg">No files match your search</p>
                                         <p className="text-muted-foreground/60 text-sm">Try a different search term</p>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                        {filteredImages.map(image => (
-                                            <div key={image.id} className="relative group rounded-xl overflow-hidden shadow-md bg-card border border-border aspect-square">
-                                                <img
-                                                    src={image.image_url}
-                                                    alt={image.title || "Gallery image"}
-                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                />
-                                                {/* Image info overlay */}
-                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-14 pb-3 px-3 text-white opacity-100">
-                                                    <p className="text-[10px] font-mono font-bold tracking-wide text-white/90 mb-1 drop-shadow-sm">
-                                                        {image.folio}
-                                                    </p>
-                                                    <p className="text-xs font-black truncate text-white drop-shadow-sm" title={image.title}>
-                                                        {image.title}
-                                                    </p>
-                                                </div>
-                                                {/* Hover actions */}
-                                                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                    {image.image_url_original && (
+                                        {filteredImages.map(item => {
+                                            const isDoc = item._type === 'document';
+                                            return (
+                                                <div key={`${isDoc ? 'doc' : 'img'}-${item.id}`} className="relative group rounded-xl overflow-hidden shadow-md bg-card border border-border aspect-square">
+                                                    {isDoc ? (
+                                                        item.is_image ? (
+                                                            <img
+                                                                src={item.file_url}
+                                                                alt={item.title || "Shared file"}
+                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                            />
+                                                        ) : item.is_video ? (
+                                                            <video
+                                                                src={item.file_url}
+                                                                className="w-full h-full object-cover"
+                                                                muted
+                                                                preload="metadata"
+                                                            />
+                                                        ) : item.is_pdf ? (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
+                                                                <svg className="w-16 h-16 text-red-500 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                    <polyline points="14 2 14 8 20 8" />
+                                                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                                                    <polyline points="10 9 9 9 8 9" />
+                                                                </svg>
+                                                                <p className="text-xs text-center font-semibold text-foreground truncate w-full">PDF</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
+                                                                <svg className="w-16 h-16 text-primary mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                    <polyline points="14 2 14 8 20 8" />
+                                                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                                                </svg>
+                                                                <p className="text-xs text-center font-semibold text-foreground truncate w-full">.{item.file_type?.toUpperCase()}</p>
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <img
+                                                            src={item.image_url}
+                                                            alt={item.title || "Gallery image"}
+                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                        />
+                                                    )}
+                                                    {/* Info overlay */}
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-14 pb-3 px-3 text-white opacity-100">
+                                                        {item.folio && (
+                                                            <p className="text-[10px] font-mono font-bold tracking-wide text-white/90 mb-1 drop-shadow-sm">
+                                                                {item.folio}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-xs font-black truncate text-white drop-shadow-sm" title={item.title}>
+                                                            {item.title || "Untitled"}
+                                                        </p>
+                                                    </div>
+                                                    {/* Hover actions */}
+                                                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                                         <a
-                                                            href={image.image_url_original}
-                                                            download
+                                                            href={isDoc ? item.file_url : (item.image_url_original || item.image_url)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
                                                             className="p-2 bg-black/50 text-white rounded-full hover:bg-primary hover:text-primary-foreground backdrop-blur-sm transition-all"
-                                                            title="Download original"
+                                                            title="View / Download"
                                                         >
                                                             <Download size={16} />
                                                         </a>
-                                                    )}
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(image.id)}
-                                                        className="p-2 bg-black/50 text-white rounded-full hover:bg-destructive hover:text-destructive-foreground backdrop-blur-sm transition-all"
-                                                        title="Delete image"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                        <button
+                                                            onClick={() => { setDeleteConfirm(item.id); setDeleteConfirmType(isDoc ? 'document' : 'image'); }}
+                                                            className="p-2 bg-black/50 text-white rounded-full hover:bg-destructive hover:text-destructive-foreground backdrop-blur-sm transition-all"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -745,8 +838,8 @@ export default function ClientGalleryPage() {
                                 <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4 text-destructive">
                                     <Trash2 size={32} />
                                 </div>
-                                <h3 className="text-xl font-bold text-foreground mb-2">Delete Image?</h3>
-                                <p className="text-muted-foreground">This action cannot be undone. Are you sure you want to permanently delete this image?</p>
+                                <h3 className="text-xl font-bold text-foreground mb-2">Delete File?</h3>
+                                <p className="text-muted-foreground">This action cannot be undone. Are you sure you want to permanently delete this file?</p>
                             </div>
 
                             <div className="flex gap-3">
@@ -757,7 +850,7 @@ export default function ClientGalleryPage() {
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={() => handleDeleteImage(deleteConfirm)}
+                                    onClick={() => handleDeleteImage(deleteConfirm, deleteConfirmType)}
                                     className="flex-1 px-4 py-3 bg-destructive text-destructive-foreground font-bold rounded-xl hover:bg-destructive/90 transition-colors shadow-lg shadow-destructive/20"
                                 >
                                     Delete

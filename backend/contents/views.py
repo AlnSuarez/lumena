@@ -266,7 +266,9 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         role = self.request.query_params.get('role') # Pass role from frontend
 
         queryset = MonthlyRequest.objects.filter(
-            Q(available_from__isnull=True) | Q(available_from__lte=timezone.now().date())
+            Q(available_from__isnull=True) | 
+            Q(available_from__lte=timezone.now().date()) |
+            ~Q(status='TO_DO')
         )
 
         if role == "SUPERUSER":
@@ -283,10 +285,10 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         elif role == "CLIENT":
             return queryset.filter(client_id=user_id)
 
-        # QA: solo ve lo asignado a él en status QA
+        # QA: ve lo asignado a él o lo que no esté asignado a ningún QA
         elif role == "QA":
             return queryset.filter(
-                qa_assigned_to_id=user_id,
+                Q(qa_assigned_to_id=user_id) | Q(qa_assigned_to__isnull=True),
                 status='QA'
             )
 
@@ -321,6 +323,19 @@ class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
         user = _get_actor_from_request(self.request)
         serializer.instance._current_user = user
         serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        read_serializer = MonthlyRequestSerializer(instance, context=self.get_serializer_context())
+        return Response(read_serializer.data)
 
 
 @api_view(['POST'])
@@ -504,7 +519,29 @@ def upload_attachment(request):
         for chunk in file.chunks():
             f.write(chunk)
 
-    url = f"{settings.MEDIA_URL}{filename}"
+    url = request.build_absolute_uri(f"{settings.MEDIA_URL}{filename}")
+    return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_content_video(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not file.content_type.startswith('video/'):
+        return Response({"error": "File must be a video."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ext = '.mp4'
+    filename = f"videos/{uuid.uuid4().hex}{ext}"
+    dest = settings.MEDIA_ROOT / filename
+    os.makedirs(dest.parent, exist_ok=True)
+    with open(dest, 'wb') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+
+    url = request.build_absolute_uri(f"{settings.MEDIA_URL}{filename}")
     return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
 
 

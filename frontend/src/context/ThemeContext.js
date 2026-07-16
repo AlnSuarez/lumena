@@ -12,6 +12,7 @@ export function ThemeProvider({ children }) {
         fontSize: "medium",
         density: "comfortable",
         borderRadius: "rounded-3xl",
+        requireQAReview: false,
     });
 
     const [mounted, setMounted] = useState(false);
@@ -21,7 +22,8 @@ export function ThemeProvider({ children }) {
         const saved = localStorage.getItem("lumena_customization");
         if (saved) {
             try {
-                setSettings(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                setSettings(prev => ({ ...prev, ...parsed }));
             } catch (e) {
                 console.error("Failed to parse customization settings", e);
             }

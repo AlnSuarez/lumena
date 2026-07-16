@@ -37,7 +37,7 @@ class MonthlyRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MonthlyRequest
-        fields = ['id', 'client', 'client_details', 'assigned_to', 'assigned_to_details', 'qa_assigned_to', 'qa_assigned_to_details', 'linked_image', 'linked_image_details', 'month', 'request_type', 'status', 'notes', 'content_text', 'ai_caption', 'feedback', 'content_items', 'created_at', 'updated_at', 'history']
+        fields = ['id', 'client', 'client_details', 'assigned_to', 'assigned_to_details', 'qa_assigned_to', 'qa_assigned_to_details', 'linked_image', 'linked_image_details', 'month', 'request_type', 'status', 'notes', 'content_text', 'ai_caption', 'feedback', 'client_feedback', 'content_items', 'created_at', 'updated_at', 'history']
 
 
 class MonthlyRequestCreateSerializer(serializers.ModelSerializer):
@@ -45,7 +45,7 @@ class MonthlyRequestCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MonthlyRequest
-        fields = ['client', 'assigned_to', 'request_type', 'month', 'status', 'notes', 'content_text', 'linked_image', 'content_items']
+        fields = ['client', 'assigned_to', 'request_type', 'month', 'status', 'notes', 'content_text', 'linked_image', 'feedback', 'client_feedback', 'content_items']
 
     def create(self, validated_data):
         content_items_data = validated_data.pop('content_items', [])

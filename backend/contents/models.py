@@ -57,6 +57,7 @@ class MonthlyRequest(models.Model):
     content_text = models.TextField(blank=True, null=True, verbose_name=_("Content Text"))
     ai_caption = models.TextField(blank=True, null=True, verbose_name=_("AI Caption"))
     feedback = models.TextField(blank=True, null=True, verbose_name=_("Feedback"))
+    client_feedback = models.TextField(blank=True, null=True, verbose_name=_("Client Feedback"))
     linked_image = models.ForeignKey(
         'gallery.ClientImage',
         on_delete=models.SET_NULL,
@@ -75,6 +76,7 @@ class MonthlyRequest(models.Model):
         self._original_content_text = self.content_text
         self._original_ai_caption = self.ai_caption
         self._original_feedback = self.feedback
+        self._original_client_feedback = self.client_feedback
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -83,6 +85,7 @@ class MonthlyRequest(models.Model):
         content_changed = not is_new and self.content_text != self._original_content_text
         caption_changed = not is_new and self.ai_caption != self._original_ai_caption
         feedback_changed = not is_new and self.feedback != self._original_feedback and self.feedback
+        client_feedback_changed = not is_new and self.client_feedback != self._original_client_feedback and self.client_feedback
         
         super().save(*args, **kwargs)
 
@@ -91,13 +94,16 @@ class MonthlyRequest(models.Model):
         if feedback_changed:
              history_notes.append(f"QA Feedback: {self.feedback}")
 
+        if client_feedback_changed:
+             history_notes.append(f"Client Feedback: {self.client_feedback}")
+
         if content_changed:
              history_notes.append(f"Content changes:\n- Previous: {self._original_content_text or '(empty)'}\n+ New: {self.content_text or '(empty)'}")
 
         if caption_changed:
              history_notes.append(f"Caption changes:\n- Previous: {self._original_ai_caption or '(empty)'}\n+ New: {self.ai_caption or '(empty)'}")
 
-        if status_changed or content_changed or caption_changed or feedback_changed:
+        if status_changed or content_changed or caption_changed or feedback_changed or client_feedback_changed:
             final_notes = "\n\n".join(history_notes)
             
             # Use specific notes if we have them, otherwise fallback to "Status change" if it was just a status change without notes
@@ -124,6 +130,7 @@ class MonthlyRequest(models.Model):
         self._original_content_text = self.content_text
         self._original_ai_caption = self.ai_caption
         self._original_feedback = self.feedback
+        self._original_client_feedback = self.client_feedback
 
     def __str__(self):
         return f"{self.client.username} - {self.month.strftime('%B %Y')}"

@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { Palette, Sun, Moon, Type, Layout, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Palette, Sun, Moon, Type, Layout, Check, Shield } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
 export default function CustomizePage() {
@@ -11,8 +11,15 @@ export default function CustomizePage() {
         fontSize,
         density,
         borderRadius,
+        requireQAReview,
         updateSettings
     } = useTheme();
+
+    const [userRole, setUserRole] = useState('GUEST');
+
+    useEffect(() => {
+        setUserRole(localStorage.getItem('userRole') || 'GUEST');
+    }, []);
 
     const themes = [
         { name: "Ocean Blue", color: "#3B82F6", class: "bg-blue-500" },
@@ -193,6 +200,37 @@ export default function CustomizePage() {
                             </button>
                         </div>
                     </div>
+
+                    {/* QA Review Toggle - Only visible to SUPERUSER */}
+                    {userRole === 'SUPERUSER' && (
+                        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-600 dark:text-amber-400">
+                                        <Shield size={20} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-bold text-foreground">Monthly Content QA Review</h2>
+                                        <p className="text-xs text-muted-foreground">
+                                            {requireQAReview
+                                                ? 'Content must pass through QA before Client Review'
+                                                : 'Content goes directly to Client Review after completion'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => updateSettings({ requireQAReview: !requireQAReview })}
+                                    className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+                                        requireQAReview ? 'bg-primary' : 'bg-muted-foreground/30'
+                                    }`}
+                                >
+                                    <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
+                                        requireQAReview ? 'left-9' : 'left-1'
+                                    }`} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

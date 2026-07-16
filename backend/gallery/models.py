@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+import os
 import re
 
 User = get_user_model()
@@ -12,11 +13,18 @@ def client_folder_compressed_upload_path(instance, filename):
     """Generate upload path for compressed images"""
     return f'client_images/{instance.folder.client.id}/{instance.folder.folder_name}/compressed/{filename}'
 
+def shared_document_upload_path(instance, filename):
+    """Generate upload path: shared_documents/{client_id}/{filename}"""
+    return f'shared_documents/{instance.folder.client.id}/{filename}'
+
+SHARED_CONTENT_FOLDER_NAME = "shared content"
+
 class ClientFolder(models.Model):
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gallery_folders')
     folder_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_folders')
+    is_system_folder = models.BooleanField(default=False, help_text="System folder (e.g. shared content) that cannot be deleted or renamed")
 
     class Meta:
         unique_together = ('client', 'folder_name')
@@ -68,8 +76,37 @@ class ClientImage(models.Model):
 
         # Set title from filename if not provided
         if not self.title and self.image:
-            import os
             filename = os.path.basename(self.image.name)
             self.title = os.path.splitext(filename)[0]
 
+        super().save(*args, **kwargs)
+
+
+class SharedDocument(models.Model):
+    folder = models.ForeignKey(ClientFolder, on_delete=models.CASCADE, related_name='shared_documents')
+    file = models.FileField(upload_to=shared_document_upload_path)
+    title = models.CharField(max_length=255, blank=True)
+    file_type = models.CharField(max_length=100, blank=True)
+    file_size = models.BigIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_shared_docs')
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.title or self.file.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.title and self.file:
+            filename = os.path.basename(self.file.name)
+            self.title = os.path.splitext(filename)[0]
+        if not self.file_type and self.file:
+            _, ext = os.path.splitext(self.file.name)
+            self.file_type = ext.lower().lstrip('.')
+        if not self.file_size and self.file:
+            try:
+                self.file_size = self.file.size
+            except:
+                pass
         super().save(*args, **kwargs)

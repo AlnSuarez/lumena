@@ -5,8 +5,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import ClientFolder, ClientImage
-from .serializers import ClientFolderSerializer, ClientImageSerializer
+from .models import ClientFolder, ClientImage, SharedDocument, SHARED_CONTENT_FOLDER_NAME
+from .serializers import ClientFolderSerializer, ClientImageSerializer, SharedDocumentSerializer
 from .permissions import IsSuperUser
 from .utils import compress_image
 
@@ -34,6 +34,12 @@ def create_client_folder(request, client_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    if folder_name.lower() == SHARED_CONTENT_FOLDER_NAME:
+        return Response(
+            {'error': 'This folder name is reserved'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     # Check if folder already exists
     if ClientFolder.objects.filter(client_id=client_id, folder_name=folder_name).exists():
         print("DEBUG: Folder already exists")
@@ -58,11 +64,58 @@ def create_client_folder(request, client_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def get_or_create_shared_content_folder(request, client_id):
+    """Get or auto-create the 'shared content' folder for a client"""
+    folder, created = ClientFolder.objects.get_or_create(
+        client_id=client_id,
+        folder_name=SHARED_CONTENT_FOLDER_NAME,
+        defaults={
+            'created_by': request.user,
+            'is_system_folder': True,
+        }
+    )
+    serializer = ClientFolderSerializer(folder, context={'request': request})
+    return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def list_shared_content(request, client_id):
+    """List all images AND shared documents in the 'shared content' folder for a client"""
+    folder = ClientFolder.objects.filter(
+        client_id=client_id,
+        folder_name=SHARED_CONTENT_FOLDER_NAME
+    ).first()
+    if not folder:
+        return Response([])
+    images = folder.images.all()
+    docs = folder.shared_documents.all()
+    image_data = ClientImageSerializer(images, many=True, context={'request': request}).data
+    doc_data = SharedDocumentSerializer(docs, many=True, context={'request': request}).data
+
+    for item in image_data:
+        item['_type'] = 'image'
+    for item in doc_data:
+        item['_type'] = 'document'
+
+    combined = sorted(
+        image_data + doc_data,
+        key=lambda x: x.get('uploaded_at', ''),
+        reverse=True
+    )
+    return Response(combined)
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_client_folder(request, folder_id):
     """Delete a folder (optional endpoint)"""
     folder = get_object_or_404(ClientFolder, id=folder_id)
+    if folder.is_system_folder:
+        return Response(
+            {'error': 'System folders cannot be deleted'},
+            status=status.HTTP_403_FORBIDDEN
+        )
     folder.delete()
     return Response(
         {'message': 'Folder deleted successfully'},
@@ -134,6 +187,53 @@ def upload_folder_images(request, folder_id):
         },
         status=status.HTTP_400_BAD_REQUEST
     )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_shared_documents(request, client_id):
+    """Upload any file type to the shared content folder"""
+    folder = ClientFolder.objects.filter(
+        client_id=client_id,
+        folder_name=SHARED_CONTENT_FOLDER_NAME
+    ).first()
+    if not folder:
+        folder = ClientFolder.objects.create(
+            client_id=client_id,
+            folder_name=SHARED_CONTENT_FOLDER_NAME,
+            created_by=request.user,
+            is_system_folder=True,
+        )
+
+    files = request.FILES.getlist('files')
+    if not files:
+        return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    created = []
+    errors = []
+    for f in files:
+        try:
+            doc = SharedDocument.objects.create(
+                folder=folder,
+                file=f,
+                uploaded_by=request.user,
+            )
+            created.append(doc)
+        except Exception as e:
+            errors.append({'filename': f.name, 'error': str(e)})
+
+    data = {'documents': SharedDocumentSerializer(created, many=True, context={'request': request}).data}
+    if errors:
+        data['errors'] = errors
+    return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_400_BAD_REQUEST)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_shared_document(request, doc_id):
+    doc = get_object_or_404(SharedDocument, id=doc_id)
+    doc.file.delete()
+    doc.delete()
+    return Response({'message': 'Document deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])

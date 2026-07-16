@@ -8,6 +8,17 @@ export default function QAPage() {
     const [activeItemIndex, setActiveItemIndex] = useState(0);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [feedback, setFeedback] = useState("");
+    const [activeContentIndex, setActiveContentIndex] = useState(0);
+
+    useEffect(() => {
+        setActiveContentIndex(0);
+    }, [activeItemIndex]);
+
+    const normalizeUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `http://localhost:8000${url}`;
+    };
 
     const fetchRequests = async () => {
         const userId = localStorage.getItem('userId');
@@ -282,22 +293,74 @@ export default function QAPage() {
                                                     if (activeItem.originalData?.linked_image_details && items.length === 0) {
                                                         items.push({ media_type: 'IMAGE', gallery_image_details: activeItem.originalData.linked_image_details });
                                                     }
-                                                    if (items.length > 0) {
-                                                        const ci = items[0];
-                                                        const imgSrc = ci.gallery_image_details?.image_url || ci.file_url || activeItem.originalData?.linked_image_details?.image_url;
+                                                    const totalItems = items.length;
+                                                    if (totalItems > 0) {
+                                                        const safeIndex = Math.min(activeContentIndex, Math.max(0, totalItems - 1));
+                                                        const ci = items[safeIndex];
+                                                        const imgSrc = ci.gallery_image_details?.image_url || normalizeUrl(ci.file_url) || normalizeUrl(activeItem.originalData?.linked_image_details?.image_url);
                                                         if (imgSrc) {
-                                                            if (ci.media_type === 'VIDEO') {
-                                                                return (
-                                                                    <video src={imgSrc} controls className="w-full h-full object-contain" />
-                                                                );
-                                                            }
+                                                            const isVideo = ci.media_type === 'VIDEO' || 
+                                                                (typeof imgSrc === 'string' && (
+                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
+                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
+                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
+                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
+                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                                                                    imgSrc.toLowerCase().includes('/videos/')
+                                                                ));
                                                             return (
                                                                 <>
-                                                                    <img src={imgSrc} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain" />
+                                                                    {isVideo ? (
+                                                                        <video key={imgSrc} src={imgSrc} controls playsInline preload="metadata" className="w-full h-full min-h-[300px] object-contain bg-black rounded-xl" />
+                                                                    ) : (
+                                                                        <img src={imgSrc} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain" />
+                                                                    )}
                                                                     {ci.gallery_image_details?.folio && (
                                                                         <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">
                                                                             <span className="text-[10px] font-mono text-white">{ci.gallery_image_details.folio}</span>
                                                                         </div>
+                                                                    )}
+
+                                                                    {/* Carousel navigation */}
+                                                                    {totalItems > 1 && (
+                                                                        <>
+                                                                            {safeIndex > 0 && (
+                                                                                <button
+                                                                                    onClick={() => setActiveContentIndex(safeIndex - 1)}
+                                                                                    className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-all"
+                                                                                >
+                                                                                    <ChevronLeft size={20} />
+                                                                                </button>
+                                                                            )}
+                                                                            {safeIndex < totalItems - 1 && (
+                                                                                <button
+                                                                                    onClick={() => setActiveContentIndex(safeIndex + 1)}
+                                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-all"
+                                                                                >
+                                                                                    <ChevronRight size={20} />
+                                                                                </button>
+                                                                            )}
+
+                                                                            {/* Dots */}
+                                                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
+                                                                                {items.map((_ci, ciIdx) => (
+                                                                                    <button
+                                                                                        key={_ci.id || ciIdx}
+                                                                                        onClick={() => setActiveContentIndex(ciIdx)}
+                                                                                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                                                                            ciIdx === safeIndex
+                                                                                                ? 'bg-white scale-110'
+                                                                                                : 'bg-white/40 hover:bg-white/60'
+                                                                                        }`}
+                                                                                    />
+                                                                                ))}
+                                                                            </div>
+
+                                                                            {/* Counter */}
+                                                                            <div className="absolute top-3 right-3 z-30 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] text-white font-medium">
+                                                                                {safeIndex + 1}/{totalItems}
+                                                                            </div>
+                                                                        </>
                                                                     )}
                                                                 </>
                                                             );

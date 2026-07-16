@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Plus, Calendar, Type, Image as ImageIcon, Layers, Video, Users, Search, X, Check } from 'lucide-react';
+import { Plus, Calendar, Type, Image as ImageIcon, Layers, Video, Users, Search, X, Check } from 'lucide-react';
 
 export default function SubmitStoryPage() {
     const [contentType, setContentType] = useState('story');
@@ -13,8 +13,6 @@ export default function SubmitStoryPage() {
     const [selectedClient, setSelectedClient] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [postDate, setPostDate] = useState('');
-    const [attachment, setAttachment] = useState(null);
-    const [attachmentPreview, setAttachmentPreview] = useState(null);
 
     // Gallery image search states
     const [showFolioSearch, setShowFolioSearch] = useState(false);
@@ -72,16 +70,6 @@ export default function SubmitStoryPage() {
         { id: 'video', label: 'Video', icon: Video, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
     ];
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setAttachment(file);
-            setAttachmentPreview(URL.createObjectURL(file));
-            // Clear gallery image if file is uploaded
-            setSearchedImage(null);
-        }
-    };
-
     const handleSearchByFolio = async () => {
         if (!folioSearch.trim()) {
             setFolioSearchError('Please enter a folio number');
@@ -101,9 +89,6 @@ export default function SubmitStoryPage() {
                 const data = await response.json();
                 setSearchedImage(data);
                 setFolioSearchError(null);
-                // Clear file upload if gallery image is selected
-                setAttachment(null);
-                setAttachmentPreview(null);
             } else {
                 const errorData = await response.json();
                 setFolioSearchError(errorData.error || 'Image not found');
@@ -145,26 +130,6 @@ export default function SubmitStoryPage() {
             return;
         }
 
-        let attachmentUrl = null;
-        let attachmentName = null;
-        if (attachment) {
-            const formData = new FormData();
-            formData.append('file', attachment);
-            try {
-                const uploadRes = await fetch('http://localhost:8000/api/contents/upload-attachment/', {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (uploadRes.ok) {
-                    const uploadData = await uploadRes.json();
-                    attachmentUrl = uploadData.url;
-                    attachmentName = uploadData.filename;
-                }
-            } catch (e) {
-                console.error("Error uploading attachment:", e);
-            }
-        }
-
         const contentItems = [];
         if (searchedImage) {
             contentItems.push({
@@ -173,21 +138,9 @@ export default function SubmitStoryPage() {
                 gallery_image: searchedImage.id,
             });
         }
-        if (attachmentUrl) {
-            contentItems.push({
-                media_type: getMediaTypeForContentType(contentType),
-                order: searchedImage ? 1 : 0,
-                file_url: attachmentUrl,
-                file_name: attachmentName,
-            });
-        }
-
         let metaNotes = `[Meta]\nContent Type: ${contentType}\nPost Date: ${postDate}`;
         if (searchedImage) {
             metaNotes += `\nGallery Image: ${searchedImage.folio} - ${searchedImage.title}`;
-        }
-        if (attachmentUrl) {
-            metaNotes += `\nAttachment: ${attachmentUrl}`;
         }
 
         const payload = {
@@ -221,8 +174,6 @@ export default function SubmitStoryPage() {
                 setSelectedClient('');
                 setDueDate('');
                 setPostDate('');
-                setAttachment(null);
-                setAttachmentPreview(null);
                 setSearchedImage(null);
                 setFolioSearch('');
                 setFolioSearchError(null);
@@ -426,57 +377,6 @@ export default function SubmitStoryPage() {
                                 />
                                 <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Upload Area */}
-                    <div className="space-y-3 flex-1">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Attachments</label>
-                        <div className="relative h-full min-h-[140px] group">
-                            <input
-                                type="file"
-                                id="attachment-upload"
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
-                            />
-                            <label
-                                htmlFor="attachment-upload"
-                                className={`
-                                    w-full h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all gap-2 relative overflow-hidden
-                                    ${attachmentPreview
-                                        ? 'border-primary bg-card'
-                                        : 'border-border hover:border-primary/50 bg-muted/20 hover:bg-primary/5'
-                                    }
-                                `}
-                            >
-                                {attachmentPreview ? (
-                                    <>
-                                        {attachment?.type?.startsWith('video/') ? (
-                                            <video src={attachmentPreview} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
-                                        ) : (
-                                            <img src={attachmentPreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
-                                        )}
-                                        <div className="relative z-10 flex flex-col items-center">
-                                            <div className="w-12 h-12 rounded-full bg-primary shadow-lg flex items-center justify-center text-primary-foreground mb-2">
-                                                <Upload size={20} />
-                                            </div>
-                                            <p className="text-sm font-bold text-foreground">{attachment.name}</p>
-                                            <p className="text-xs text-primary font-bold">Click to change</p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="w-12 h-12 rounded-full bg-card shadow-sm border border-border flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all">
-                                            <Upload size={20} className="text-muted-foreground group-hover:text-primary" />
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Click to upload image or video</p>
-                                            <p className="text-xs text-muted-foreground">Supports JPG, PNG, GIF, MP4, MOV, AVI</p>
-                                        </div>
-                                    </>
-                                )}
-                            </label>
                         </div>
                     </div>
 

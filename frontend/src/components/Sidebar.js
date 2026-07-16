@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "../context/ThemeContext";
 import {
     FileText,
     Calendar,
@@ -32,6 +33,7 @@ import {
 
 export function Sidebar() {
     const pathname = usePathname();
+    const { requireQAReview } = useTheme();
     const [userRole, setUserRole] = React.useState('GUEST');
     const [userPermissions, setUserPermissions] = React.useState({});
     const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -67,7 +69,7 @@ export function Sidebar() {
             setExpandedSections(prev => ({ ...prev, contentProduction: true }));
         } else if (pathname.startsWith('/contentcreation/video-editors') || pathname.startsWith('/contentcreation/shoots') || pathname.startsWith('/contentcreation/calendar')) {
             setExpandedSections(prev => ({ ...prev, videoProduction: true }));
-        } else if (pathname.startsWith('/contentcreation/submit-story')) {
+        } else if (pathname.startsWith('/contentcreation/submit-story') || pathname.startsWith('/contentcreation/create-monthly-plan')) {
             setExpandedSections(prev => ({ ...prev, submitRequests: true }));
         } else if (pathname.startsWith('/contentcreation/customize')) {
             setExpandedSections(prev => ({ ...prev, customization: true }));
@@ -150,14 +152,8 @@ export function Sidebar() {
             {!isCollapsed && (
                 <div className="px-8 pb-4">
                     <h1 className="text-2xl font-extrabold tracking-tight text-sidebar-foreground flex items-center gap-2">
-                        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
-                            <span className="font-bold">L</span>
-                        </div>
-                        Lumena
+                        <img src="/lumenalogo.png" alt="Lumena" className="h-32 w-32 object-contain" />
                     </h1>
-                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2 ml-1">
-                        Creation Suite
-                    </p>
                     <div className="mt-2 px-2 py-1 bg-sidebar-accent rounded text-xs text-muted-foreground inline-block">
                         {userRole.replace('_', ' ')}
                     </div>
@@ -297,6 +293,17 @@ export function Sidebar() {
                                             </Link>
                                         </li>
                                     )}
+                                    {checkAccess('submit_requests', PERMISSIONS.submitContent) && (
+                                        <li>
+                                            <Link href="/contentcreation/create-monthly-plan" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/create-monthly-plan') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <span className="flex items-center gap-2">
+                                                    <Calendar size={16} className="group-hover:text-primary transition-colors" />
+                                                    Create Monthly plan
+                                                </span>
+                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </div>
@@ -331,7 +338,7 @@ export function Sidebar() {
                                             </Link>
                                         </li>
                                     )}
-                                    {checkAccess('content_production', PERMISSIONS.qa) && (
+                                    {requireQAReview && checkAccess('content_production', PERMISSIONS.qa) && (
                                         <li>
                                             <Link href="/contentcreation/qa" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/qa') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                                                 <span className="flex items-center gap-2">

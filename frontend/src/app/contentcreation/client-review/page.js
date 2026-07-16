@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { 
     CheckCircle2, 
     ChevronDown, 
+    ChevronLeft,
+    ChevronRight,
     X, 
     MessageSquare, 
     Sparkles, 
@@ -16,26 +18,38 @@ import {
     ThumbsDown,
     Loader2,
     Layout,
-    Send
+    Send,
+    RefreshCw
 } from "lucide-react";
+import { useTheme } from "../../../context/ThemeContext";
 
 const API_BASE = "http://localhost:8000/api";
 
+const normalizeUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `http://localhost:8000${url}`;
+};
+
 export default function ClientReviewPage() {
+    const { requireQAReview } = useTheme();
     const [pendingRequests, setPendingRequests] = useState([]);
     const [isRequestsLoading, setIsRequestsLoading] = useState(false);
     const [revisionRequest, setRevisionRequest] = useState(null);
     const [feedbackText, setFeedbackText] = useState("");
+    const [previewRequest, setPreviewRequest] = useState(null);
+    const [previewIndex, setPreviewIndex] = useState(0);
 
     const fetchPendingRequests = async () => {
         const userId = localStorage.getItem("userId");
+        const userRole = localStorage.getItem("userRole");
         if (!userId) return;
 
         setIsRequestsLoading(true);
         try {
             const url = new URL(`${API_BASE}/contents/monthly-requests/`);
             url.searchParams.append("user_id", userId);
-            url.searchParams.append("role", "CLIENT");
+            url.searchParams.append("role", userRole || "CLIENT");
 
             const response = await fetch(url.toString());
             if (response.ok) {
@@ -61,8 +75,10 @@ export default function ClientReviewPage() {
 
         try {
             const userId = localStorage.getItem("userId");
+            const userRole = localStorage.getItem("userRole");
             const updateUrl = new URL(`${API_BASE}/contents/monthly-requests/${requestId}/`);
             if (userId) updateUrl.searchParams.append('user_id', userId);
+            if (userRole) updateUrl.searchParams.append('role', userRole);
 
             const response = await fetch(updateUrl.toString(), {
                 method: "PATCH",
@@ -92,8 +108,10 @@ export default function ClientReviewPage() {
 
         try {
             const userId = localStorage.getItem("userId");
+            const userRole = localStorage.getItem("userRole");
             const updateUrl = new URL(`${API_BASE}/contents/monthly-requests/${revisionRequest.id}/`);
             if (userId) updateUrl.searchParams.append('user_id', userId);
+            if (userRole) updateUrl.searchParams.append('role', userRole);
 
             const response = await fetch(updateUrl.toString(), {
                 method: "PATCH",
@@ -101,8 +119,9 @@ export default function ClientReviewPage() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    status: "IN_REVISION",
-                    feedback: feedbackText
+                    status: requireQAReview ? "QA" : "IN_REVISION",
+                    feedback: feedbackText,
+                    client_feedback: feedbackText
                 })
             });
 
@@ -136,6 +155,18 @@ export default function ClientReviewPage() {
                         <h1 className="text-4xl font-black text-foreground tracking-tight">Client Review</h1>
                         <p className="text-muted-foreground mt-2 text-lg">Approve or request changes on the draft publications.</p>
                     </div>
+                    <button
+                        onClick={fetchPendingRequests}
+                        disabled={isRequestsLoading}
+                        title="Refresh to check for new content"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-secondary hover:bg-card hover:shadow-md text-sm font-bold text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <RefreshCw
+                            size={15}
+                            className={isRequestsLoading ? "animate-spin text-primary" : "text-muted-foreground"}
+                        />
+                        {isRequestsLoading ? "Refreshing..." : "Refresh"}
+                    </button>
                 </div>
 
                 <div className="h-px bg-border mb-6" />
@@ -178,7 +209,13 @@ export default function ClientReviewPage() {
                                         </div>
 
                                         {/* Preview Mockup */}
-                                        <div className="aspect-video bg-secondary/30 rounded-2xl overflow-hidden relative border border-border/50 flex items-center justify-center">
+                                        <div
+                                            className="aspect-video bg-secondary/30 rounded-2xl overflow-hidden relative border border-border/50 flex items-center justify-center cursor-pointer group"
+                                            onClick={() => {
+                                                setPreviewRequest(req);
+                                                setPreviewIndex(0);
+                                            }}
+                                        >
                                             {(() => {
                                                 const items = req.content_items || [];
                                                 if (req.linked_image_details && items.length === 0) {
@@ -186,9 +223,18 @@ export default function ClientReviewPage() {
                                                 }
                                                 if (items.length > 0) {
                                                     const ci = items[0];
-                                                    const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || ci.file_url || req.linked_image_details?.image_compressed || req.linked_image_details?.image;
+                                                    const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || normalizeUrl(ci.file_url) || normalizeUrl(req.linked_image_details?.image_compressed) || normalizeUrl(req.linked_image_details?.image);
                                                     if (src) {
-                                                        if (ci.media_type === 'VIDEO') {
+                                                        const isVideo = ci.media_type === 'VIDEO' || 
+                                                            (typeof src === 'string' && (
+                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
+                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
+                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
+                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
+                                                                src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                                                                src.toLowerCase().includes('/videos/')
+                                                            ));
+                                                        if (isVideo) {
                                                             return <video src={src} controls className="absolute inset-0 w-full h-full object-cover" />;
                                                         }
                                                         return <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="absolute inset-0 w-full h-full object-cover" />;
@@ -202,10 +248,11 @@ export default function ClientReviewPage() {
                                                 );
                                             })()}
                                             {req.content_items?.length > 1 && (
-                                                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                                                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 group-hover:bg-black/80 transition-colors">
                                                     <span className="text-[10px] font-mono text-white">{req.content_items.length} items</span>
                                                 </div>
                                             )}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-2xl" />
                                         </div>
 
                                         {/* Strategist Text */}
@@ -255,6 +302,120 @@ export default function ClientReviewPage() {
                     )}
                 </div>
             </div>
+
+            {/* Instagram-style Preview Modal */}
+            {previewRequest && (() => {
+                const items = [...(previewRequest.content_items || [])];
+                if (previewRequest.linked_image_details && items.length === 0) {
+                    items.push({ media_type: 'IMAGE', gallery_image_details: previewRequest.linked_image_details });
+                }
+                const totalItems = items.length;
+                const safeIndex = Math.min(previewIndex, Math.max(0, totalItems - 1));
+                const ci = items[safeIndex] || {};
+                const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || normalizeUrl(ci.file_url) || normalizeUrl(previewRequest.linked_image_details?.image_compressed) || normalizeUrl(previewRequest.linked_image_details?.image);
+
+                return (
+                    <div
+                        className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setPreviewRequest(null)}
+                    >
+                        <div
+                            className="relative max-w-3xl w-full max-h-[90vh] flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Close button */}
+                            <button
+                                onClick={() => setPreviewRequest(null)}
+                                className="absolute -top-12 right-0 z-50 p-2 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+
+                            {/* Media display */}
+                            <div className="relative bg-black/40 rounded-2xl overflow-hidden flex items-center justify-center min-h-[300px] max-h-[75vh]">
+                                {src ? (
+                                    <>
+                                        {(() => {
+                                            const isVideo = ci.media_type === 'VIDEO' || 
+                                                (typeof src === 'string' && (
+                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
+                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
+                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
+                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
+                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                                                    src.toLowerCase().includes('/videos/')
+                                                ));
+                                            return isVideo ? (
+                                                <video src={src} controls className="w-full h-full object-contain max-h-[75vh]" />
+                                            ) : (
+                                                <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain max-h-[75vh]" />
+                                            );
+                                        })()}
+
+                                        {/* Navigation arrows - always shown when >1 items */}
+                                        {totalItems > 1 && (
+                                            <>
+                                                {safeIndex > 0 && (
+                                                    <button
+                                                        onClick={() => setPreviewIndex(safeIndex - 1)}
+                                                        className="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-all"
+                                                    >
+                                                        <ChevronLeft size={24} />
+                                                    </button>
+                                                )}
+                                                {safeIndex < totalItems - 1 && (
+                                                    <button
+                                                        onClick={() => setPreviewIndex(safeIndex + 1)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-all"
+                                                    >
+                                                        <ChevronRight size={24} />
+                                                    </button>
+                                                )}
+
+                                                {/* Instagram-style dots */}
+                                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
+                                                    {items.map((_ci, ciIdx) => (
+                                                        <button
+                                                            key={_ci.id || ciIdx}
+                                                            onClick={() => setPreviewIndex(ciIdx)}
+                                                            className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                                                ciIdx === safeIndex
+                                                                    ? 'bg-white scale-110'
+                                                                    : 'bg-white/40 hover:bg-white/60'
+                                                            }`}
+                                                        />
+                                                    ))}
+                                                </div>
+
+                                                {/* Counter */}
+                                                <div className="absolute top-4 right-4 z-30 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs text-white font-medium">
+                                                    {safeIndex + 1}/{totalItems}
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="text-center p-8 text-white/60">
+                                        <ImageIcon size={48} className="mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm font-bold">No media available</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Media info below preview */}
+                            {ci.media_type && (
+                                <div className="mt-3 flex items-center gap-2 text-white/60 text-xs font-medium">
+                                    <span className="bg-white/10 px-2 py-0.5 rounded-full">{ci.media_type.replace('_', ' ')}</span>
+                                    {ci.gallery_image_details?.folio && (
+                                        <span className="font-mono">Folio: {ci.gallery_image_details.folio}</span>
+                                    )}
+                                    {ci.caption && <span className="truncate ml-auto">Caption: {ci.caption}</span>}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Revision Request Slide-in Dialog */}
             {revisionRequest && (

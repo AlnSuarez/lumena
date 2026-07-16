@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ClientFolder, ClientImage
+from .models import ClientFolder, ClientImage, SharedDocument
 
 class ClientImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -35,15 +35,47 @@ class ClientImageSerializer(serializers.ModelSerializer):
             return obj.image.url
         return None
 
+class SharedDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    is_image = serializers.SerializerMethodField()
+    is_video = serializers.SerializerMethodField()
+    is_pdf = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SharedDocument
+        fields = ['id', 'file', 'file_url', 'title', 'file_type', 'file_size', 'uploaded_at', 'uploaded_by', 'is_image', 'is_video', 'is_pdf']
+        read_only_fields = ['uploaded_at', 'uploaded_by', 'file_type', 'file_size']
+
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
+    def get_is_image(self, obj):
+        return obj.file_type in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico')
+
+    def get_is_video(self, obj):
+        return obj.file_type in ('mp4', 'webm', 'mov', 'avi', 'mkv', 'wmv', 'flv')
+
+    def get_is_pdf(self, obj):
+        return obj.file_type == 'pdf'
+
 class ClientFolderSerializer(serializers.ModelSerializer):
     images = ClientImageSerializer(many=True, read_only=True)
     image_count = serializers.SerializerMethodField()
+    shared_documents = SharedDocumentSerializer(many=True, read_only=True)
+    shared_document_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ClientFolder
-        fields = ['id', 'client', 'folder_name', 'created_at', 'created_by', 'images', 'image_count']
-        read_only_fields = ['created_at', 'created_by']
+        fields = ['id', 'client', 'folder_name', 'created_at', 'created_by', 'images', 'image_count', 'shared_documents', 'shared_document_count', 'is_system_folder']
+        read_only_fields = ['created_at', 'created_by', 'is_system_folder']
 
     def get_image_count(self, obj):
-        """Return the count of images in the folder"""
         return obj.images.count()
+
+    def get_shared_document_count(self, obj):
+        return obj.shared_documents.count()
