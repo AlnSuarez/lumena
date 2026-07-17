@@ -231,7 +231,10 @@ def upload_shared_documents(request, client_id):
 @permission_classes([IsAuthenticated])
 def delete_shared_document(request, doc_id):
     doc = get_object_or_404(SharedDocument, id=doc_id)
-    doc.file.delete()
+    try:
+        doc.file.delete()
+    except Exception as e:
+        print(f"Warning: Failed to delete physical file from storage: {e}")
     doc.delete()
     return Response({'message': 'Document deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
@@ -240,8 +243,11 @@ def delete_shared_document(request, doc_id):
 def delete_image(request, image_id):
     """Delete an image"""
     image = get_object_or_404(ClientImage, id=image_id)
-    # Delete from storage first
-    image.image.delete()
+    try:
+        # Delete from storage first
+        image.image.delete()
+    except Exception as e:
+        print(f"Warning: Failed to delete physical file from storage: {e}")
     # Then delete from database
     image.delete()
     return Response(
