@@ -6,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from django.db.models import Q, Count
 from django.conf import settings
+from django.core.files.storage import default_storage
 import base64
 import json
 import os
@@ -513,13 +514,12 @@ def upload_attachment(request):
 
     ext = os.path.splitext(file.name)[1] or '.jpg'
     filename = f"attachments/{uuid.uuid4().hex}{ext}"
-    dest = settings.MEDIA_ROOT / filename
-    os.makedirs(dest.parent, exist_ok=True)
-    with open(dest, 'wb') as f:
-        for chunk in file.chunks():
-            f.write(chunk)
+    
+    saved_name = default_storage.save(filename, file)
+    url = default_storage.url(saved_name)
+    if not url.startswith(('http://', 'https://')):
+        url = request.build_absolute_uri(url)
 
-    url = request.build_absolute_uri(f"{settings.MEDIA_URL}{filename}")
     return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
 
 
@@ -535,13 +535,12 @@ def upload_content_video(request):
 
     ext = '.mp4'
     filename = f"videos/{uuid.uuid4().hex}{ext}"
-    dest = settings.MEDIA_ROOT / filename
-    os.makedirs(dest.parent, exist_ok=True)
-    with open(dest, 'wb') as f:
-        for chunk in file.chunks():
-            f.write(chunk)
+    
+    saved_name = default_storage.save(filename, file)
+    url = default_storage.url(saved_name)
+    if not url.startswith(('http://', 'https://')):
+        url = request.build_absolute_uri(url)
 
-    url = request.build_absolute_uri(f"{settings.MEDIA_URL}{filename}")
     return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
 
 
