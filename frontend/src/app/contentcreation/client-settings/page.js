@@ -46,7 +46,7 @@ export default function ClientSettingsPage() {
         }
         setIsConnectingSocial(true);
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/scheduler/social-accounts/connect/', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/scheduler/social-accounts/connect/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

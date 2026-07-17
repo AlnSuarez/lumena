@@ -122,7 +122,7 @@ export default function ManageUsersPage() {
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/');
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/manage/');
             if (response.ok) {
                 const data = await response.json();
                 setUsers(data);
@@ -191,7 +191,7 @@ export default function ManageUsersPage() {
     const handleConnectNetwork = async (platform) => {
         setIsConnectingSocial(true);
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/scheduler/social-accounts/connect/', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/scheduler/social-accounts/connect/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -306,7 +306,7 @@ export default function ManageUsersPage() {
         e.preventDefault();
 
         const url = modalMode === "add"
-            ? '${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/add/'
+            ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/manage/add/'
             : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/${editingUser.id}/update/`;
 
         const method = modalMode === "add" ? 'POST' : 'PATCH';

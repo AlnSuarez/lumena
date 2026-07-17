@@ -20,8 +20,8 @@ import {
     Unlink
 } from "lucide-react";
 
-const API_URL = "${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/";
-const USERS_API = "${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/contents/monthly-requests/";
+const USERS_API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/users/manage/";
 const REASSIGN_SEGMENT = "reassign/";
 const METADATA_START = "<!--VIDEO_SHOOT_ADMIN_DATA_START-->";
 const METADATA_END = "<!--VIDEO_SHOOT_ADMIN_DATA_END-->";

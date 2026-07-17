@@ -31,7 +31,7 @@ export default function QAPage() {
         }
 
         try {
-            const url = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
+            const url = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
             if (userId) url.searchParams.append('user_id', userId);
             if (userRole) url.searchParams.append('role', userRole);
 

@@ -30,8 +30,8 @@ export default function CreateMonthlyPlanPage() {
         const fetchData = async () => {
             try {
                 const [clientsRes, creatorsRes] = await Promise.all([
-                    fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/clients/'),
-                    fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/')
+                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/clients/'),
+                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/')
                 ]);
 
                 if (clientsRes.ok) {
@@ -117,7 +117,7 @@ export default function CreateMonthlyPlanPage() {
 
         try {
             const userId = localStorage.getItem('userId');
-            const createUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
+            const createUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
             if (userId) createUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(createUrl.toString(), {

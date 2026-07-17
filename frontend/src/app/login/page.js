@@ -13,7 +13,7 @@ export default function LoginPage() {
         const password = e.target.password.value;
 
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/login/', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/login/', {
                 method: 'POST',
                 credentials: 'include',
                 headers: {

@@ -34,7 +34,7 @@ export default function CompletedContentPage() {
         setLoading(true);
         try {
             // If SUPERUSER, load all. If CLIENT, load only their own
-            let url = "${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/scheduler/schedules/";
+            let url = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/scheduler/schedules/";
             if (role === "CLIENT") {
                 url += `?client_id=${uid}`;
             }

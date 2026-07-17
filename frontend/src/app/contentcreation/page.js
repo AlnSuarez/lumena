@@ -68,7 +68,7 @@ export default function ContentBoardPage() {
 
         try {
             const userId = localStorage.getItem('userId');
-            const createUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
+            const createUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
             if (userId) createUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(createUrl.toString(), {
@@ -166,15 +166,15 @@ export default function ContentBoardPage() {
     const fetchData = async (role = currentUserRole, userId = currentUserId) => {
         setIsLoading(true);
         try {
-            const reqUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
+            const reqUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
             if (role) reqUrl.searchParams.append('role', role);
             if (userId) reqUrl.searchParams.append('user_id', userId);
 
             const [reqResponse, userResponse, creatorsResponse, clientsResponse] = await Promise.all([
                 fetch(reqUrl.toString()),
-                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/manage/'), // Fetch all users for filter
-                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/'), // Fetch content creators
-                fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/clients/') // Fetch clients
+                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/manage/'), // Fetch all users for filter
+                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/'), // Fetch content creators
+                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/clients/') // Fetch clients
             ]);
 
             if (reqResponse.ok) {

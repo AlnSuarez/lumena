@@ -24,7 +24,7 @@ export default function SubmitStoryPage() {
     useEffect(() => {
         const fetchContentCreators = async () => {
             try {
-                const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/');
+                const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/');
                 if (response.ok) {
                     const data = await response.json();
                     const formattedMembers = data.map(user => ({
@@ -43,7 +43,7 @@ export default function SubmitStoryPage() {
 
         const fetchClients = async () => {
             try {
-                const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/clients/');
+                const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/clients/');
                 if (response.ok) {
                     const data = await response.json();
                     const formattedClients = data.map(user => ({
@@ -156,7 +156,7 @@ export default function SubmitStoryPage() {
 
         try {
             const userId = localStorage.getItem('userId');
-            const createUrl = new URL('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/');
+            const createUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
             if (userId) createUrl.searchParams.append('user_id', userId);
 
             const response = await fetch(createUrl.toString(), {

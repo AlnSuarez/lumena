@@ -176,7 +176,7 @@ export default function CreateClientPage() {
 
             // Using fetch to call the backend
             // Adjust URL to match your backend port/route
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/create-client/', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/create-client/', {
                 method: 'POST',
                 body: submitData,
             });

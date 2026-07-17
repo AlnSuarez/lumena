@@ -39,7 +39,7 @@ export function Navbar() {
 
     const fetchNotifications = async () => {
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/?role=SUPERUSER');
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/?role=SUPERUSER');
             if (response.ok) {
                 const data = await response.json();
                 // Filter logic
@@ -58,7 +58,7 @@ export function Navbar() {
 
     const fetchCreators = async () => {
         try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/users/content-creators/');
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/');
             if (response.ok) {
                 const data = await response.json();
                 setContentCreators(data);
