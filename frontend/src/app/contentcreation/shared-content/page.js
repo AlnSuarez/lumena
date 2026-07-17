@@ -57,7 +57,7 @@ export default function SharedContentPage() {
             <div className="bg-secondary rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
                 <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-4xl font-black text-foreground tracking-tight">Shared Content</h1>
+                        <h1 className="text-4xl font-black text-foreground tracking-tight">Your Strategy</h1>
                         <p className="text-muted-foreground mt-2 text-lg">Documents and files shared by your team.</p>
                     </div>
                 </div>
@@ -70,8 +70,8 @@ export default function SharedContentPage() {
                     ) : sharedDocuments.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
                             <FileText size={64} className="text-muted-foreground/30 mb-4 animate-pulse" />
-                            <p className="text-foreground text-xl font-semibold">No shared documents yet</p>
-                            <p className="text-muted-foreground/60 mt-2 max-w-sm">Documents and assets shared by our team with you will appear here.</p>
+                            <p className="text-foreground text-xl font-semibold">No strategy documents yet</p>
+                            <p className="text-muted-foreground/60 mt-2 max-w-sm">Strategy documents and assets shared by our team with you will appear here.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pr-1">

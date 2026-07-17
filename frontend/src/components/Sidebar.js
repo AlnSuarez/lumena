@@ -230,7 +230,7 @@ export function Sidebar() {
                     )}
 
                     {checkAccess('shared_content', ['CLIENT']) && (
-                        <Link href="/contentcreation/shared-content" title="Shared Content" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/shared-content') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                        <Link href="/contentcreation/shared-content" title="Your Strategy" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/shared-content') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
                             <Folder size={24} />
                         </Link>
                     )}
@@ -536,7 +536,7 @@ export function Sidebar() {
                             >
                                 <div className="flex items-center gap-2">
                                     <Folder size={20} className="text-muted-foreground" />
-                                    <h3>Shared Content</h3>
+                                    <h3>Your Strategy</h3>
                                 </div>
                                 <ChevronDown
                                     size={18}
@@ -549,7 +549,7 @@ export function Sidebar() {
                                         <Link href="/contentcreation/shared-content" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/shared-content') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                                             <span className="flex items-center gap-2">
                                                 <FileText size={16} className="group-hover:text-primary transition-colors" />
-                                                Shared Documents
+                                                Strategy Documents
                                             </span>
                                             <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                                         </Link>
