@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Filter, User as UserIcon, AlertTriangle, Loader2, X } from "lucide-react";
+import { ClipboardList, Filter, User as UserIcon, AlertTriangle, Loader2, X, Trash2 } from "lucide-react";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "DONE"];
@@ -39,6 +39,7 @@ export default function AssignmentsPage() {
     const [currentUserId, setCurrentUserId] = useState("");
     const [savingKey, setSavingKey] = useState("");
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     const loadAssignments = async (role, userId) => {
         const reqUrl = new URL(`${API_BASE}/contents/monthly-requests/`);
@@ -230,6 +231,25 @@ export default function AssignmentsPage() {
         }
     };
 
+    const handleDeleteRequest = async (requestId) => {
+        try {
+            const url = new URL(`${API_BASE}/contents/monthly-requests/${requestId}/`);
+            if (currentUserId) url.searchParams.append("user_id", currentUserId);
+            const response = await fetch(url.toString(), {
+                method: "DELETE",
+            });
+            if (response.ok) {
+                await refreshOnlyRequests();
+                setConfirmDeleteId(null);
+            } else {
+                alert("Failed to delete task.");
+            }
+        } catch (error) {
+            console.error("Error deleting task:", error);
+            alert("Network error while deleting task.");
+        }
+    };
+
     return (
         <div className="w-full flex flex-col px-0 py-2 h-full">
             <div className="bg-secondary rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
@@ -340,13 +360,14 @@ export default function AssignmentsPage() {
                                 <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
                                 <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Due Date</th>
                                 <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">SLA</th>
+                                <th className="text-center py-3 px-4 text-xs font-bold text-muted-foreground uppercase w-20">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="6" className="py-8 text-center text-muted-foreground">Loading assignments...</td></tr>
+                                <tr><td colSpan="8" className="py-8 text-center text-muted-foreground">Loading assignments...</td></tr>
                             ) : filtered.length === 0 ? (
-                                <tr><td colSpan="6" className="py-8 text-center text-muted-foreground">No assignments found.</td></tr>
+                                <tr><td colSpan="8" className="py-8 text-center text-muted-foreground">No assignments found.</td></tr>
                             ) : (
                                 filtered.map((req) => (
                                     <tr key={req.id} className="border-b border-border/60 hover:bg-muted/40">
@@ -416,6 +437,16 @@ export default function AssignmentsPage() {
                                             ) : (
                                                 <span className="px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">On time</span>
                                             )}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfirmDeleteId(req.id)}
+                                                className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                title="Delete task"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -533,6 +564,35 @@ export default function AssignmentsPage() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {confirmDeleteId && (
+                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl">
+                        <h3 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2">
+                            <AlertTriangle className="text-red-500" size={20} />
+                            Confirm Delete
+                        </h3>
+                        <p className="text-muted-foreground text-sm mb-6">
+                            Are you sure you want to delete this task? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl text-sm transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteRequest(confirmDeleteId)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-sm transition"
+                            >
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>
