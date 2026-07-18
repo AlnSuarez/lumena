@@ -192,6 +192,11 @@ export default function MonthlyContentsPage() {
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
     const [contentFolderId, setContentFolderId] = useState(null);
     const dropFilesRef = React.useRef(null);
+
+    // Carousel reorder state
+    const [reorderDragIndex, setReorderDragIndex] = useState(null);
+    const [reorderOverIndex, setReorderOverIndex] = useState(null);
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
     const CREATED_CONTENT_FOLDER_NAME = "Created";
     const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
     const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
@@ -570,6 +575,103 @@ export default function MonthlyContentsPage() {
         }
     };
 
+    const handleReorderCarousel = async (newStepItems) => {
+        // Rebuild the full content_items list: keep non-carousel items as-is,
+        // replace the carousel slice with the newly ordered items.
+        const allItems = activeItem.originalData?.content_items || [];
+        const otherItems = allItems.filter(ci => ci.media_type !== 'CAROUSEL_IMAGE' && ci.media_type !== currentStepMediaType);
+        const reorderedCarouselItems = newStepItems.map((ci, idx) => ({ ...ci, order: idx }));
+        const updatedItems = [...otherItems, ...reorderedCarouselItems];
+
+        setIsSavingOrder(true);
+        try {
+            const res = await fetch(`${API_BASE}/contents/monthly-requests/${activeItem.id}/`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ status: activeItem.originalData?.status, content_items: updatedItems }),
+            });
+            if (!res.ok) throw new Error('Failed to save order');
+            const updated = await res.json();
+            setItems(prev => prev.map(itm => {
+                if (itm.id !== activeItem.id) return itm;
+                return { ...itm, originalData: updated };
+            }));
+        } catch (err) {
+            console.error('Reorder save error:', err);
+            alert('Could not save new order. Please try again.');
+        } finally {
+            setIsSavingOrder(false);
+        }
+    };
+
+    const handleDeleteMediaItem = async () => {
+        if (!confirm('Are you sure you want to delete this media item?')) return;
+
+        const allItems = activeItem.originalData?.content_items || [];
+        const stepKey = steps[currentStepIndex]?.id || 'photos';
+        let targetMediaType = 'IMAGE';
+        if (isAdhoc) {
+            const typeUpper = activeItem.contentType?.toUpperCase();
+            if (typeUpper === 'CAROUSEL') targetMediaType = 'CAROUSEL_IMAGE';
+            else if (typeUpper === 'STORY') targetMediaType = 'STORY';
+            else if (typeUpper === 'VIDEO') targetMediaType = 'VIDEO';
+        } else {
+            targetMediaType = stepKey === 'videos' ? 'VIDEO' : stepKey === 'carousels' ? 'CAROUSEL_IMAGE' : stepKey === 'stories' ? 'STORY' : 'IMAGE';
+        }
+
+        // Separate items matching our media type and other media types
+        const targetItems = allItems.filter(ci => ci.media_type === targetMediaType);
+        const otherItems = allItems.filter(ci => ci.media_type !== targetMediaType);
+
+        if (targetItems.length === 0) return;
+
+        // Remove the active item and rebuild orders
+        const safeIndex = Math.min(activeContentIndex, Math.max(0, targetItems.length - 1));
+        const updatedTargetItems = targetItems
+            .filter((_, idx) => idx !== safeIndex)
+            .map((item, idx) => ({ ...item, order: idx }));
+
+        const updatedItems = [...otherItems, ...updatedTargetItems];
+
+        setIsUploading(true);
+        try {
+            const payload = {
+                status: activeItem.originalData?.status,
+                content_items: updatedItems,
+            };
+
+            // If we deleted the main linked_image, reset it to the first item left, or null
+            if (activeItem.originalData?.linked_image) {
+                const firstImg = updatedTargetItems.find(ci => ci.gallery_image);
+                payload.linked_image = firstImg ? firstImg.gallery_image : null;
+            }
+
+            const res = await fetch(`${API_BASE}/contents/monthly-requests/${activeItem.id}/`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error('Failed to delete item');
+            const updated = await res.json();
+            setItems(prev => prev.map(itm => {
+                if (itm.id !== activeItem.id) return itm;
+                return {
+                    ...itm,
+                    originalData: updated,
+                };
+            }));
+            setActiveContentIndex(0);
+            alert('Media item deleted successfully.');
+        } catch (err) {
+            console.error('Delete item error:', err);
+            alert('Could not delete media item. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleUploadFileSelect = (e) => {
         const files = Array.from(e.target.files);
         setUploadSelectedFiles(files);
@@ -621,7 +723,7 @@ export default function MonthlyContentsPage() {
     };
 
     const handleUploadNewImage = async (filesToUse) => {
-        const files = filesToUse || uploadSelectedFiles;
+        const files = Array.isArray(filesToUse) ? filesToUse : uploadSelectedFiles;
         if (files.length === 0) {
             alert('Por favor selecciona al menos un archivo');
             return;
@@ -1412,6 +1514,17 @@ export default function MonthlyContentsPage() {
 
                                                 {/* Media Control Buttons */}
                                                 <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+                                                    {/* Delete Current Media (Visible only if media exists) */}
+                                                    {stepItems.length > 0 && (
+                                                        <button
+                                                            onClick={handleDeleteMediaItem}
+                                                            className="flex items-center justify-center bg-black/60 backdrop-blur-md hover:bg-red-600/90 text-white hover:text-white w-7 h-7 rounded-lg transition-all shadow-lg border border-white/10"
+                                                            title="Delete this media file"
+                                                        >
+                                                            <Trash2 size={13} />
+                                                        </button>
+                                                    )}
+
                                                     {/* Change Media or Select Image */}
                                                     <button
                                                         onClick={() => {
@@ -1444,6 +1557,84 @@ export default function MonthlyContentsPage() {
                                                     })()}
                                                 </div>
                                             </div>
+
+                                            {/* Carousel Reorder Strip */}
+                                            {(() => {
+                                                const isCarousel = currentStepMediaType === 'CAROUSEL_IMAGE' || (isAdhoc && activeItem.contentType?.toUpperCase() === 'CAROUSEL');
+                                                if (!isCarousel || stepItems.length < 2) return null;
+                                                return (
+                                                    <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/80 via-black/60 to-transparent px-4 pb-3 pt-8 rounded-b-3xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest flex items-center gap-1.5">
+                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                                                Drag to reorder
+                                                            </span>
+                                                            {isSavingOrder && (
+                                                                <span className="text-[10px] font-bold text-white/50 flex items-center gap-1">
+                                                                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                                    Saving...
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                                                            {stepItems.map((ci, idx) => {
+                                                                const thumb =
+                                                                    ci.gallery_image_details?.image_compressed ||
+                                                                    ci.gallery_image_details?.image_url ||
+                                                                    ci.gallery_image_details?.image ||
+                                                                    normalizeUrl(ci.file_url) ||
+                                                                    null;
+                                                                const isDragging = reorderDragIndex === idx;
+                                                                const isOver = reorderOverIndex === idx && reorderDragIndex !== idx;
+                                                                return (
+                                                                    <div
+                                                                        key={ci.id || idx}
+                                                                        draggable
+                                                                        onDragStart={() => setReorderDragIndex(idx)}
+                                                                        onDragEnter={() => setReorderOverIndex(idx)}
+                                                                        onDragOver={e => e.preventDefault()}
+                                                                        onDragEnd={() => {
+                                                                            if (reorderDragIndex !== null && reorderOverIndex !== null && reorderDragIndex !== reorderOverIndex) {
+                                                                                const reordered = [...stepItems];
+                                                                                const [moved] = reordered.splice(reorderDragIndex, 1);
+                                                                                reordered.splice(reorderOverIndex, 0, moved);
+                                                                                setActiveContentIndex(reorderOverIndex);
+                                                                                handleReorderCarousel(reordered);
+                                                                            }
+                                                                            setReorderDragIndex(null);
+                                                                            setReorderOverIndex(null);
+                                                                        }}
+                                                                        onClick={() => setActiveContentIndex(idx)}
+                                                                        className={`relative flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden cursor-grab active:cursor-grabbing border-2 transition-all duration-150 select-none
+                                                                            ${idx === activeContentIndex ? 'border-white shadow-lg shadow-white/20 scale-110' : 'border-white/20 hover:border-white/50'}
+                                                                            ${isDragging ? 'opacity-30 scale-95' : ''}
+                                                                            ${isOver ? 'border-primary scale-110 shadow-lg shadow-primary/40' : ''}
+                                                                        `}
+                                                                    >
+                                                                        {thumb ? (
+                                                                            ci.media_type === 'VIDEO' || (ci.file_url && ['.mp4','.mov','.webm'].some(ext => ci.file_url.toLowerCase().endsWith(ext))) ? (
+                                                                                <div className="w-full h-full bg-black flex items-center justify-center">
+                                                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white" opacity="0.8"><path d="M8 5v14l11-7z"/></svg>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <img src={thumb} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover pointer-events-none" />
+                                                                            )
+                                                                        ) : (
+                                                                            <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" opacity="0.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9l4-4 4 4 4-4 4 4"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>
+                                                                            </div>
+                                                                        )}
+                                                                        {/* Position badge */}
+                                                                        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center text-[8px] font-black text-white">
+                                                                            {idx + 1}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
 
                                             {/* Image Selection Modal/Overlay */}
                                             {isImageSelectionOpen && (
