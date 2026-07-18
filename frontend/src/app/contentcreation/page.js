@@ -4,8 +4,64 @@ import React, { useState, useEffect } from "react";
 import {
     Layout, CheckCircle2, Clock, AlertCircle, FileText, Video,
     MessageSquare, Filter, MoreHorizontal, User as UserIcon, X, Sparkles, Activity, ArrowRight,
-    Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check, Users
+    Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check, Users,
+    ChevronLeft, ChevronRight, Play, Pause, Trash2
 } from "lucide-react";
+
+// --- Helpers ---
+const normalizeMediaUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+};
+
+const parseNotes = (notes) => {
+    if (!notes) return { instructions: '', contentType: null, postDate: null };
+    const metaIdx = notes.indexOf('[Meta]');
+    const instructions = metaIdx > -1 ? notes.slice(0, metaIdx).trim() : notes.trim();
+    const metaSection = metaIdx > -1 ? notes.slice(metaIdx) : '';
+    const contentTypeMatch = metaSection.match(/Content Type: (\S+)/);
+    const postDateMatch = metaSection.match(/Post Date: (\S+)/);
+    return {
+        instructions,
+        contentType: contentTypeMatch ? contentTypeMatch[1] : null,
+        postDate: postDateMatch ? postDateMatch[1] : null,
+    };
+};
+
+function PreviewVideoPlayer({ src }) {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const handleToggle = (e) => {
+        e.stopPropagation();
+        const video = e.currentTarget.closest('.preview-video-container')?.querySelector('video');
+        if (!video) return;
+        if (video.paused) {
+            video.play().then(() => setIsPlaying(true)).catch(() => {});
+        } else {
+            video.pause();
+            setIsPlaying(false);
+        }
+    };
+    return (
+        <div className="preview-video-container relative w-full h-full bg-black flex items-center justify-center group/video">
+            <video
+                src={src}
+                className="w-full h-full object-contain"
+                loop
+                playsInline
+                onClick={handleToggle}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+            />
+            <button
+                onClick={handleToggle}
+                className={`absolute inset-0 m-auto w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-xl z-10 duration-200 ${isPlaying ? 'opacity-0 group-hover/video:opacity-100' : 'opacity-100'}`}
+            >
+                {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
+            </button>
+        </div>
+    );
+}
 
 export default function ContentBoardPage() {
     const [requests, setRequests] = useState([]);
@@ -15,6 +71,9 @@ export default function ContentBoardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [assignmentMenu, setAssignmentMenu] = useState(null);
+    const [previewCarouselIdx, setPreviewCarouselIdx] = useState(0);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Filters
     const [filterType, setFilterType] = useState("ALL");
@@ -297,6 +356,33 @@ export default function ContentBoardPage() {
         }
     };
 
+    const handleDeleteRequest = async () => {
+        if (!selectedRequest) return;
+        setIsDeleting(true);
+        try {
+            const userId = localStorage.getItem('userId');
+            const deleteUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${selectedRequest.id}/`);
+            if (userId) deleteUrl.searchParams.append('user_id', userId);
+
+            const response = await fetch(deleteUrl.toString(), {
+                method: 'DELETE',
+            });
+
+            if (response.ok || response.status === 204) {
+                setShowDeleteConfirm(false);
+                setSelectedRequest(null);
+                fetchData();
+            } else {
+                alert('Error al eliminar. Intenta de nuevo.');
+            }
+        } catch (error) {
+            console.error('Error deleting request:', error);
+            alert('Error de red al intentar eliminar.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-secondary/30 p-4 md:p-8 animate-in fade-in duration-500">
             <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 mx-auto">
@@ -399,7 +485,7 @@ export default function ContentBoardPage() {
                                                 return (
                                                     <div
                                                         key={req.id}
-                                                        onClick={() => setSelectedRequest(req)}
+                                                        onClick={() => { setSelectedRequest(req); setPreviewCarouselIdx(0); }}
                                                         className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col"
                                                     >
                                                         {/* Priority Stripe */}
@@ -524,20 +610,98 @@ export default function ContentBoardPage() {
                                             </div>
                                         </div>
 
-                                        {/* Media Placeholder */}
-                                        <div className="aspect-square bg-muted/30 rounded-2xl mb-6 flex items-center justify-center text-muted-foreground relative overflow-hidden group border border-border/50">
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent opacity-50"></div>
-                                            <div className="text-center p-6">
-                                                <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                                                    <Video size={32} className="text-foreground/80" />
+                                        {/* Media Viewer */}
+                                        {(() => {
+                                            const items = [...(selectedRequest.content_items || [])];
+                                            if (selectedRequest.linked_image_details && items.length === 0) {
+                                                items.push({ media_type: 'IMAGE', gallery_image_details: selectedRequest.linked_image_details });
+                                            }
+                                            const totalItems = items.length;
+                                            const safeIdx = Math.min(previewCarouselIdx, Math.max(0, totalItems - 1));
+
+                                            if (totalItems > 0) {
+                                                const ci = items[safeIdx];
+                                                const src = ci.gallery_image_details?.image_url
+                                                    || normalizeMediaUrl(ci.gallery_image_details?.image_compressed)
+                                                    || normalizeMediaUrl(ci.gallery_image_details?.image)
+                                                    || normalizeMediaUrl(ci.file_url);
+                                                const isVideo = ci.media_type === 'VIDEO' ||
+                                                    (typeof src === 'string' && (
+                                                        src.toLowerCase().split('?')[0].endsWith('.mp4') ||
+                                                        src.toLowerCase().split('?')[0].endsWith('.mov') ||
+                                                        src.toLowerCase().split('?')[0].endsWith('.webm') ||
+                                                        src.toLowerCase().includes('/videos/')
+                                                    ));
+                                                return (
+                                                    <div className="aspect-square bg-black/5 rounded-2xl mb-4 relative overflow-hidden group border border-border/50">
+                                                        {src ? (
+                                                            isVideo ? (
+                                                                <PreviewVideoPlayer src={src} />
+                                                            ) : (
+                                                                <img src={src} alt={ci.gallery_image_details?.title || 'Media'} className="w-full h-full object-cover" />
+                                                            )
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                                                                <ImageIcon size={36} className="mb-2 opacity-40" />
+                                                                <span className="text-sm font-medium opacity-50">Asset pending upload</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Carousel arrows */}
+                                                        {totalItems > 1 && safeIdx > 0 && (
+                                                            <button
+                                                                onClick={() => setPreviewCarouselIdx(i => Math.max(0, i - 1))}
+                                                                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 flex items-center justify-center text-white transition-all shadow-md"
+                                                            >
+                                                                <ChevronLeft size={18} />
+                                                            </button>
+                                                        )}
+                                                        {totalItems > 1 && safeIdx < totalItems - 1 && (
+                                                            <button
+                                                                onClick={() => setPreviewCarouselIdx(i => Math.min(totalItems - 1, i + 1))}
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 flex items-center justify-center text-white transition-all shadow-md"
+                                                            >
+                                                                <ChevronRight size={18} />
+                                                            </button>
+                                                        )}
+                                                        {/* Carousel dots */}
+                                                        {totalItems > 1 && (
+                                                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                                                                {items.map((_, idx) => (
+                                                                    <button
+                                                                        key={idx}
+                                                                        onClick={() => setPreviewCarouselIdx(idx)}
+                                                                        className={`rounded-full transition-all duration-200 ${idx === safeIdx ? 'w-4 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {/* Item count badge */}
+                                                        {totalItems > 1 && (
+                                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-[10px] font-bold">
+                                                                {safeIdx + 1} / {totalItems}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
+                                            // No media yet
+                                            const { contentType } = parseNotes(selectedRequest.notes);
+                                            const MediaIcon = contentType === 'video' ? Video : contentType === 'carousel' ? Layers : contentType === 'image' ? ImageIcon : FileText;
+                                            return (
+                                                <div className="aspect-square bg-muted/30 rounded-2xl mb-4 flex items-center justify-center text-muted-foreground relative overflow-hidden border border-border/50 border-dashed">
+                                                    <div className="text-center p-6">
+                                                        <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                                            <MediaIcon size={32} className="text-foreground/60" />
+                                                        </div>
+                                                        <span className="text-base font-bold text-foreground capitalize">{contentType || 'Content'} Preview</span>
+                                                        <p className="text-sm text-muted-foreground mt-1">Media pending upload</p>
+                                                    </div>
                                                 </div>
-                                                <span className="text-lg font-bold text-foreground">Media Placeholder</span>
-                                                <p className="text-sm text-muted-foreground mt-2">Content pending upload or generation</p>
-                                            </div>
-                                        </div>
+                                            );
+                                        })()}
 
                                         {/* Action Bar Mockup */}
-                                        <div className="flex gap-4 mb-6 text-foreground/20">
+                                        <div className="flex gap-4 mb-5 text-foreground/20">
                                             <div className="w-6 h-6 rounded-full bg-current"></div>
                                             <div className="w-6 h-6 rounded-full bg-current"></div>
                                             <div className="w-6 h-6 rounded-full bg-current"></div>
@@ -545,25 +709,60 @@ export default function ContentBoardPage() {
                                             <div className="w-6 h-6 rounded-full bg-current"></div>
                                         </div>
 
-                                        {/* Caption */}
-                                        <div className="space-y-4">
-                                            <p className="text-foreground text-sm leading-7">
-                                                {selectedRequest.ai_caption ? (
-                                                    <span className="block font-medium">{selectedRequest.ai_caption}</span>
-                                                ) : (
-                                                    <span className="italic text-muted-foreground/60">No automated caption generated yet...</span>
-                                                )}
-                                            </p>
-                                            {selectedRequest.content_text && (
-                                                <div className="p-4 bg-secondary/50 rounded-xl text-xs text-muted-foreground border border-border/50">
-                                                    <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
-                                                        <FileText size={10} />
-                                                        Content Strategy
-                                                    </span>
-                                                    {selectedRequest.content_text}
+                                        {/* Instructions / Caption */}
+                                        {(() => {
+                                            const { instructions, contentType, postDate } = parseNotes(selectedRequest.notes);
+                                            return (
+                                                <div className="space-y-3">
+                                                    {/* Content Type + Post Date pills */}
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {contentType && (
+                                                            <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20 capitalize">
+                                                                {contentType}
+                                                            </span>
+                                                        )}
+                                                        {postDate && (
+                                                            <span className="px-2.5 py-1 rounded-full bg-secondary text-muted-foreground text-[10px] font-semibold border border-border">
+                                                                📅 {postDate}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {/* Instructions */}
+                                                    {instructions && (
+                                                        <div className="p-4 bg-secondary/50 rounded-xl text-sm text-foreground border border-border/50 leading-relaxed">
+                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
+                                                                <FileText size={10} />
+                                                                Instructions
+                                                            </span>
+                                                            <p className="whitespace-pre-wrap">{instructions}</p>
+                                                        </div>
+                                                    )}
+                                                    {/* AI Caption */}
+                                                    {selectedRequest.ai_caption && (
+                                                        <div className="p-4 bg-secondary/50 rounded-xl text-sm text-muted-foreground border border-border/50">
+                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
+                                                                <Sparkles size={10} />
+                                                                AI Caption
+                                                            </span>
+                                                            <p>{selectedRequest.ai_caption}</p>
+                                                        </div>
+                                                    )}
+                                                    {/* Content Strategy */}
+                                                    {selectedRequest.content_text && (
+                                                        <div className="p-4 bg-secondary/50 rounded-xl text-xs text-muted-foreground border border-border/50">
+                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
+                                                                <FileText size={10} />
+                                                                Content Strategy
+                                                            </span>
+                                                            <p>{selectedRequest.content_text}</p>
+                                                        </div>
+                                                    )}
+                                                    {!instructions && !selectedRequest.ai_caption && !selectedRequest.content_text && (
+                                                        <span className="italic text-muted-foreground/60 text-sm">No instructions or caption yet...</span>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             </div>
@@ -630,11 +829,81 @@ export default function ContentBoardPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-4 border-t border-border bg-muted/10">
+                                <div className="p-4 border-t border-border bg-muted/10 flex flex-col gap-2">
                                     <button className="w-full py-3 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                                         Add Note <ArrowRight size={16} />
                                     </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        className="w-full py-3 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive font-bold text-sm transition-all flex items-center justify-center gap-2 border border-destructive/20 hover:border-destructive/40"
+                                    >
+                                        <Trash2 size={15} />
+                                        Delete Post
+                                    </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {showDeleteConfirm && selectedRequest && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+                        <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border animate-in zoom-in-95 duration-200 overflow-hidden">
+                            {/* Header */}
+                            <div className="p-6 pb-4">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                                        <Trash2 size={22} className="text-destructive" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-foreground">Delete Post</h3>
+                                        <p className="text-sm text-muted-foreground">This action cannot be undone</p>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl">
+                                    <p className="text-sm text-foreground font-medium leading-relaxed">
+                                        Are you sure you want to delete this post for
+                                        {' '}<span className="font-black text-primary">
+                                            {selectedRequest.client_details?.client_profile?.practice_name || selectedRequest.client_details?.username || 'Client'}
+                                        </span>?
+                                    </p>
+                                    {selectedRequest.notes && (
+                                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                            {parseNotes(selectedRequest.notes).instructions || selectedRequest.notes}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            {/* Actions */}
+                            <div className="p-4 pt-2 flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    disabled={isDeleting}
+                                    className="flex-1 py-3 rounded-xl border border-border bg-secondary/50 hover:bg-secondary font-bold text-sm text-foreground transition-all disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDeleteRequest}
+                                    disabled={isDeleting}
+                                    className="flex-1 py-3 rounded-xl bg-destructive hover:bg-destructive/90 text-white font-bold text-sm transition-all shadow-lg shadow-destructive/20 flex items-center justify-center gap-2 disabled:opacity-60"
+                                >
+                                    {isDeleting ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                            </svg>
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Trash2 size={15} />
+                                            Yes, delete
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>

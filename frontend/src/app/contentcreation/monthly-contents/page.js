@@ -188,8 +188,10 @@ export default function MonthlyContentsPage() {
     // Upload functionality
     const [uploadSelectedFiles, setUploadSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
     const [contentFolderId, setContentFolderId] = useState(null);
+    const dropFilesRef = React.useRef(null);
     const CREATED_CONTENT_FOLDER_NAME = "Created";
     const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
     const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
@@ -573,8 +575,54 @@ export default function MonthlyContentsPage() {
         setUploadSelectedFiles(files);
     };
 
-    const handleUploadNewImage = async () => {
-        if (uploadSelectedFiles.length === 0) {
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        if (isUploading) return;
+
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        if (droppedFiles.length === 0) return;
+
+        // Determine if this is a carousel type
+        const isCarousel = currentStepMediaType === 'CAROUSEL_IMAGE' ||
+            (isAdhoc && activeItem?.contentType?.toUpperCase() === 'CAROUSEL') ||
+            steps[currentStepIndex]?.id === 'carousels';
+
+        // For non-carousel types, only allow 1 file
+        if (!isCarousel && droppedFiles.length > 1) {
+            alert('Only 1 file allowed for this content type. Please drop a single file.');
+            return;
+        }
+
+        // Validate accepted types
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.webm', '.mkv', '.avi'];
+        const invalidFiles = droppedFiles.filter(f => {
+            const name = f.name.toLowerCase();
+            return !allowedExtensions.some(ext => name.endsWith(ext)) && !f.type.startsWith('image/') && !f.type.startsWith('video/');
+        });
+        if (invalidFiles.length > 0) {
+            alert(`Unsupported file type: ${invalidFiles.map(f => f.name).join(', ')}`);
+            return;
+        }
+
+        // Set files and trigger upload automatically
+        setUploadSelectedFiles(droppedFiles);
+        setSelectionAction(stepItems.length > 0 ? 'change' : 'add');
+        dropFilesRef.current = droppedFiles;
+        // Use timeout so state updates flush before the upload runs
+        setTimeout(() => {
+            if (dropFilesRef.current) {
+                handleUploadNewImage(dropFilesRef.current);
+                dropFilesRef.current = null;
+            }
+        }, 50);
+    };
+
+    const handleUploadNewImage = async (filesToUse) => {
+        const files = filesToUse || uploadSelectedFiles;
+        if (files.length === 0) {
             alert('Por favor selecciona al menos un archivo');
             return;
         }
@@ -592,7 +640,7 @@ export default function MonthlyContentsPage() {
                 } else if (typeUpper === 'VIDEO') {
                     targetMediaType = 'VIDEO';
                 } else {
-                    const firstFile = uploadSelectedFiles[0];
+                    const firstFile = files[0];
                     const isVideoFile = firstFile && (firstFile.type?.startsWith('video/') || 
                         ['.mp4', '.mov', '.webm', '.mkv', '.avi'].some(ext => firstFile.name?.toLowerCase().endsWith(ext)));
                     targetMediaType = isVideoFile ? 'VIDEO' : 'IMAGE';
@@ -615,7 +663,7 @@ export default function MonthlyContentsPage() {
             const imagesToUpload = [];
             const videosToUpload = [];
 
-            uploadSelectedFiles.forEach(file => {
+            files.forEach(file => {
                 const isVideo = file.type?.startsWith('video/') || 
                     ['.mp4', '.mov', '.webm', '.mkv', '.avi'].some(ext => file.name?.toLowerCase().endsWith(ext));
                 if (isVideo) {
@@ -1238,7 +1286,27 @@ export default function MonthlyContentsPage() {
                                             <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
                                             {/* Media - Instagram style */}
-                                            <div className="w-full h-full relative flex items-center justify-center bg-black/5">
+                                            <div
+                                                className={`w-full h-full relative flex items-center justify-center bg-black/5 transition-all duration-200 ${isDragOver ? 'bg-primary/10 ring-2 ring-primary ring-inset' : ''}`}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                                                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                                                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                                                onDrop={handleDrop}
+                                            >
+                                                {/* Drag overlay */}
+                                                {isDragOver && (
+                                                    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-primary/20 backdrop-blur-sm pointer-events-none rounded-xl">
+                                                        <div className="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary border-dashed flex items-center justify-center mb-4 animate-pulse">
+                                                            <Upload size={32} className="text-primary" />
+                                                        </div>
+                                                        <p className="text-primary font-black text-lg">Drop to upload</p>
+                                                        <p className="text-primary/70 text-sm mt-1">
+                                                            {(currentStepMediaType === 'CAROUSEL_IMAGE' || (isAdhoc && activeItem?.contentType?.toUpperCase() === 'CAROUSEL') || steps[currentStepIndex]?.id === 'carousels')
+                                                                ? 'Multiple files allowed'
+                                                                : 'One file only'}
+                                                        </p>
+                                                    </div>
+                                                )}
                                                 {(() => {
                                                     const totalItems = stepItems.length;
                                                     const safeIndex = Math.min(activeContentIndex, Math.max(0, totalItems - 1));
