@@ -233,3 +233,34 @@ def delete_from_postproxy(postproxy_id):
         logger.error(f"[Postproxy] Connection error deleting post {postproxy_id}: {e}")
         return {"success": False, "error": str(e)}
 
+
+def delete_profile_from_postproxy(profile_id):
+    """
+    Deletes (disconnects) a social profile on Postproxy.
+    """
+    if not profile_id:
+        return {"success": False, "error": "No profile_id provided"}
+
+    api_key = get_api_key()
+    if not api_key:
+        return {"success": False, "error": "POSTPROXY_API_KEY not configured"}
+
+    url = f"https://api.postproxy.dev/api/profiles/{profile_id}"
+    req = urllib.request.Request(
+        url,
+        method="DELETE",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            res = json.loads(response.read().decode())
+            logger.info(f"[Postproxy] Profile {profile_id} deleted successfully: {res}")
+            return {"success": True, "data": res}
+    except Exception as e:
+        logger.error(f"[Postproxy] Connection error deleting profile {profile_id}: {e}")
+        return {"success": False, "error": str(e)}
+
+

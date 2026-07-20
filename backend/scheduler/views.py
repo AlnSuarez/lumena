@@ -353,6 +353,13 @@ class ConnectSocialAccountView(APIView):
                 if res_init.get("success") and "url" in res_init:
                     return Response({"url": res_init["url"]})
                 return Response({"error": "Failed to retrieve connection URL"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except urllib.error.HTTPError as e:
+            try:
+                error_body = json.loads(e.read().decode())
+                error_msg = error_body.get("error", str(e))
+            except Exception:
+                error_msg = str(e)
+            return Response({"error": f"Failed to initialize connection: {error_msg}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": f"Failed to initialize connection: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -411,6 +418,12 @@ class SocialAccountDestroyView(generics.DestroyAPIView):
     queryset = SocialAccount.objects.all()
     serializer_class = SocialAccountSerializer
     permission_classes = [permissions.AllowAny]
+
+    def perform_destroy(self, instance):
+        if instance.postproxy_profile_id:
+            from .publisher import delete_profile_from_postproxy
+            delete_profile_from_postproxy(instance.postproxy_profile_id)
+        instance.delete()
 
 
 class ScheduledPostMetricsView(APIView):
