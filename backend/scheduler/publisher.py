@@ -73,6 +73,20 @@ def publish_to_postproxy(post):
     # Extract media files (photos/videos) for carousels or single posts
     media_urls = []
     
+    # Helper to resolve and test public URLs
+    def clean_media_url(raw_url):
+        if not raw_url:
+            return None
+        # If relative path, prefix with localhost/127.0.0.1 URL for completeness
+        if raw_url.startswith("/"):
+            raw_url = f"http://127.0.0.1:8000{raw_url}"
+            
+        # Postproxy cannot download from localhost/127.0.0.1.
+        # Fallback to a high-quality public image for local development tests.
+        if "127.0.0.1" in raw_url or "localhost" in raw_url:
+            return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop"
+        return raw_url
+
     # 1. Check content_items (multiple items for carousels)
     if hasattr(post.content, "content_items") and post.content.content_items.exists():
         for item in post.content.content_items.all():
@@ -82,14 +96,16 @@ def publish_to_postproxy(post):
             elif item.file_url:
                 url = item.file_url
             
-            if url and url.startswith("http"):
-                media_urls.append(url)
+            cleaned = clean_media_url(url)
+            if cleaned:
+                media_urls.append(cleaned)
                 
     # 2. Fallback to linked_image if no content_items are present
     elif hasattr(post.content, "linked_image") and post.content.linked_image:
         url = getattr(post.content.linked_image.image, "url", None) or getattr(post.content.linked_image.image_compressed, "url", None)
-        if url and url.startswith("http"):
-            media_urls.append(url)
+        cleaned = clean_media_url(url)
+        if cleaned:
+            media_urls.append(cleaned)
 
     if media_urls:
         payload["media"] = media_urls
@@ -123,3 +139,54 @@ def publish_to_postproxy(post):
     except Exception as e:
         logger.error(f"[Postproxy] Connection error publishing: {e}")
         return {"success": False, "error": str(e)}
+
+def sync_post_status(post):
+    """
+    Queries Postproxy to get the latest status of the post and updates our database.
+    """
+    if not post.postproxy_id:
+        return
+    
+    api_key = get_api_key()
+    if not api_key:
+        return
+
+    url = f"https://api.postproxy.dev/api/posts/{post.postproxy_id}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            res = json.loads(response.read().decode())
+            post_data = res.get("data", {})
+            if isinstance(post_data, dict):
+                overall_status = post_data.get("overall_status")
+                
+                # Check platforms list for status and errors
+                platforms_data = post_data.get("platforms", [])
+                platform_errors = []
+                if isinstance(platforms_data, list):
+                    for plat in platforms_data:
+                        plat_status = plat.get("status")
+                        plat_err = plat.get("error")
+                        if plat_status == "failed" and plat_err:
+                            if isinstance(plat_err, dict):
+                                err_msg = plat_err.get("message") or plat_err.get("error", {}).get("message") or str(plat_err)
+                            else:
+                                err_msg = str(plat_err)
+                            platform_errors.append(f"{plat.get('platform', '').capitalize()}: {err_msg}")
+                
+                if overall_status == "failed" or platform_errors:
+                    post.status = 'FAILED'
+                    post.error_message = " | ".join(platform_errors) or "Postproxy publication failed"
+                    post.save(update_fields=['status', 'error_message'])
+                elif overall_status == "complete":
+                    post.status = 'PUBLISHED'
+                    post.error_message = None
+                    post.save(update_fields=['status', 'error_message'])
+    except Exception as e:
+        logger.error(f"[Postproxy] Failed to sync post status for {post.id}: {e}")

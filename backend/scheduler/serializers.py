@@ -12,9 +12,9 @@ class ScheduledPostSerializer(serializers.ModelSerializer):
             'id', 'content', 'client', 'platforms', 'scheduled_at',
             'caption', 'hashtags', 'status', 'error_message',
             'created_by', 'created_at', 'updated_at', 'published_at',
-            'client_details', 'content_details',
+            'postproxy_id', 'client_details', 'content_details',
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'published_at', 'error_message']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'published_at', 'error_message', 'postproxy_id']
 
     def get_client_details(self, obj):
         return {"id": obj.client.id, "username": obj.client.username}

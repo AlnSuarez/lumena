@@ -30,12 +30,12 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
-const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/api`;
 
 const normalizeUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${url}`;
+    return `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}${url}`;
 };
 
 // ─── Mock / demo data (used when API is unavailable) ───────────────────
@@ -567,9 +567,20 @@ export default function SchedulerPage() {
     const [newHashtag, setNewHashtag] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isScheduling, setIsScheduling] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [showPublishConfirm, setShowPublishConfirm] = useState(false);
 
     const [toast, setToast] = useState(null);
     const hashtagInputRef = useRef(null);
+
+    // Publication Log Tab State
+    const [activeTab, setActiveTab] = useState("editor"); // 'editor' or 'log'
+    const [logPosts, setLogPosts] = useState([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [filterLogClient, setFilterLogClient] = useState("ALL");
+    const [filterLogStatus, setFilterLogStatus] = useState("ALL"); // 'ALL', 'SCHEDULED', 'PUBLISHED', 'DRAFT', 'FAILED'
+    const [logMetrics, setLogMetrics] = useState({}); // { post_id: { likes, comments, etc } }
+    const [activeLogPost, setActiveLogPost] = useState(null);
 
     // Load clients
     useEffect(() => {
@@ -704,6 +715,57 @@ export default function SchedulerPage() {
         fetchContent();
     }, [selectedClient]);
 
+    const fetchLogs = async () => {
+        setLoadingLogs(true);
+        try {
+            const url = new URL(`${API_BASE}/scheduler/schedules/`);
+            if (filterLogClient !== 'ALL') {
+                url.searchParams.append('client_id', filterLogClient);
+            }
+            if (filterLogStatus !== 'ALL') {
+                url.searchParams.append('status', filterLogStatus);
+            }
+            const res = await fetch(url.toString());
+            if (res.ok) {
+                const data = await res.json();
+                setLogPosts(data);
+                // Pre-fetch metrics for published posts
+                data.forEach(post => {
+                    if (post.status === 'PUBLISHED') {
+                        fetchPostMetrics(post.id);
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("Error fetching scheduled logs:", err);
+        } finally {
+            setLoadingLogs(false);
+        }
+    };
+
+    const fetchPostMetrics = async (postId) => {
+        if (logMetrics[postId]) return; // already loaded
+        try {
+            const res = await fetch(`${API_BASE}/scheduler/schedules/${postId}/metrics/`);
+            if (res.ok) {
+                const data = await res.json();
+                setLogMetrics(prev => ({
+                    ...prev,
+                    [postId]: data.metrics
+                }));
+            }
+        } catch (err) {
+            console.error("Error fetching post metrics:", err);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'log') {
+            fetchLogs();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, filterLogClient, filterLogStatus]);
+
     // Populate caption/hashtags when content selected
     useEffect(() => {
         if (selectedContent) {
@@ -767,14 +829,20 @@ export default function SchedulerPage() {
         setNewHashtag("");
     };
 
-    const submitSchedule = async (isDraft) => {
+    const submitSchedule = async (mode) => {
         if (!selectedContent || !selectedClient) return;
         if (selectedPlatforms.length === 0) {
             setToast({ message: "Select at least one platform.", type: "error" });
             return;
         }
 
-        const setter = isDraft ? setIsSaving : setIsScheduling;
+        const isDraft = mode === 'draft';
+        const isPublish = mode === 'publish';
+        
+        let setter = setIsScheduling;
+        if (isDraft) setter = setIsSaving;
+        else if (isPublish) setter = setIsPublishing;
+
         setter(true);
 
         const payload = {
@@ -786,7 +854,8 @@ export default function SchedulerPage() {
             caption,
             hashtags,
             content_items: selectedContent.content_items || [],
-            status: isDraft ? "DRAFT" : "SCHEDULED",
+            status: isDraft ? "DRAFT" : (isPublish ? "PUBLISHING" : "SCHEDULED"),
+            publish_now: isPublish,
         };
 
         try {
@@ -801,27 +870,23 @@ export default function SchedulerPage() {
                 setToast({
                     message: isDraft
                         ? "Draft saved successfully!"
-                        : "Content scheduled successfully! 🚀",
+                        : (isPublish ? "Published immediately! 🚀" : "Content scheduled successfully! 🚀"),
                     type: "success",
                 });
                 if (!isDraft) handleDiscard();
             } else {
+                const errData = await res.json().catch(() => ({}));
                 setToast({
-                    message: isDraft
-                        ? "Draft saved! (demo mode)"
-                        : "Scheduled! (demo mode) 🚀",
-                    type: "success",
+                    message: errData.error || `Failed to save schedule (Status ${res.status})`,
+                    type: "error",
                 });
-                if (!isDraft) handleDiscard();
             }
-        } catch {
+        } catch (err) {
+            console.error("Network or execution error in submitSchedule:", err);
             setToast({
-                message: isDraft
-                    ? "Draft saved! (demo mode)"
-                    : "Scheduled! (demo mode) 🚀",
-                type: "success",
+                message: "Connection failed. Please ensure the backend server is running.",
+                type: "error",
             });
-            if (!isDraft) handleDiscard();
         } finally {
             setter(false);
         }
@@ -832,8 +897,8 @@ export default function SchedulerPage() {
             <div className={`bg-secondary ${borderRadius} flex flex-col h-[85vh] min-h-0 mx-0 overflow-hidden transition-all duration-300`}>
 
                 {/* Header */}
-                <div className="px-8 pt-8 pb-5 flex items-start justify-between flex-shrink-0 border-b border-border">
-                    <div>
+                <div className="px-8 pt-6 pb-5 flex items-start justify-between flex-shrink-0 border-b border-border">
+                    <div className="flex-1">
                         <h1 className="text-4xl font-black text-foreground tracking-tight flex items-center gap-3">
                             <Sparkles size={32} style={{ color: primaryColor }} />
                             Scheduler
@@ -841,8 +906,9 @@ export default function SchedulerPage() {
                         <p className="text-muted-foreground mt-1 text-sm">
                             Customize and schedule monthly assets for your brand
                         </p>
+                        
                         {/* Step progress */}
-                        <div className="flex items-center gap-2 mt-4">
+                        <div className="flex items-center gap-2 mt-4 animate-in fade-in slide-in-from-top-1 duration-200">
                             <StepBadge
                                 number="1"
                                 label="Select Client"
@@ -868,9 +934,10 @@ export default function SchedulerPage() {
                             />
                         </div>
                     </div>
+                    
                     <button
                         onClick={handleDiscard}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
+                        className="flex items-center gap-2 px-4 py-2 mt-2 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
                     >
                         <X size={16} />
                         Discard Changes
@@ -1013,29 +1080,38 @@ export default function SchedulerPage() {
                                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
                                         Select Platform
                                     </p>
-                                    <div className="flex items-center gap-3">
-                                        {PLATFORMS.filter((p) => availablePlatforms.includes(p.id)).map((platform) => (
-                                            <PlatformButton
-                                                key={platform.id}
-                                                platform={platform}
-                                                selected={selectedPlatforms.includes(
-                                                    platform.id
-                                                )}
-                                                onClick={() =>
-                                                    togglePlatform(platform.id)
-                                                }
-                                            />
-                                        ))}
+                                    <div className="flex flex-wrap gap-2.5">
+                                        {availablePlatforms.map((platformId) => {
+                                            const p = PLATFORMS.find(x => x.id === platformId);
+                                            if (!p) return null;
+                                            const PlatformIcon = p.icon;
+                                            const isSelected = selectedPlatforms.includes(p.id);
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => togglePlatform(p.id)}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 font-semibold text-sm transition-all duration-200 ${
+                                                        isSelected
+                                                            ? "shadow-sm border-transparent text-white"
+                                                            : "border-border bg-card text-muted-foreground hover:border-border/80"
+                                                    }`}
+                                                    style={isSelected ? { backgroundColor: primaryColor } : {}}
+                                                >
+                                                    <PlatformIcon size={16} />
+                                                    {p.label}
+                                                </button>
+                                            );
+                                        })}
                                         {availablePlatforms.length === 0 && (
-                                            <p className="text-sm text-red-500 font-bold">
-                                                Este cliente no tiene redes sociales vinculadas. Configúralas en "Client Settings" o en el panel de usuarios.
+                                            <p className="text-xs text-muted-foreground italic">
+                                                No connected social accounts found for this client.
                                             </p>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Date & Time */}
-                                <div className="grid grid-cols-2 gap-5">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
                                             Schedule Date
@@ -1050,7 +1126,6 @@ export default function SchedulerPage() {
                                                 }
                                                 min={getToday()}
                                                 className="w-full pl-4 pr-10 py-3 rounded-xl border-2 border-border text-foreground font-semibold text-sm focus:outline-none transition-colors bg-background appearance-none cursor-pointer"
-                                                style={{ '--tw-border-opacity': 1 }}
                                                 onFocus={(e) => e.target.style.borderColor = primaryColor}
                                                 onBlur={(e) => e.target.style.borderColor = ''}
                                             />
@@ -1116,15 +1191,14 @@ export default function SchedulerPage() {
                                                 <Hash size={10} />
                                                 {tag.replace("#", "")}
                                                 <button
-                                                    onClick={() =>
-                                                        removeHashtag(tag)
-                                                    }
+                                                    onClick={() => removeHashtag(tag)}
                                                     className="opacity-50 hover:opacity-100 transition-opacity ml-0.5"
                                                 >
                                                     <X size={10} />
                                                 </button>
                                             </span>
                                         ))}
+                                        
                                         {/* Add hashtag input */}
                                         <div className="flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full border-2 border-dashed border-border hover:border-primary/40 transition-colors bg-background">
                                             <Hash
@@ -1135,14 +1209,9 @@ export default function SchedulerPage() {
                                                 ref={hashtagInputRef}
                                                 type="text"
                                                 value={newHashtag}
-                                                onChange={(e) =>
-                                                    setNewHashtag(e.target.value)
-                                                }
+                                                onChange={(e) => setNewHashtag(e.target.value)}
                                                 onKeyDown={(e) => {
-                                                    if (
-                                                        e.key === "Enter" ||
-                                                        e.key === " "
-                                                    ) {
+                                                    if (e.key === "Enter" || e.key === " ") {
                                                         e.preventDefault();
                                                         addHashtag();
                                                     }
@@ -1168,9 +1237,9 @@ export default function SchedulerPage() {
                                 <div className="flex items-center gap-3 pt-2 pb-4">
                                     <button
                                         id="save-draft-btn"
-                                        onClick={() => submitSchedule(true)}
-                                        disabled={isSaving || isScheduling}
-                                        className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-border text-foreground font-bold text-sm hover:bg-muted transition-all duration-200 disabled:opacity-50"
+                                        onClick={() => submitSchedule('draft')}
+                                        disabled={isSaving || isScheduling || isPublishing}
+                                        className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-border text-foreground font-bold text-sm hover:bg-muted transition-all duration-200 disabled:opacity-50"
                                     >
                                         {isSaving ? (
                                             <span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
@@ -1181,17 +1250,30 @@ export default function SchedulerPage() {
                                     </button>
                                     <button
                                         id="schedule-btn"
-                                        onClick={() => submitSchedule(false)}
-                                        disabled={isSaving || isScheduling}
-                                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm active:scale-95 transition-all duration-200 shadow-lg disabled:opacity-50"
-                                        style={{ backgroundColor: primaryColor, boxShadow: `0 4px 15px ${primaryColor}44` }}
+                                        onClick={() => submitSchedule('schedule')}
+                                        disabled={isSaving || isScheduling || isPublishing}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-border hover:bg-muted font-bold text-sm transition-all duration-200 disabled:opacity-50"
                                     >
                                         {isScheduling ? (
+                                            <span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <Calendar size={16} />
+                                        )}
+                                        Schedule
+                                    </button>
+                                    <button
+                                        id="publish-now-btn"
+                                        onClick={() => setShowPublishConfirm(true)}
+                                        disabled={isSaving || isScheduling || isPublishing}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-sm active:scale-95 transition-all duration-200 shadow-lg disabled:opacity-50"
+                                        style={{ backgroundColor: primaryColor, boxShadow: `0 4px 15px ${primaryColor}44` }}
+                                    >
+                                        {isPublishing ? (
                                             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                         ) : (
                                             <Send size={16} />
                                         )}
-                                        Schedule
+                                        Publish Now
                                     </button>
                                 </div>
                             </div>
@@ -1208,6 +1290,57 @@ export default function SchedulerPage() {
                     onSelect={handleSelectContent}
                     primaryColor={primaryColor}
                 />
+            )}
+
+            {/* Publish Confirmation Modal */}
+            {showPublishConfirm && selectedContent && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+                    <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border animate-in zoom-in-95 duration-200 overflow-hidden">
+                        <div className="p-6 pb-4">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}>
+                                    <Send size={22} style={{ color: primaryColor }} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-foreground">Publish Content Now</h3>
+                                    <p className="text-sm text-muted-foreground">This post will go live immediately</p>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-secondary/30 rounded-2xl border border-border/50">
+                                <p className="text-sm text-foreground font-medium leading-relaxed">
+                                    Are you sure you want to publish this post for
+                                    {' '}<span className="font-black" style={{ color: primaryColor }}>
+                                        {selectedClient?.name || 'Client'}
+                                    </span> now?
+                                </p>
+                                {caption && (
+                                    <p className="text-xs text-muted-foreground mt-2 line-clamp-3 bg-card p-3 rounded-xl border border-border/30">
+                                        {caption}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="p-6 pt-2 flex gap-3">
+                            <button
+                                onClick={() => setShowPublishConfirm(false)}
+                                className="flex-1 py-3 rounded-xl border border-border bg-secondary/50 hover:bg-secondary font-bold text-sm text-foreground transition-all duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowPublishConfirm(false);
+                                    submitSchedule('publish');
+                                }}
+                                className="flex-1 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 shadow-lg flex items-center justify-center gap-2"
+                                style={{ backgroundColor: primaryColor }}
+                            >
+                                <Send size={15} />
+                                Yes, publish now
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Toast */}

@@ -9,4 +9,5 @@ urlpatterns = [
     path('social-accounts/connect/', views.ConnectSocialAccountView.as_view(), name='social-account-connect'),
     path('social-accounts/callback/', views.SocialAccountCallbackView.as_view(), name='social-account-callback'),
     path('social-accounts/<int:pk>/', views.SocialAccountDestroyView.as_view(), name='social-account-delete'),
+    path('schedules/<int:pk>/metrics/', views.ScheduledPostMetricsView.as_view(), name='scheduled-post-metrics'),
 ]

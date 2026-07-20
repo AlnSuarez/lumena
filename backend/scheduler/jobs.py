@@ -35,12 +35,13 @@ def publish_due_posts():
                 post.status = 'PUBLISHED'
                 post.published_at = now
                 post.error_message = None
+                post.save(update_fields=['status', 'published_at', 'error_message'])
+                logger.info(f"[publish_due_posts] Post {post.id} published successfully")
             else:
                 post.status = 'FAILED'
                 post.error_message = result['error']
-            post.save(update_fields=['status', 'published_at', 'error_message'])
-
-            logger.info(f"[publish_due_posts] Post {post.id} published successfully")
+                post.save(update_fields=['status', 'error_message'])
+                logger.error(f"[publish_due_posts] Post {post.id} failed: {result['error']}")
 
         except Exception as e:
             post.status = 'FAILED'

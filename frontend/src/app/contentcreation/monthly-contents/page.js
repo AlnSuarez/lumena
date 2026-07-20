@@ -1476,20 +1476,7 @@ export default function MonthlyContentsPage() {
                                                                                 <ChevronRight size={20} />
                                                                             </button>
                                                                         )}
-                                                                        {/* Instagram-style dots */}
-                                                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
-                                                                            {stepItems.map((_ci, ciIdx) => (
-                                                                                <button
-                                                                                    key={_ci.id || ciIdx}
-                                                                                    onClick={() => setActiveContentIndex(ciIdx)}
-                                                                                    className={`w-1.5 h-1.5 rounded-full transition-all ${
-                                                                                        ciIdx === activeContentIndex
-                                                                                            ? 'bg-white scale-110'
-                                                                                            : 'bg-white/40 hover:bg-white/60'
-                                                                                    }`}
-                                                                                />
-                                                                            ))}
-                                                                        </div>
+
                                                                         {/* Counter badge */}
                                                                         <div className="absolute top-3 right-14 z-30 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] text-white font-medium">
                                                                             {activeContentIndex + 1}/{stepItems.length}

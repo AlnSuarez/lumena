@@ -243,9 +243,14 @@ export function Sidebar() {
 
                     {/* Scheduler Icon */}
                     {userRole === 'SUPERUSER' && (
-                        <Link href="/contentcreation/scheduler" title="Scheduler" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/scheduler') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
-                            <Clock size={24} />
-                        </Link>
+                        <>
+                            <Link href="/contentcreation/scheduler" title="Scheduler" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/scheduler') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                                <Clock size={24} />
+                            </Link>
+                            <Link href="/contentcreation/publication-log" title="Publication Log" className={`p-3 rounded-full transition-all ${isActive('/contentcreation/publication-log') ? 'bg-primary text-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent text-muted-foreground hover:text-primary'}`}>
+                                <ClipboardList size={24} />
+                            </Link>
+                        </>
                     )}
                     
                     {/* Administration Icon */}
@@ -376,15 +381,26 @@ export function Sidebar() {
                                         </li>
                                     )}
                                     {userRole === 'SUPERUSER' && (
-                                        <li>
-                                            <Link href="/contentcreation/scheduler" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/scheduler') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                <span className="flex items-center gap-2">
-                                                    <Clock size={16} className="group-hover:text-primary transition-colors" />
-                                                    Scheduler
-                                                </span>
-                                                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                                            </Link>
-                                        </li>
+                                        <>
+                                            <li>
+                                                <Link href="/contentcreation/scheduler" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/scheduler') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    <span className="flex items-center gap-2">
+                                                        <Clock size={16} className="group-hover:text-primary transition-colors" />
+                                                        Scheduler
+                                                    </span>
+                                                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link href="/contentcreation/publication-log" className={`group flex items-center justify-between transition-all py-2 px-3 rounded-full ${isActive('/contentcreation/publication-log') ? 'text-primary-foreground bg-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    <span className="flex items-center gap-2">
+                                                        <ClipboardList size={16} className="group-hover:text-primary transition-colors" />
+                                                        Publication Log
+                                                    </span>
+                                                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                                                </Link>
+                                            </li>
+                                        </>
                                     )}
                                 </ul>
                             )}

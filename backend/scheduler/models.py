@@ -44,6 +44,7 @@ class ScheduledPost(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Published At"))
+    postproxy_id = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("Postproxy ID"))
 
     class Meta:
         verbose_name = _("Scheduled Post")
