@@ -63,10 +63,15 @@ def publish_to_postproxy(post):
         body_text = f"{body_text}\n\n{hashtags_str}".strip()
 
     # Construct request payload
+    post_payload = {
+        "body": body_text
+    }
+    from django.utils import timezone
+    if post.scheduled_at and post.scheduled_at > timezone.now():
+        post_payload["scheduled_at"] = post.scheduled_at.isoformat()
+
     payload = {
-        "post": {
-            "body": body_text
-        },
+        "post": post_payload,
         "profiles": target_profile_ids
     }
 
@@ -92,7 +97,10 @@ def publish_to_postproxy(post):
         for item in post.content.content_items.all():
             url = None
             if item.gallery_image:
-                url = getattr(item.gallery_image.image, "url", None) or getattr(item.gallery_image.image_compressed, "url", None)
+                if item.gallery_image.image:
+                    url = item.gallery_image.image.url
+                elif item.gallery_image.image_compressed:
+                    url = item.gallery_image.image_compressed.url
             elif item.file_url:
                 url = item.file_url
             
@@ -102,7 +110,11 @@ def publish_to_postproxy(post):
                 
     # 2. Fallback to linked_image if no content_items are present
     elif hasattr(post.content, "linked_image") and post.content.linked_image:
-        url = getattr(post.content.linked_image.image, "url", None) or getattr(post.content.linked_image.image_compressed, "url", None)
+        url = None
+        if post.content.linked_image.image:
+            url = post.content.linked_image.image.url
+        elif post.content.linked_image.image_compressed:
+            url = post.content.linked_image.image_compressed.url
         cleaned = clean_media_url(url)
         if cleaned:
             media_urls.append(cleaned)
@@ -190,3 +202,34 @@ def sync_post_status(post):
                     post.save(update_fields=['status', 'error_message'])
     except Exception as e:
         logger.error(f"[Postproxy] Failed to sync post status for {post.id}: {e}")
+
+
+def delete_from_postproxy(postproxy_id):
+    """
+    Deletes (cancels) a scheduled post on Postproxy.
+    """
+    if not postproxy_id:
+        return {"success": False, "error": "No postproxy_id provided"}
+
+    api_key = get_api_key()
+    if not api_key:
+        return {"success": False, "error": "POSTPROXY_API_KEY not configured"}
+
+    url = f"https://api.postproxy.dev/api/posts/{postproxy_id}"
+    req = urllib.request.Request(
+        url,
+        method="DELETE",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            res = json.loads(response.read().decode())
+            logger.info(f"[Postproxy] Post {postproxy_id} deleted successfully: {res}")
+            return {"success": True, "data": res}
+    except Exception as e:
+        logger.error(f"[Postproxy] Connection error deleting post {postproxy_id}: {e}")
+        return {"success": False, "error": str(e)}
+

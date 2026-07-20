@@ -10,7 +10,8 @@ import {
     Bookmark, 
     Sparkles,
     AlertCircle,
-    Hash
+    Hash,
+    Trash2
 } from "lucide-react";
 
 const API_BASE = "http://127.0.0.1:8000/api";
@@ -29,9 +30,31 @@ export default function PublicationLogPage() {
     const [activeLogPost, setActiveLogPost] = useState(null);
     const [logMetrics, setLogMetrics] = useState({});
     
-    // Theme Colors
     const primaryColor = "#6366F1"; // Indigo
     const borderRadius = "rounded-3xl";
+
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeletePost = async (postId) => {
+        if (!confirm("Are you sure you want to delete this content? This will also cancel it on Postproxy if scheduled.")) return;
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`${API_BASE}/scheduler/schedules/${postId}/`, {
+                method: "DELETE",
+            });
+            if (res.ok) {
+                setLogPosts(prev => prev.filter(p => p.id !== postId));
+                setActiveLogPost(null);
+            } else {
+                alert("Failed to delete content.");
+            }
+        } catch (err) {
+            console.error("Error deleting post:", err);
+            alert("Error connecting to server to delete.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     // Fetch clients
     useEffect(() => {
@@ -317,6 +340,16 @@ export default function PublicationLogPage() {
                                             <span className="text-[9px] text-red-500 font-bold max-w-[150px] text-right truncate" title={activeLogPost.error_message}>
                                                 {activeLogPost.error_message}
                                             </span>
+                                        )}
+                                        {(activeLogPost.status === 'SCHEDULED' || activeLogPost.status === 'FAILED' || activeLogPost.status === 'DRAFT') && (
+                                            <button
+                                                onClick={() => handleDeletePost(activeLogPost.id)}
+                                                disabled={isDeleting}
+                                                className="mt-1 flex items-center gap-1 px-2.5 py-1 rounded-xl border border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-905/30 dark:hover:bg-red-950/20 text-[11px] font-bold text-red-500 transition-all duration-200 disabled:opacity-50"
+                                            >
+                                                <Trash2 size={11} />
+                                                Delete Content
+                                            </button>
                                         )}
                                     </div>
                                 </div>

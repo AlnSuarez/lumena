@@ -90,12 +90,16 @@ class SchedulePostView(generics.CreateAPIView):
             created_by=user,
         )
 
-        if publish_now:
+        # Publish now OR schedule immediately on Postproxy if status is SCHEDULED
+        if publish_now or status_val == ScheduledPost.Status.SCHEDULED:
             from .publisher import publish_to_postproxy
             res_publish = publish_to_postproxy(scheduled_post)
             if res_publish.get("success"):
-                scheduled_post.status = ScheduledPost.Status.PUBLISHED
-                scheduled_post.published_at = timezone.now()
+                if publish_now:
+                    scheduled_post.status = ScheduledPost.Status.PUBLISHED
+                    scheduled_post.published_at = timezone.now()
+                else:
+                    scheduled_post.status = ScheduledPost.Status.SCHEDULED
                 
                 # Extract postproxy_id
                 publish_data = res_publish.get("data", {})
@@ -112,10 +116,10 @@ class SchedulePostView(generics.CreateAPIView):
                 scheduled_post.save()
             else:
                 scheduled_post.status = ScheduledPost.Status.FAILED
-                scheduled_post.error_message = res_publish.get("error", "Failed to publish")
+                scheduled_post.error_message = res_publish.get("error", "Failed to schedule/publish")
                 scheduled_post.save()
                 return Response(
-                    {"error": f"Failed to publish immediately: {scheduled_post.error_message}"},
+                    {"error": f"Failed to register with Postproxy: {scheduled_post.error_message}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
@@ -148,7 +152,7 @@ class ScheduledPostListCreateView(generics.ListCreateAPIView):
 
         sync_window = timezone.now() - timedelta(hours=24)
         posts_to_sync = queryset.filter(
-            status__in=['PUBLISHED', 'PUBLISHING'],
+            status__in=['PUBLISHED', 'PUBLISHING', 'SCHEDULED'],
             postproxy_id__isnull=False,
             scheduled_at__gte=sync_window
         ).exclude(postproxy_id='')
@@ -170,15 +174,57 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         obj = super().get_object()
-        if obj.postproxy_id and obj.status in ['PUBLISHED', 'PUBLISHING']:
+        if obj.postproxy_id and obj.status in ['PUBLISHED', 'PUBLISHING', 'SCHEDULED']:
             from .publisher import sync_post_status
             sync_post_status(obj)
             obj.refresh_from_db()
         return obj
 
     def perform_update(self, serializer):
+        instance = self.get_object()
+        old_status = instance.status
+        old_postproxy_id = instance.postproxy_id
+
         user = _get_actor_from_request(self.request)
-        serializer.save(created_by=user)
+        updated_post = serializer.save(created_by=user)
+
+        # Handle rescheduling/cancellation on Postproxy
+        if updated_post.status != 'SCHEDULED' and old_status == 'SCHEDULED' and old_postproxy_id:
+            # Post was rescheduled/canceled (e.g. changed back to DRAFT or FAILED)
+            from .publisher import delete_from_postproxy
+            delete_from_postproxy(old_postproxy_id)
+            updated_post.postproxy_id = None
+            updated_post.save(update_fields=['postproxy_id'])
+        elif updated_post.status == 'SCHEDULED':
+            # Reschedule or update scheduled post details
+            from .publisher import publish_to_postproxy, delete_from_postproxy
+            if old_postproxy_id:
+                delete_from_postproxy(old_postproxy_id)
+                updated_post.postproxy_id = None
+            
+            res_publish = publish_to_postproxy(updated_post)
+            if res_publish.get("success"):
+                publish_data = res_publish.get("data", {})
+                postproxy_id = None
+                if isinstance(publish_data, dict):
+                    inner_data = publish_data.get("data")
+                    if isinstance(inner_data, dict):
+                        postproxy_id = inner_data.get("id")
+                    else:
+                        postproxy_id = publish_data.get("id")
+                if postproxy_id:
+                    updated_post.postproxy_id = str(postproxy_id)
+                    updated_post.save(update_fields=['postproxy_id'])
+            else:
+                updated_post.status = 'FAILED'
+                updated_post.error_message = res_publish.get("error", "Failed to reschedule/publish")
+                updated_post.save(update_fields=['status', 'error_message'])
+
+    def perform_destroy(self, instance):
+        if instance.postproxy_id and instance.status == 'SCHEDULED':
+            from .publisher import delete_from_postproxy
+            delete_from_postproxy(instance.postproxy_id)
+        instance.delete()
 
 
 class SocialAccountListCreateView(generics.ListAPIView):
@@ -268,10 +314,25 @@ class ConnectSocialAccountView(APIView):
             else:
                 return Response({"error": "No profile group could be resolved or created"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # Determine frontend origin dynamically from referer header
+        referer = request.headers.get('referer')
+        if referer:
+            from urllib.parse import urlparse
+            parsed = urlparse(referer)
+            frontend_url = f"{parsed.scheme}://{parsed.netloc}"
+        else:
+            frontend_url = "http://localhost:3000"
+
         # 2. Call initialize_connection
         next_url = request.data.get('next', '/contentcreation/manage-users')
         url_init = f"https://api.postproxy.dev/api/profile_groups/{group_id}/initialize_connection"
-        callback_url = f"http://localhost:8000/api/scheduler/social-accounts/callback/?client_id={client_id}&next={next_url}"
+        
+        # Build dynamic callback URL using build_absolute_uri
+        callback_path = f"/api/scheduler/social-accounts/callback/?client_id={client_id}&group_id={group_id}&frontend_url={frontend_url}&next={next_url}"
+        callback_url = request.build_absolute_uri(callback_path)
+        if "localhost" not in callback_url and "127.0.0.1" not in callback_url:
+            callback_url = callback_url.replace("http://", "https://")
+
         payload = {
             "platform": platform,
             "redirect_url": callback_url
@@ -301,6 +362,8 @@ class SocialAccountCallbackView(APIView):
 
     def get(self, request, *args, **kwargs):
         client_id = request.query_params.get('client_id')
+        group_id = request.query_params.get('group_id')
+        frontend_url = request.query_params.get('frontend_url', 'http://localhost:3000')
         next_url = request.query_params.get('next', '/contentcreation/manage-users')
         if not client_id:
             return Response({"error": "client_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -317,7 +380,13 @@ class SocialAccountCallbackView(APIView):
         for p in profiles:
             if p.get("status") == "active":
                 profile_id = p.get("id")
+                profile_group_id = p.get("profile_group_id")
                 
+                # Filter by profile_group_id to make sure we only import profiles 
+                # belonging to this client's profile group on Postproxy
+                if group_id and profile_group_id and str(profile_group_id) != str(group_id):
+                    continue
+
                 # Check if this profile is already linked to another client to prevent overwriting
                 existing = SocialAccount.objects.filter(postproxy_profile_id=profile_id).first()
                 if existing and existing.client != client:
@@ -335,7 +404,7 @@ class SocialAccountCallbackView(APIView):
                 )
 
         # Redirect back to frontend
-        return HttpResponseRedirect(f"http://localhost:3000{next_url}?connect_success=true")
+        return HttpResponseRedirect(f"{frontend_url}{next_url}?connect_success=true")
 
 
 class SocialAccountDestroyView(generics.DestroyAPIView):
