@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'contents',
     'gallery',
     'scheduler',
+    'chat',
     'storages',
     'django_apscheduler',  # Job scheduling
 ]

@@ -38,6 +38,7 @@ export default function ClientGalleryPage() {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // Modal States
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -305,6 +306,38 @@ export default function ClientGalleryPage() {
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files);
         setSelectedFiles(files);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        if (uploading) return;
+
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        if (droppedFiles.length === 0) return;
+
+        setSelectedFiles(droppedFiles);
     };
 
     const handleUploadImages = async () => {
@@ -616,7 +649,32 @@ export default function ClientGalleryPage() {
                                 </div>
 
                                 {/* Upload Area */}
-                                <div className="mb-8 p-8 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors group">
+                                <div
+                                    className={`relative mb-8 p-8 border-2 border-dashed rounded-2xl transition-colors group ${
+                                        isDragOver
+                                            ? "border-primary bg-primary/20"
+                                            : "border-primary/20 bg-primary/5 hover:bg-primary/10"
+                                    }`}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
+                                    {/* Drag Overlay */}
+                                    {isDragOver && (
+                                        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-primary/20 backdrop-blur-sm rounded-2xl pointer-events-none">
+                                            <div className="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary border-dashed flex items-center justify-center mb-4 animate-pulse">
+                                                <Upload size={32} className="text-primary" />
+                                            </div>
+                                            <p className="text-primary font-black text-lg">Drop files to upload</p>
+                                            <p className="text-primary/70 text-sm mt-1">
+                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content"
+                                                    ? "Any file type supported"
+                                                    : "Images and videos supported"}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <input
                                         id="imageInput"
                                         type="file"

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { User, LogOut, ChevronDown, Bell, X, CheckCircle2, Sparkles, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ChatPanel from "./ChatPanel";
 
 export function Navbar() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -121,6 +122,9 @@ export function Navbar() {
     return (
         <nav className="w-full bg-transparent px-8 py-4 sticky top-0 z-50">
             <div className="flex justify-end items-center w-full gap-4">
+
+                {/* Chat Panel */}
+                <ChatPanel />
 
                 {/* Admin Notifications */}
                 {isAdmin && (

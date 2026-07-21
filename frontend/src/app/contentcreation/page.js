@@ -15,6 +15,23 @@ const normalizeMediaUrl = (url) => {
     return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
 };
 
+const getCardThumbnail = (req) => {
+    const items = req.content_items || [];
+    let src = null;
+    if (items.length > 0) {
+        const firstItem = items[0];
+        src = firstItem.gallery_image_details?.image_url
+            || normalizeMediaUrl(firstItem.gallery_image_details?.image_compressed)
+            || normalizeMediaUrl(firstItem.gallery_image_details?.image)
+            || normalizeMediaUrl(firstItem.file_url);
+    } else if (req.linked_image_details) {
+        src = req.linked_image_details.image_url
+            || normalizeMediaUrl(req.linked_image_details.image_compressed)
+            || normalizeMediaUrl(req.linked_image_details.image);
+    }
+    return src;
+};
+
 const parseNotes = (notes) => {
     if (!notes) return { instructions: '', contentType: null, postDate: null };
     const metaIdx = notes.indexOf('[Meta]');
@@ -515,6 +532,23 @@ export default function ContentBoardPage() {
                                                                 </h3>
                                                             </div>
                                                         </div>
+
+                                                        {/* Card Thumbnail Preview */}
+                                                        {(() => {
+                                                            const thumbSrc = getCardThumbnail(req);
+                                                            if (!thumbSrc) return null;
+                                                            return (
+                                                                <div className="mb-3 pl-2">
+                                                                    <div className="aspect-video rounded-lg overflow-hidden border border-border/50 bg-muted/30 group-hover:border-primary/20 transition-colors">
+                                                                        <img
+                                                                            src={thumbSrc}
+                                                                            alt="Content preview"
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
 
                                                         {/* Card Footer */}
                                                         <div className="flex items-center justify-between border-t border-border pt-3 mt-auto shrink-0 pl-2">
