@@ -31,100 +31,110 @@ class SchedulePostView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
-        user = _get_actor_from_request(request)
-
-        content_id = request.data.get('content_id')
-        client_id = request.data.get('client_id')
-        platforms = request.data.get('platforms', [])
-        schedule_date = request.data.get('schedule_date')
-        release_time = request.data.get('release_time', '10:00')
-        caption = request.data.get('caption', '')
-        hashtags = request.data.get('hashtags', [])
-        status_val = request.data.get('status', 'DRAFT')
-        publish_now = request.data.get('publish_now', False)
-
-        if not content_id or not client_id:
-            return Response(
-                {"error": "content_id and client_id are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
-            content = MonthlyRequest.objects.get(pk=content_id)
-            client = User.objects.get(pk=client_id)
-        except (MonthlyRequest.DoesNotExist, User.DoesNotExist) as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            user = _get_actor_from_request(request)
 
-        if not platforms:
-            return Response(
-                {"error": "At least one platform is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            content_id = request.data.get('content_id')
+            client_id = request.data.get('client_id')
+            platforms = request.data.get('platforms', [])
+            schedule_date = request.data.get('schedule_date')
+            release_time = request.data.get('release_time', '10:00')
+            caption = request.data.get('caption', '')
+            hashtags = request.data.get('hashtags', [])
+            status_val = request.data.get('status', 'DRAFT')
+            publish_now = request.data.get('publish_now', False)
 
-        if publish_now:
-            scheduled_at = timezone.now()
-            status_val = ScheduledPost.Status.PUBLISHING
-        else:
-            scheduled_at_str = f"{schedule_date} {release_time}"
-            try:
-                scheduled_at = timezone.datetime.fromisoformat(scheduled_at_str)
-                if timezone.is_naive(scheduled_at):
-                    scheduled_at = timezone.make_aware(scheduled_at)
-            except (ValueError, TypeError):
+            if not content_id or not client_id:
                 return Response(
-                    {"error": "Invalid date/time format."},
+                    {"error": "content_id and client_id are required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        scheduled_post = ScheduledPost.objects.create(
-            content=content,
-            client=client,
-            platforms=platforms,
-            scheduled_at=scheduled_at,
-            caption=caption,
-            hashtags=hashtags,
-            status=status_val,
-            created_by=user,
-        )
-
-        # Publish now OR schedule immediately on Postproxy if status is SCHEDULED
-        if publish_now or status_val == ScheduledPost.Status.SCHEDULED:
-            from .publisher import publish_to_postproxy
-            res_publish = publish_to_postproxy(scheduled_post)
-            if res_publish.get("success"):
-                if publish_now:
-                    scheduled_post.status = ScheduledPost.Status.PUBLISHED
-                    scheduled_post.published_at = timezone.now()
-                else:
-                    scheduled_post.status = ScheduledPost.Status.SCHEDULED
-                
-                # Extract postproxy_id
-                publish_data = res_publish.get("data", {})
-                postproxy_id = None
-                if isinstance(publish_data, dict):
-                    inner_data = publish_data.get("data")
-                    if isinstance(inner_data, dict):
-                        postproxy_id = inner_data.get("id")
-                    else:
-                        postproxy_id = publish_data.get("id")
-                if postproxy_id:
-                    scheduled_post.postproxy_id = str(postproxy_id)
-                    
-                scheduled_post.save()
-            else:
-                scheduled_post.status = ScheduledPost.Status.FAILED
-                scheduled_post.error_message = res_publish.get("error", "Failed to schedule/publish")
-                scheduled_post.save()
+            try:
+                content = MonthlyRequest.objects.get(pk=content_id)
+                client = User.objects.get(pk=client_id)
+            except (MonthlyRequest.DoesNotExist, User.DoesNotExist) as e:
                 return Response(
-                    {"error": f"Failed to register with Postproxy: {scheduled_post.error_message}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"error": str(e)},
+                    status=status.HTTP_404_NOT_FOUND
                 )
 
-        serializer = self.get_serializer(scheduled_post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            if not platforms:
+                return Response(
+                    {"error": "At least one platform is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if publish_now:
+                scheduled_at = timezone.now()
+                status_val = ScheduledPost.Status.PUBLISHING
+            else:
+                scheduled_at_str = f"{schedule_date} {release_time}"
+                try:
+                    scheduled_at = timezone.datetime.fromisoformat(scheduled_at_str)
+                    if timezone.is_naive(scheduled_at):
+                        scheduled_at = timezone.make_aware(scheduled_at)
+                except (ValueError, TypeError):
+                    return Response(
+                        {"error": "Invalid date/time format."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            scheduled_post = ScheduledPost.objects.create(
+                content=content,
+                client=client,
+                platforms=platforms,
+                scheduled_at=scheduled_at,
+                caption=caption,
+                hashtags=hashtags,
+                status=status_val,
+                created_by=user,
+            )
+
+            # Publish now OR schedule immediately on Postproxy if status is SCHEDULED
+            if publish_now or status_val == ScheduledPost.Status.SCHEDULED:
+                from .publisher import publish_to_postproxy
+                res_publish = publish_to_postproxy(scheduled_post)
+                if res_publish.get("success"):
+                    if publish_now:
+                        scheduled_post.status = ScheduledPost.Status.PUBLISHED
+                        scheduled_post.published_at = timezone.now()
+                    else:
+                        scheduled_post.status = ScheduledPost.Status.SCHEDULED
+                    
+                    # Extract postproxy_id
+                    publish_data = res_publish.get("data", {})
+                    postproxy_id = None
+                    if isinstance(publish_data, dict):
+                        inner_data = publish_data.get("data")
+                        if isinstance(inner_data, dict):
+                            postproxy_id = inner_data.get("id")
+                        else:
+                            postproxy_id = publish_data.get("id")
+                    if postproxy_id:
+                        scheduled_post.postproxy_id = str(postproxy_id)
+                        
+                    scheduled_post.save()
+                else:
+                    scheduled_post.status = ScheduledPost.Status.FAILED
+                    scheduled_post.error_message = res_publish.get("error", "Failed to schedule/publish")
+                    scheduled_post.save()
+                    return Response(
+                        {"error": f"Failed to register with Postproxy: {scheduled_post.error_message}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+            serializer = self.get_serializer(scheduled_post)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import traceback
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Unhandled error in SchedulePostView.create: {e}\n{traceback.format_exc()}")
+            return Response(
+                {"error": f"Internal Server Error: {str(e)}", "traceback": traceback.format_exc()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ScheduledPostListCreateView(generics.ListCreateAPIView):
