@@ -97,10 +97,13 @@ def publish_to_postproxy(post):
         for item in post.content.content_items.all():
             url = None
             if item.gallery_image:
-                if item.gallery_image.image:
-                    url = item.gallery_image.image.url
-                elif item.gallery_image.image_compressed:
-                    url = item.gallery_image.image_compressed.url
+                try:
+                    if item.gallery_image.image:
+                        url = item.gallery_image.image.url
+                    elif item.gallery_image.image_compressed:
+                        url = item.gallery_image.image_compressed.url
+                except Exception as e:
+                    logger.error(f"[Postproxy] Failed to get URL for gallery image {item.gallery_image.id}: {e}")
             elif item.file_url:
                 url = item.file_url
             
@@ -111,10 +114,13 @@ def publish_to_postproxy(post):
     # 2. Fallback to linked_image if no content_items are present
     elif hasattr(post.content, "linked_image") and post.content.linked_image:
         url = None
-        if post.content.linked_image.image:
-            url = post.content.linked_image.image.url
-        elif post.content.linked_image.image_compressed:
-            url = post.content.linked_image.image_compressed.url
+        try:
+            if post.content.linked_image.image:
+                url = post.content.linked_image.image.url
+            elif post.content.linked_image.image_compressed:
+                url = post.content.linked_image.image_compressed.url
+        except Exception as e:
+            logger.error(f"[Postproxy] Failed to get URL for linked image {post.content.linked_image.id}: {e}")
         cleaned = clean_media_url(url)
         if cleaned:
             media_urls.append(cleaned)
