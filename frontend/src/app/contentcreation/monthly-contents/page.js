@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2, MessageSquare, Trash2, AlertTriangle, Maximize2, RotateCw } from 'lucide-react';
+import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2, MessageSquare, Trash2, AlertTriangle, Maximize2, RotateCw, SlidersHorizontal } from 'lucide-react';
 import { useTheme } from "../../../context/ThemeContext";
 
 export default function MonthlyContentsPage() {
@@ -30,6 +30,13 @@ export default function MonthlyContentsPage() {
         returnedQA: true,
         returnedClient: true
     });
+
+    // Advanced filters
+    const [filterClient, setFilterClient] = useState('ALL');
+    const [filterContentType, setFilterContentType] = useState('ALL');
+    const [filterStatus, setFilterStatus] = useState('ALL');
+    const [filterType, setFilterType] = useState('ALL');
+    const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
     const toggleSection = (section) => {
         setExpandedSections(prev => ({
@@ -70,6 +77,30 @@ export default function MonthlyContentsPage() {
         const s = parseInt(updated.match(/Stories:\s*(\d+)/)?.[1]) || 0;
         updated = updated.replace(/Total:\s*\d+/, `Total: ${p + c + v + s}`);
         return updated;
+    };
+
+    const extractInstructions = (notes) => {
+        if (!notes) return null;
+        const cleaned = notes
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => {
+                const isMeta = /^(Content Type|Post Date|Photos|Carousels|Videos|Stories|Total):/i.test(line);
+                const isEmpty = !line || line === '[Meta]';
+                return !isMeta && !isEmpty;
+            })
+            .join('\n')
+            .replace(/Content Type:\s*\w*/gi, '')
+            .replace(/Post Date:\s*\S*/gi, '')
+            .replace(/Photos:\s*\d*/gi, '')
+            .replace(/Carousels:\s*\d*/gi, '')
+            .replace(/Videos:\s*\d*/gi, '')
+            .replace(/Stories:\s*\d*/gi, '')
+            .replace(/Total:\s*\d*/gi, '')
+            .replace(/\[Meta\]/gi, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        return cleaned || null;
     };
 
     const [counts, setCounts] = useState({ ...DEFAULT_COUNTS });
@@ -145,7 +176,7 @@ export default function MonthlyContentsPage() {
                                 status: req.status,
                                 returnedByClient: !!returnedByClient,
                                 contentType: isAdhoc ? (req.notes?.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
-                                instructions: req.notes,
+                                instructions: extractInstructions(req.notes),
                                 asignee: req.assigned_to_details?.username,
                                 feedback: req.feedback,
                                 clientFeedback: req.client_feedback,
@@ -252,8 +283,47 @@ export default function MonthlyContentsPage() {
         setActiveContentIndex(0);
     }, [currentStepIndex]);
 
-    const activeItem = items[activeItemIndex] || {};
+    const filteredItems = React.useMemo(() => {
+        return items.filter(item => {
+            if (filterClient !== 'ALL') {
+                const clientId = item.originalData?.client_details?.id;
+                if (String(clientId) !== String(filterClient)) return false;
+            }
+            if (filterContentType !== 'ALL') {
+                if (item.type === 'adhoc_request') {
+                    const ct = item.originalData?.notes?.match(/Content Type: (\w+)/)?.[1]?.toLowerCase();
+                    if (ct !== filterContentType.toLowerCase()) return false;
+                } else {
+                    const planCounts = item.planCounts || {};
+                    const keyMap = { story: 'stories', image: 'photos', carousel: 'carousels', video: 'videos' };
+                    const countKey = keyMap[filterContentType.toLowerCase()];
+                    if (!countKey || !(planCounts[countKey] > 0)) return false;
+                }
+            }
+            if (filterStatus !== 'ALL') {
+                if (filterStatus === 'new' && item.status !== 'TO_DO') return false;
+                if (filterStatus === 'in_progress' && item.status !== 'IN_PROGRESS') return false;
+                if (filterStatus === 'in_revision' && item.status !== 'IN_REVISION') return false;
+                if (filterStatus === 'with_feedback' && !item.feedback && !item.clientFeedback) return false;
+            }
+            if (filterType !== 'ALL') {
+                if (filterType === 'monthly' && item.type !== 'client') return false;
+                if (filterType === 'adhoc' && item.type !== 'adhoc_request') return false;
+            }
+            return true;
+        });
+    }, [items, filterClient, filterContentType, filterStatus, filterType]);
+
+    const activeItem = filteredItems[activeItemIndex] || {};
     const isAdhoc = activeItem.type === 'adhoc_request';
+
+    React.useEffect(() => {
+        setActiveItemIndex(0);
+        setCurrentStepIndex(0);
+        setActiveContentIndex(0);
+    }, [filterClient, filterContentType, filterStatus, filterType]);
+
+    const activeFilterCount = [filterClient, filterContentType, filterStatus, filterType].filter(f => f !== 'ALL').length;
 
     const getDisplayItems = () => {
         const contentItems = activeItem.originalData?.content_items || [];
@@ -950,7 +1020,7 @@ export default function MonthlyContentsPage() {
                                 status: updatedRequestData.status,
                                 returnedByClient: !!returnedByClient,
                                 contentType: isAdhoc ? (updatedRequestData.notes?.match(/Content Type: (\w+)/)?.[1] || 'General') : null,
-                                instructions: updatedRequestData.notes,
+                                instructions: extractInstructions(updatedRequestData.notes),
                                 feedback: updatedRequestData.feedback,
                                 clientFeedback: updatedRequestData.client_feedback,
                                 planCounts: parsedCounts,
@@ -1059,10 +1129,24 @@ export default function MonthlyContentsPage() {
         };
 
         if (isAdhoc) {
-            const updatedItems = items.filter((_, idx) => idx !== activeItemIndex);
+            const updatedItems = items.filter(item => item.id !== activeItem.id);
+            const updatedFiltered = updatedItems.filter(item => {
+                if (filterClient !== 'ALL' && String(item.originalData?.client_details?.id) !== String(filterClient)) return false;
+                if (filterContentType !== 'ALL') {
+                    const ct = item.originalData?.notes?.match(/Content Type: (\w+)/)?.[1]?.toLowerCase();
+                    if (ct !== filterContentType.toLowerCase()) return false;
+                }
+                if (filterStatus === 'new' && item.status !== 'TO_DO') return false;
+                if (filterStatus === 'in_progress' && item.status !== 'IN_PROGRESS') return false;
+                if (filterStatus === 'in_revision' && item.status !== 'IN_REVISION') return false;
+                if (filterStatus === 'with_feedback' && !item.feedback && !item.clientFeedback) return false;
+                if (filterType === 'monthly' && item.type !== 'client') return false;
+                if (filterType === 'adhoc' && item.type !== 'adhoc_request') return false;
+                return true;
+            });
             let newIndex = activeItemIndex;
-            if (newIndex >= updatedItems.length) {
-                newIndex = Math.max(0, updatedItems.length - 1);
+            if (newIndex >= updatedFiltered.length) {
+                newIndex = Math.max(0, updatedFiltered.length - 1);
             }
             setItems(updatedItems);
             setActiveItemIndex(newIndex);
@@ -1105,16 +1189,31 @@ export default function MonthlyContentsPage() {
                 const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
                 updateRequestStatus(activeItem.id, nextStatus, saveData);
 
-                const updatedItems = items.filter((_, idx) => idx !== activeItemIndex);
+                const updatedItems = items.filter(item => item.id !== activeItem.id);
+                const updatedFiltered = updatedItems.filter(item => {
+                    if (filterClient !== 'ALL' && String(item.originalData?.client_details?.id) !== String(filterClient)) return false;
+                    if (filterContentType !== 'ALL') return false;
+                    if (filterStatus !== 'ALL') {
+                        if (filterStatus === 'new' && item.status !== 'TO_DO') return false;
+                        if (filterStatus === 'in_progress' && item.status !== 'IN_PROGRESS') return false;
+                        if (filterStatus === 'in_revision' && item.status !== 'IN_REVISION') return false;
+                        if (filterStatus === 'with_feedback' && !item.feedback && !item.clientFeedback) return false;
+                    }
+                    if (filterType !== 'ALL') {
+                        if (filterType === 'monthly' && item.type !== 'client') return false;
+                        if (filterType === 'adhoc' && item.type !== 'adhoc_request') return false;
+                    }
+                    return true;
+                });
                 let newIndex = activeItemIndex;
-                if (newIndex >= updatedItems.length) {
-                    newIndex = Math.max(0, updatedItems.length - 1);
+                if (newIndex >= updatedFiltered.length) {
+                    newIndex = Math.max(0, updatedFiltered.length - 1);
                 }
                 setItems(updatedItems);
                 setActiveItemIndex(newIndex);
 
                 if (updatedItems.length > 0) {
-                    const nextItem = updatedItems[newIndex];
+                    const nextItem = updatedFiltered[newIndex] || updatedItems[0];
                     if (nextItem?.planCounts) {
                         setCounts({ ...nextItem.planCounts });
                     } else {
@@ -1139,25 +1238,130 @@ export default function MonthlyContentsPage() {
                         <p className="text-muted-foreground mt-2 text-lg font-medium">Customize and approve monthly assets</p>
                     </div>
 
-                    {/* Integrated Client Selector */}
-                    <div className="flex items-center gap-3 bg-card px-5 py-3 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow cursor-default">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Client</span>
-                        <div className="h-4 w-px bg-border"></div>
-                        {activeItem && activeItem.originalData?.client_details?.client_profile?.logo ? (
-                            <img
-                                src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${activeItem.originalData.client_details.client_profile.logo}`}
-                                alt={clientName}
-                                className="w-8 h-8 rounded-full object-cover border border-border ring-2 ring-background"
-                            />
-                        ) : activeItem ? (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs border border-border">
-                                {clientName.charAt(0).toUpperCase()}
+                    {/* Advanced Filter */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                            className={`flex items-center gap-3 bg-card px-5 py-3 rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer ${showFilterDropdown ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}
+                        >
+                            <SlidersHorizontal size={18} className={activeFilterCount > 0 ? 'text-primary' : 'text-muted-foreground'} />
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-foreground">
+                                    {activeFilterCount > 0 ? `${filteredItems.length} items` : `${items.length} items`}
+                                </span>
+                                {activeFilterCount > 0 && (
+                                    <span className="bg-primary text-primary-foreground text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
                             </div>
-                        ) : null}
-                        <span className="text-foreground font-bold text-sm min-w-[120px] text-center truncate max-w-[200px]">
-                            {clientName || "Select Item..."}
-                        </span>
-                        <ChevronDown size={14} className="text-muted-foreground" />
+                            <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${showFilterDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showFilterDropdown && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+                                <div className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl z-50 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {/* Content Type */}
+                                    <div className="mb-5">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 block">Content Type</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {['ALL', 'story', 'image', 'carousel', 'video'].map(type => (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => setFilterContentType(type)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
+                                                        filterContentType === type
+                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                            : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                    }`}
+                                                >
+                                                    {type === 'ALL' ? 'All' : type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Status */}
+                                    <div className="mb-5">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 block">Status</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { id: 'ALL', label: 'All' },
+                                                { id: 'new', label: 'New' },
+                                                { id: 'in_progress', label: 'In Progress' },
+                                                { id: 'in_revision', label: 'In Revision' },
+                                                { id: 'with_feedback', label: 'With Feedback' },
+                                            ].map(st => (
+                                                <button
+                                                    key={st.id}
+                                                    onClick={() => setFilterStatus(st.id)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                        filterStatus === st.id
+                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                            : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                    }`}
+                                                >
+                                                    {st.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Request Type */}
+                                    <div className="mb-5">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 block">Request Type</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { id: 'ALL', label: 'All' },
+                                                { id: 'monthly', label: 'Monthly' },
+                                                { id: 'adhoc', label: 'Adhoc' },
+                                            ].map(rt => (
+                                                <button
+                                                    key={rt.id}
+                                                    onClick={() => setFilterType(rt.id)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                        filterType === rt.id
+                                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                                            : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                    }`}
+                                                >
+                                                    {rt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Client */}
+                                    <div className="mb-4">
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2 block">Client</label>
+                                        <select
+                                            value={filterClient}
+                                            onChange={(e) => setFilterClient(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all"
+                                        >
+                                            <option value="ALL">All Clients</option>
+                                            {[...new Map(items.map(i => {
+                                                const d = i.originalData?.client_details;
+                                                return d ? [d.id, d.username || d.client_profile?.practice_name || `Client #${d.id}`] : null;
+                                            }).filter(Boolean))].map(([id, name]) => (
+                                                <option key={id} value={id}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Clear All */}
+                                    {activeFilterCount > 0 && (
+                                        <button
+                                            onClick={() => { setFilterClient('ALL'); setFilterContentType('ALL'); setFilterStatus('ALL'); setFilterType('ALL'); }}
+                                            className="w-full py-2.5 rounded-xl bg-muted/50 hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-all border border-border"
+                                        >
+                                            Clear all filters
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -1177,9 +1381,9 @@ export default function MonthlyContentsPage() {
                                 {!isSidebarCollapsed && (
                                     <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2 whitespace-nowrap">
                                         Pending
-                                        <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
-                                            {items.length}
-                                        </span>
+                                            <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-sm">
+                                                {filteredItems.length}
+                                            </span>
                                     </h2>
                                 )}
                                 <button
@@ -1192,9 +1396,9 @@ export default function MonthlyContentsPage() {
 
                             <div className={`flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-6 ${isSidebarCollapsed ? 'px-3 overflow-x-hidden' : 'px-4'}`}>
                                 {(() => {
-                                    const newRequests = items.filter(item => item.status !== 'IN_REVISION');
-                                    const returnedQA = items.filter(item => item.status === 'IN_REVISION' && !item.returnedByClient);
-                                    const returnedClient = items.filter(item => item.status === 'IN_REVISION' && item.returnedByClient);
+                                    const newRequests = filteredItems.filter(item => item.status !== 'IN_REVISION');
+                                    const returnedQA = filteredItems.filter(item => item.status === 'IN_REVISION' && !item.returnedByClient);
+                                    const returnedClient = filteredItems.filter(item => item.status === 'IN_REVISION' && item.returnedByClient);
 
                                     const renderGroup = (title, key, list, colorClass, iconColorClass) => {
                                         if (list.length === 0) return null;
@@ -1218,7 +1422,7 @@ export default function MonthlyContentsPage() {
                                                 {(isExpanded || isSidebarCollapsed) && (
                                                     <div className="space-y-2">
                                                         {list.map((item) => {
-                                                            const globalIndex = items.findIndex(x => x.id === item.id);
+                                                            const globalIndex = filteredItems.findIndex(x => x.id === item.id);
                                                             const isActive = globalIndex === activeItemIndex;
                                                             const isRequest = item.type === 'adhoc_request';
                                                             const isReturned = item.status === 'IN_REVISION';
@@ -1265,6 +1469,11 @@ export default function MonthlyContentsPage() {
                                                                             <span className={`text-[11px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                                                                 {item.completed ? 'Completed' : isActive ? 'Reviewing' : item.returnedByClient ? 'Client Revision' : isReturned ? 'Returned by QA' : isRequest ? 'Adhoc Request' : 'Monthly Plan'}
                                                                             </span>
+                                                                            {item.type === 'client' && item.month && (
+                                                                                <span className={`text-[10px] font-medium truncate mt-0.5 ${isActive ? 'text-primary-foreground/50' : 'text-muted-foreground/60'}`}>
+                                                                                    Monthly Content - {item.month}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                     )}
 
@@ -1311,7 +1520,7 @@ export default function MonthlyContentsPage() {
                         {/* Main Interaction Area */}
                         <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-hidden bg-card/30">
 
-                            {items.length === 0 ? (
+                            {filteredItems.length === 0 ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-center p-12 min-h-[400px]">
                                     <div className="relative mb-8">
                                         <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full"></div>
@@ -1394,15 +1603,15 @@ export default function MonthlyContentsPage() {
                                                     {activeItem.name || 'Publication'}
                                                 </span>
                                                 <span className="text-[10px] font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
-                                                    {activeItemIndex + 1}/{items.length}
+                                                    {activeItemIndex + 1}/{filteredItems.length}
                                                 </span>
                                             </div>
                                             <button
                                                 onClick={() => {
-                                                    setActiveItemIndex(Math.min(items.length - 1, activeItemIndex + 1));
+                                                    setActiveItemIndex(Math.min(filteredItems.length - 1, activeItemIndex + 1));
                                                     setActiveContentIndex(0);
                                                 }}
-                                                disabled={activeItemIndex >= items.length - 1}
+                                                disabled={activeItemIndex >= filteredItems.length - 1}
                                                 className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors px-3 py-1.5 rounded-xl hover:bg-muted/50"
                                             >
                                                 Next
@@ -1981,7 +2190,7 @@ export default function MonthlyContentsPage() {
 
                                                     {/* Content Text */}
                                                     <div className="space-y-2">
-                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Content Text</label>
+                                                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Caption</label>
                                                         <textarea
                                                             rows={6}
                                                             value={contentText}
@@ -2070,10 +2279,10 @@ export default function MonthlyContentsPage() {
                                                     {/* AI Content */}
                                                     <div className="space-y-2">
                                                         <div className="flex justify-between items-center px-1">
-                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">AI Generated Content</label>
-                                                            <button className="flex items-center gap-1.5 text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
-                                                                <Sparkles size={12} />
-                                                                Regenerate
+                                                             <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">AI Generated Content</label>
+                                                             <button className="flex items-center gap-1.5 text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-lg border border-primary/20 hover:bg-primary/10 transition-colors">
+                                                                 <Sparkles size={12} />
+                                                                 Regenerate
                                                             </button>
                                                         </div>
                                                         <textarea
