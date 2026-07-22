@@ -9,7 +9,7 @@ class ContentItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContentItem
-        fields = ['id', 'media_type', 'order', 'gallery_image', 'gallery_image_details', 'file_url', 'file_name', 'caption', 'created_at']
+        fields = ['id', 'media_type', 'order', 'gallery_image', 'gallery_image_details', 'file_url', 'file_name', 'caption', 'rotation', 'created_at']
 
 
 class ContentItemCreateSerializer(serializers.ModelSerializer):
@@ -17,7 +17,7 @@ class ContentItemCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContentItem
-        fields = ['media_type', 'order', 'gallery_image', 'file_url', 'file_name', 'caption']
+        fields = ['media_type', 'order', 'gallery_image', 'file_url', 'file_name', 'caption', 'rotation']
 
 
 class RequestHistorySerializer(serializers.ModelSerializer):

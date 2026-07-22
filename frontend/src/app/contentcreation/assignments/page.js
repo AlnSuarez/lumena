@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Filter, User as UserIcon, AlertTriangle, Loader2, X, Trash2 } from "lucide-react";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
-const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "DONE"];
+const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "CLIENT_REVIEW", "APPROVED", "DONE"];
 
 const statusBadge = (status) => {
     const map = {
@@ -12,6 +12,8 @@ const statusBadge = (status) => {
         IN_PROGRESS: "bg-yellow-100 text-yellow-700",
         QA: "bg-purple-100 text-purple-700",
         IN_REVISION: "bg-orange-100 text-orange-700",
+        CLIENT_REVIEW: "bg-blue-100 text-blue-700",
+        APPROVED: "bg-teal-100 text-teal-700",
         DONE: "bg-emerald-100 text-emerald-700",
     };
     return map[status] || "bg-slate-100 text-slate-700";
@@ -23,6 +25,8 @@ const statusSelectClass = (status) => {
         IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
         QA: "bg-purple-100 text-purple-700 border-purple-200",
         IN_REVISION: "bg-orange-100 text-orange-700 border-orange-200",
+        CLIENT_REVIEW: "bg-blue-100 text-blue-700 border-blue-200",
+        APPROVED: "bg-teal-100 text-teal-700 border-teal-200",
         DONE: "bg-emerald-100 text-emerald-700 border-emerald-200",
     };
     return map[status] || "bg-slate-100 text-slate-700 border-slate-200";

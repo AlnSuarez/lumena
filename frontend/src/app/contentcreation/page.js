@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Layout, CheckCircle2, Clock, AlertCircle, FileText, Video,
     MessageSquare, Filter, MoreHorizontal, User as UserIcon, X, Sparkles, Activity, ArrowRight,
     Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check, Users,
-    ChevronLeft, ChevronRight, Play, Pause, Trash2
+    ChevronLeft, ChevronRight, Play, Pause, Trash2, GripVertical
 } from "lucide-react";
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable, closestCorners } from "@dnd-kit/core";
+import { toast, Toaster } from "sonner";
 
 // --- Helpers ---
 const normalizeMediaUrl = (url) => {
@@ -80,6 +82,39 @@ function PreviewVideoPlayer({ src }) {
     );
 }
 
+function DraggableCard({ req, children }) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: `request-${req.id}`,
+        data: { request: req },
+    });
+
+    const style = transform
+        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 'auto' }
+        : undefined;
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
+            {children}
+        </div>
+    );
+}
+
+function DroppableColumn({ columnId, children }) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `column-${columnId}`,
+        data: { columnId },
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`flex-1 rounded-2xl flex flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent min-h-0 transition-colors duration-200 ${isOver ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}`}
+        >
+            {children}
+        </div>
+    );
+}
+
 export default function ContentBoardPage() {
     const [requests, setRequests] = useState([]);
     const [users, setUsers] = useState([]);
@@ -91,6 +126,7 @@ export default function ContentBoardPage() {
     const [previewCarouselIdx, setPreviewCarouselIdx] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [activeDragId, setActiveDragId] = useState(null);
 
     // Filters
     const [filterType, setFilterType] = useState("ALL");
@@ -373,6 +409,86 @@ export default function ContentBoardPage() {
         }
     };
 
+    const handleMoveWorkflow = async (direction) => {
+        if (!selectedRequest) return;
+        const currentIdx = columns.findIndex(c => c.id === selectedRequest.status);
+        if (currentIdx === -1) return;
+        const newIdx = currentIdx + direction;
+        if (newIdx < 0 || newIdx >= columns.length) return;
+        const newStatus = columns[newIdx].id;
+
+        try {
+            const userId = localStorage.getItem('userId');
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${selectedRequest.id}/`);
+            if (userId) url.searchParams.append('user_id', userId);
+
+            const response = await fetch(url.toString(), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (response.ok) {
+                const updated = await response.json();
+                setSelectedRequest(prev => ({ ...prev, status: updated.status, history: updated.history }));
+                fetchData();
+                toast.success(`Moved to ${columns[newIdx].title}`, {
+                    description: `${columns[currentIdx].title} → ${columns[newIdx].title}`,
+                });
+            }
+        } catch (error) {
+            console.error('Error moving workflow step:', error);
+        }
+    };
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 },
+        }),
+    );
+
+    const handleDragEnd = useCallback(async (event) => {
+        const { active, over } = event;
+        setActiveDragId(null);
+
+        if (!over) return;
+
+        const requestId = parseInt(active.id.toString().replace('request-', ''));
+        const targetColumnId = over.id.toString().replace('column-', '');
+
+        if (!requestId || !targetColumnId) return;
+
+        const request = requests.find(r => r.id === requestId);
+        if (!request || request.status === targetColumnId) return;
+
+        try {
+            const userId = localStorage.getItem('userId');
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${requestId}/`);
+            if (userId) url.searchParams.append('user_id', userId);
+
+            const response = await fetch(url.toString(), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: targetColumnId }),
+            });
+
+            if (response.ok) {
+                const updated = await response.json();
+                if (selectedRequest && selectedRequest.id === requestId) {
+                    setSelectedRequest(prev => ({ ...prev, status: updated.status, history: updated.history }));
+                }
+                fetchData();
+                const fromCol = columns.find(c => c.id === request.status);
+                const toCol = columns.find(c => c.id === targetColumnId);
+                toast.success(`Moved to ${toCol?.title || targetColumnId}`, {
+                    description: `${fromCol?.title || request.status} → ${toCol?.title || targetColumnId}`,
+                });
+            }
+        } catch (error) {
+            console.error('Error moving card:', error);
+        }
+    }, [requests, selectedRequest]);
+
     const handleDeleteRequest = async () => {
         if (!selectedRequest) return;
         setIsDeleting(true);
@@ -402,6 +518,7 @@ export default function ContentBoardPage() {
 
     return (
         <div className="min-h-screen bg-secondary/30 p-4 md:p-8 animate-in fade-in duration-500">
+            <Toaster position="bottom-right" richColors />
             <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 mx-auto">
                 {/* Header & Filters */}
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 flex-shrink-0 z-20">
@@ -463,6 +580,7 @@ export default function ContentBoardPage() {
                 </div>
 
                 {/* Board Container */}
+                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={(e) => setActiveDragId(e.active.id)} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDragId(null)}>
                 <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4 min-h-0">
                     <div className="flex gap-6 min-w-[1400px] h-full"> {/* Ensure min width for horizontal scroll if needed */}
 
@@ -486,7 +604,7 @@ export default function ContentBoardPage() {
                                     </div>
 
                                     {/* Column Content */}
-                                    <div className="flex-1 rounded-2xl flex flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent min-h-0">
+                                    <DroppableColumn columnId={col.id}>
                                         {colRequests.length === 0 ? (
                                             <div className="text-center py-12 opacity-40 flex flex-col items-center">
                                                 <div className="p-4 rounded-full bg-muted mb-3">
@@ -500,11 +618,15 @@ export default function ContentBoardPage() {
                                                 const TypeIcon = typeDetails.icon;
 
                                                 return (
+                                                    <DraggableCard key={req.id} req={req}>
                                                     <div
-                                                        key={req.id}
                                                         onClick={() => { setSelectedRequest(req); setPreviewCarouselIdx(0); }}
                                                         className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col"
                                                     >
+                                                        {/* Drag handle */}
+                                                        <div className="absolute top-3 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40 cursor-grab active:cursor-grabbing z-10">
+                                                            <GripVertical size={14} />
+                                                        </div>
                                                         {/* Priority Stripe */}
                                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeDetails.color.split(' ')[0]}`}></div>
 
@@ -528,7 +650,12 @@ export default function ContentBoardPage() {
                                                                             {req.client_details.client_profile?.practice_name || req.client_details.username}
                                                                         </span>
                                                                     )}
-                                                                    {req.notes || "Untitled Request"}
+                                                                    <span className="block text-xs text-foreground/80 line-clamp-2">
+                                                                        {req.ai_caption || parseNotes(req.notes).instructions || "Untitled Request"}
+                                                                    </span>
+                                                                    <span className="block text-[10px] text-muted-foreground/60 font-mono mt-0.5">
+                                                                        #{req.id}
+                                                                    </span>
                                                                 </h3>
                                                             </div>
                                                         </div>
@@ -546,8 +673,8 @@ export default function ContentBoardPage() {
                                                                             className="w-full h-full object-cover"
                                                                         />
                                                                     </div>
-                                                                </div>
-                                                            );
+                                                            </div>
+                                                );
                                                         })()}
 
                                                         {/* Card Footer */}
@@ -590,15 +717,38 @@ export default function ContentBoardPage() {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    </DraggableCard>
                                                 );
                                             })
                                         )}
-                                    </div>
+                                    </DroppableColumn>
                                 </div>
                             );
                         })}
                     </div>
                 </div>
+                <DragOverlay dropAnimation={null}>
+                    {activeDragId ? (
+                        <div className="bg-card p-3 rounded-xl shadow-2xl border border-primary rotate-2 scale-105 opacity-90 w-64">
+                            {(() => {
+                                const reqId = parseInt(activeDragId.toString().replace('request-', ''));
+                                const req = requests.find(r => r.id === reqId);
+                                if (!req) return <p className="text-xs font-bold">...</p>;
+                                return (
+                                    <>
+                                        <p className="text-xs font-black text-primary mb-1 uppercase tracking-wide">
+                                            {req.client_details?.client_profile?.practice_name || req.client_details?.username || 'Untitled'}
+                                        </p>
+                                        <p className="text-sm font-medium text-foreground line-clamp-2">
+                                            {req.notes || 'No description'}
+                                        </p>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    ) : null}
+                </DragOverlay>
+                </DndContext>
 
                 {/* Detail Modal */}
                 {selectedRequest && (
@@ -610,6 +760,35 @@ export default function ContentBoardPage() {
                             >
                                 <X size={20} />
                             </button>
+
+                            {/* Workflow step navigation */}
+                            {(() => {
+                                const currentIdx = columns.findIndex(c => c.id === selectedRequest.status);
+                                const canGoBack = currentIdx > 0;
+                                const canGoForward = currentIdx >= 0 && currentIdx < columns.length - 1;
+                                return (
+                                    <>
+                                        {canGoBack && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleMoveWorkflow(-1); }}
+                                                className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/70 hover:bg-background hover:scale-110 backdrop-blur-md flex items-center justify-center text-foreground border border-border shadow-lg transition-all"
+                                                title={`Back to ${columns[currentIdx - 1]?.title || ''}`}
+                                            >
+                                                <ChevronLeft size={20} />
+                                            </button>
+                                        )}
+                                        {canGoForward && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleMoveWorkflow(1); }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/70 hover:bg-background hover:scale-110 backdrop-blur-md flex items-center justify-center text-foreground border border-border shadow-lg transition-all"
+                                                title={`Forward to ${columns[currentIdx + 1]?.title || ''}`}
+                                            >
+                                                <ChevronRight size={20} />
+                                            </button>
+                                        )}
+                                    </>
+                                );
+                            })()}
 
                             {/* Left: Content Preview */}
                             <div className="flex-1 flex flex-col bg-secondary/20 p-6 sm:p-8 lg:p-10 overflow-y-auto">

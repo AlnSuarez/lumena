@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2, MessageSquare, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronRight, Sparkles, Check, ChevronDown, ChevronLeft, Search, Folder, Image as ImageIcon, X, RefreshCw, Upload, Loader2, MessageSquare, Trash2, AlertTriangle, Maximize2, RotateCw } from 'lucide-react';
 import { useTheme } from "../../../context/ThemeContext";
 
 export default function MonthlyContentsPage() {
@@ -15,6 +15,10 @@ export default function MonthlyContentsPage() {
     // Delete confirmation modal state
     const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Media expand preview state
+    const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+    const [expandedIndex, setExpandedIndex] = useState(0);
 
     // Combined list of Monthly Clients and Adhoc Requests
     const [items, setItems] = useState([]);
@@ -576,8 +580,6 @@ export default function MonthlyContentsPage() {
     };
 
     const handleReorderCarousel = async (newStepItems) => {
-        // Rebuild the full content_items list: keep non-carousel items as-is,
-        // replace the carousel slice with the newly ordered items.
         const allItems = activeItem.originalData?.content_items || [];
         const otherItems = allItems.filter(ci => ci.media_type !== 'CAROUSEL_IMAGE' && ci.media_type !== currentStepMediaType);
         const reorderedCarouselItems = newStepItems.map((ci, idx) => ({ ...ci, order: idx }));
@@ -602,6 +604,33 @@ export default function MonthlyContentsPage() {
             alert('Could not save new order. Please try again.');
         } finally {
             setIsSavingOrder(false);
+        }
+    };
+
+    const handleRotateImage = async (contentItemId) => {
+        const allItems = activeItem.originalData?.content_items || [];
+        const targetItem = allItems.find(ci => ci.id === contentItemId);
+        if (!targetItem) return;
+        const newRotation = ((targetItem.rotation || 0) + 90) % 360;
+        const updatedItems = allItems.map(ci =>
+            ci.id === contentItemId ? { ...ci, rotation: newRotation } : ci
+        );
+
+        try {
+            const res = await fetch(`${API_BASE}/contents/monthly-requests/${activeItem.id}/`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ status: activeItem.originalData?.status, content_items: updatedItems }),
+            });
+            if (!res.ok) throw new Error('Failed to save rotation');
+            const updated = await res.json();
+            setItems(prev => prev.map(itm => {
+                if (itm.id !== activeItem.id) return itm;
+                return { ...itm, originalData: updated };
+            }));
+        } catch (err) {
+            console.error('Rotation save error:', err);
         }
     };
 
@@ -1454,6 +1483,7 @@ export default function MonthlyContentsPage() {
                                                                         src={imgSrc}
                                                                         alt={ci.gallery_image_details?.title || ci.file_name || "Media"}
                                                                         className="w-full h-full object-contain"
+                                                                        style={{ transform: `rotate(${ci.rotation || 0}deg)` }}
                                                                     />
                                                                 )}
 
@@ -1542,6 +1572,31 @@ export default function MonthlyContentsPage() {
                                                             </button>
                                                         );
                                                     })()}
+
+                                                    {/* Expand Preview */}
+                                                    {(() => {
+                                                        const totalItems = stepItems.length;
+                                                        const safeIndex = Math.min(activeContentIndex, Math.max(0, totalItems - 1));
+                                                        const ci = stepItems[safeIndex] || {};
+                                                        const imgSrc = 
+                                                            ci.gallery_image_details?.image_url ||
+                                                            ci.gallery_image_details?.image_compressed ||
+                                                            ci.gallery_image_details?.image ||
+                                                            normalizeUrl(ci.file_url);
+                                                        if (!imgSrc) return null;
+                                                        return (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setExpandedIndex(safeIndex);
+                                                                    setIsMediaExpanded(true);
+                                                                }}
+                                                                className="flex items-center justify-center bg-black/60 backdrop-blur-md hover:bg-black/85 text-white w-7 h-7 rounded-lg transition-all shadow-lg border border-white/10"
+                                                                title="Expand preview"
+                                                            >
+                                                                <Maximize2 size={13} />
+                                                            </button>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
 
@@ -1604,7 +1659,7 @@ export default function MonthlyContentsPage() {
                                                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="white" opacity="0.8"><path d="M8 5v14l11-7z"/></svg>
                                                                                 </div>
                                                                             ) : (
-                                                                                <img src={thumb} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover pointer-events-none" />
+                                                                                <img src={thumb} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover pointer-events-none" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
                                                                             )
                                                                         ) : (
                                                                             <div className="w-full h-full bg-white/10 flex items-center justify-center">
@@ -1876,6 +1931,17 @@ export default function MonthlyContentsPage() {
                                                 </div>
 
                                                 <div className="space-y-6 flex-1">
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Type</label>
+                                                            <p className="font-bold text-foreground capitalize">{activeItem.contentType || "General"}</p>
+                                                        </div>
+                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Status</label>
+                                                            <p className="font-bold text-orange-500">Pending Review</p>
+                                                        </div>
+                                                    </div>
+
                                                     <div className="bg-secondary/30 p-5 rounded-2xl border border-border/50">
                                                         <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Instructions</label>
                                                         <p className="text-foreground text-sm leading-relaxed font-medium">
@@ -1912,17 +1978,6 @@ export default function MonthlyContentsPage() {
                                                             </p>
                                                         </div>
                                                     )}
-
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
-                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Type</label>
-                                                            <p className="font-bold text-foreground capitalize">{activeItem.contentType || "General"}</p>
-                                                        </div>
-                                                        <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
-                                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Status</label>
-                                                            <p className="font-bold text-orange-500">Pending Review</p>
-                                                        </div>
-                                                    </div>
 
                                                     {/* Content Text */}
                                                     <div className="space-y-2">
@@ -2074,6 +2129,182 @@ export default function MonthlyContentsPage() {
                 </div>
             </div>
         </div>
+
+        {/* Expanded Media Preview Modal */}
+        {isMediaExpanded && (() => {
+            const totalItems = stepItems.length;
+            const safeIdx = Math.min(expandedIndex, Math.max(0, totalItems - 1));
+            const ci = stepItems[safeIdx] || {};
+            const hasContentItems = (activeItem?.originalData?.content_items?.length || 0) > 0;
+            const imgSrc =
+                ci.gallery_image_details?.image_url ||
+                ci.gallery_image_details?.image_compressed ||
+                ci.gallery_image_details?.image ||
+                normalizeUrl(ci.file_url) ||
+                (!hasContentItems ? (
+                    normalizeUrl(activeItem?.originalData?.linked_image_details?.image_url) ||
+                    normalizeUrl(activeItem?.originalData?.linked_image_details?.image_compressed) ||
+                    normalizeUrl(activeItem?.originalData?.linked_image_details?.image)
+                ) : null);
+            const isVideo = ci.media_type === 'VIDEO' ||
+                (typeof imgSrc === 'string' && (
+                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') ||
+                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') ||
+                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') ||
+                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') ||
+                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
+                    imgSrc.toLowerCase().includes('/videos/')
+                ));
+            const isCarousel = currentStepMediaType === 'CAROUSEL_IMAGE' || (isAdhoc && activeItem?.contentType?.toUpperCase() === 'CAROUSEL');
+
+            const handlePrev = () => {
+                if (safeIdx > 0) setExpandedIndex(safeIdx - 1);
+            };
+            const handleNext = () => {
+                if (safeIdx < totalItems - 1) setExpandedIndex(safeIdx + 1);
+            };
+            const currentRotation = ci.rotation || 0;
+
+            return (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+                    onClick={() => setIsMediaExpanded(false)}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" />
+
+                    {/* Modal */}
+                    <div
+                        className="relative bg-card border border-border rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-foreground">Media Preview</span>
+                                {isCarousel && totalItems > 1 && (
+                                    <span className="text-xs font-medium text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">
+                                        {safeIdx + 1} / {totalItems}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {imgSrc && !isVideo && (
+                                    <button
+                                        onClick={() => handleRotateImage(ci.id)}
+                                        className="p-2 hover:bg-muted rounded-full transition-colors"
+                                        title={`Rotate image (${currentRotation}°)`}
+                                    >
+                                        <RotateCw size={18} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setIsMediaExpanded(false)}
+                                    className="p-2 hover:bg-muted rounded-full transition-colors"
+                                    title="Close preview"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Media Content */}
+                        <div className="flex-1 relative flex items-center justify-center bg-black/5 min-h-[300px]">
+                            {/* Previous arrow - carousel */}
+                            {isCarousel && totalItems > 1 && safeIdx > 0 && (
+                                <button
+                                    onClick={handlePrev}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center text-white transition-all"
+                                    title="Previous"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                            )}
+
+                            {/* Next arrow - carousel */}
+                            {isCarousel && totalItems > 1 && safeIdx < totalItems - 1 && (
+                                <button
+                                    onClick={handleNext}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center text-white transition-all"
+                                    title="Next"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            )}
+
+                            {/* Media */}
+                            {imgSrc ? (
+                                isVideo ? (
+                                    <video
+                                        key={imgSrc}
+                                        src={imgSrc}
+                                        controls
+                                        autoPlay
+                                        playsInline
+                                        className="max-w-full max-h-full object-contain"
+                                    />
+                                ) : (
+                                    <img
+                                        src={imgSrc}
+                                        alt={ci.gallery_image_details?.title || ci.file_name || "Media preview"}
+                                        className="max-w-full max-h-full object-contain"
+                                        style={{ transform: `rotate(${currentRotation}deg)` }}
+                                    />
+                                )
+                            ) : (
+                                <div className="text-center text-muted-foreground">
+                                    <ImageIcon size={48} className="mx-auto mb-3 opacity-30" />
+                                    <p className="text-sm font-medium">No media available</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Carousel thumbnail strip */}
+                        {isCarousel && totalItems > 1 && (
+                            <div className="border-t border-border/50 px-4 py-3 shrink-0 bg-secondary/20">
+                                <div className="flex gap-2 overflow-x-auto scrollbar-none">
+                                    {stepItems.map((ci, idx) => {
+                                        const thumb =
+                                            ci.gallery_image_details?.image_compressed ||
+                                            ci.gallery_image_details?.image_url ||
+                                            ci.gallery_image_details?.image ||
+                                            normalizeUrl(ci.file_url) ||
+                                            null;
+                                        const isActive = idx === safeIdx;
+                                        return (
+                                            <button
+                                                key={ci.id || idx}
+                                                onClick={() => setExpandedIndex(idx)}
+                                                className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all duration-150
+                                                    ${isActive ? 'border-primary shadow-md shadow-primary/20 scale-110' : 'border-transparent hover:border-white/30 opacity-60 hover:opacity-100'}
+                                                `}
+                                            >
+                                                {thumb ? (
+                                                    ci.media_type === 'VIDEO' || (ci.file_url && ['.mp4', '.mov', '.webm'].some(ext => ci.file_url.toLowerCase().endsWith(ext))) ? (
+                                                        <div className="w-full h-full bg-black flex items-center justify-center">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white" opacity="0.8"><path d="M8 5v14l11-7z" /></svg>
+                                                        </div>
+                                                    ) : (
+                                                        <img src={thumb} alt="" className="w-full h-full object-cover pointer-events-none" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
+                                                    )
+                                                ) : (
+                                                    <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                                                        <ImageIcon size={14} className="text-white/40" />
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center text-[8px] font-black text-white">
+                                                    {idx + 1}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        })()}
 
         {/* Delete Confirmation Modal */}
         {deleteModal.open && deleteModal.item && (
