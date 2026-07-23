@@ -210,6 +210,65 @@ def sync_post_status(post):
         logger.error(f"[Postproxy] Failed to sync post status for {post.id}: {e}")
 
 
+def fetch_post_analytics(postproxy_id):
+    """
+    Fetches analytics and metrics from Postproxy for a published post.
+    """
+    if not postproxy_id:
+        return None
+
+    api_key = get_api_key()
+    if not api_key:
+        return None
+
+    url = f"https://api.postproxy.dev/api/posts/{postproxy_id}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            res = json.loads(response.read().decode())
+            post_data = res.get("data", {})
+            if isinstance(post_data, dict):
+                metrics = post_data.get("metrics") or post_data.get("analytics") or {}
+                platforms = post_data.get("platforms", [])
+                
+                likes = metrics.get("likes", 0) if isinstance(metrics, dict) else 0
+                comments = metrics.get("comments", 0) if isinstance(metrics, dict) else 0
+                shares = metrics.get("shares", 0) if isinstance(metrics, dict) else 0
+                views = (metrics.get("views") or metrics.get("impressions") or metrics.get("reach", 0)) if isinstance(metrics, dict) else 0
+                saves = metrics.get("saves", 0) if isinstance(metrics, dict) else 0
+
+                if isinstance(platforms, list):
+                    for p in platforms:
+                        if isinstance(p, dict):
+                            p_metrics = p.get("metrics") or p.get("analytics") or {}
+                            if isinstance(p_metrics, dict):
+                                likes += p_metrics.get("likes", 0)
+                                comments += p_metrics.get("comments", 0)
+                                shares += p_metrics.get("shares", 0)
+                                views += p_metrics.get("views") or p_metrics.get("impressions") or p_metrics.get("reach", 0)
+                                saves += p_metrics.get("saves", 0)
+
+                if likes > 0 or comments > 0 or shares > 0 or views > 0 or saves > 0:
+                    return {
+                        "likes": likes,
+                        "comments": comments,
+                        "shares": shares,
+                        "views": views,
+                        "saves": saves,
+                    }
+                elif isinstance(metrics, dict) and metrics:
+                    return metrics
+    except Exception as e:
+        logger.error(f"[Postproxy] Failed to fetch analytics for post {postproxy_id}: {e}")
+    return None
+
+
 def delete_from_postproxy(postproxy_id):
     """
     Deletes (cancels) a scheduled post on Postproxy.

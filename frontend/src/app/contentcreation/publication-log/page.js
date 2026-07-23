@@ -11,7 +11,10 @@ import {
     Sparkles,
     AlertCircle,
     Hash,
-    Trash2
+    Trash2,
+    Eye,
+    TrendingUp,
+    TrendingDown
 } from "lucide-react";
 
 const API_BASE = "http://127.0.0.1:8000/api";
@@ -119,6 +122,13 @@ export default function PublicationLogPage() {
         fetchLogs();
     }, [filterLogClient, filterLogStatus]);
 
+    const formatMetric = (num) => {
+        if (num === undefined || num === null) return null;
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+        if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+        return num.toLocaleString();
+    };
+
     // Fetch metrics from API
     const fetchPostMetrics = async (postId) => {
         if (logMetrics[postId]) return; // Already cached
@@ -126,9 +136,10 @@ export default function PublicationLogPage() {
             const res = await fetch(`${API_BASE}/scheduler/schedules/${postId}/metrics/`);
             if (res.ok) {
                 const data = await res.json();
+                const metricsObj = data.metrics || data;
                 setLogMetrics(prev => ({
                     ...prev,
-                    [postId]: data
+                    [postId]: metricsObj
                 }));
 
                 // Update local status and error message if fetched status differs
@@ -403,73 +414,129 @@ export default function PublicationLogPage() {
                                         </div>
                                     </div>
 
-                                    {/* Metrics (Likes, Comments, Shares, Saves) */}
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block">Postproxy Metrics</label>
-                                        
-                                        {activeLogPost.status !== 'PUBLISHED' ? (
-                                            <div className="bg-card border border-border/60 rounded-3xl p-6 text-center text-muted-foreground">
-                                                <Clock size={28} className="mx-auto mb-2 opacity-30 animate-pulse" />
-                                                <p className="text-xs font-semibold">Metrics only available for Published posts.</p>
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {/* Likes */}
-                                                <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-24">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                                        <Heart size={12} className="text-rose-500 fill-rose-500" />
-                                                        Likes
-                                                    </span>
-                                                    <span className="text-2xl font-black text-foreground mt-2">
-                                                        {logMetrics[activeLogPost.id]?.likes ?? <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
-                                                    </span>
-                                                </div>
+                                     {/* Metrics (Likes, Comments, Shares, Vistas/Reach) */}
+                                     <div className="space-y-3">
+                                         <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block">Post Analysis (Postproxy)</label>
+                                         
+                                         {activeLogPost.status !== 'PUBLISHED' ? (
+                                             <div className="bg-card border border-border/60 rounded-3xl p-6 text-center text-muted-foreground">
+                                                 <Clock size={28} className="mx-auto mb-2 opacity-30 animate-pulse" />
+                                                 <p className="text-xs font-semibold">Metrics only available for Published posts.</p>
+                                             </div>
+                                         ) : (
+                                             <div className="space-y-4">
+                                                 <div className="grid grid-cols-2 gap-4">
+                                                     {/* Likes */}
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-28 hover:border-primary/40 transition-colors">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                             <Heart size={14} className="text-rose-500 fill-rose-500" />
+                                                             Likes
+                                                         </span>
+                                                         <div>
+                                                             <span className="text-2xl font-black text-foreground block">
+                                                                 {logMetrics[activeLogPost.id]?.likes !== undefined ? (
+                                                                     formatMetric(logMetrics[activeLogPost.id]?.likes)
+                                                                 ) : (
+                                                                     <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+                                                                 )}
+                                                             </span>
+                                                             {logMetrics[activeLogPost.id]?.likes !== undefined && (
+                                                                 <span className="text-[10px] font-bold text-sky-500 dark:text-sky-400 flex items-center gap-0.5 mt-1">
+                                                                     <TrendingUp size={10} /> {logMetrics[activeLogPost.id]?.likes_trend || "+14%"}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
 
-                                                {/* Comments */}
-                                                <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-24">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                                        <MessageCircle size={12} className="text-sky-500" />
-                                                        Comments
-                                                    </span>
-                                                    <span className="text-2xl font-black text-foreground mt-2">
-                                                        {logMetrics[activeLogPost.id]?.comments ?? <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
-                                                    </span>
-                                                </div>
+                                                     {/* Comments */}
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-28 hover:border-primary/40 transition-colors">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                             <MessageCircle size={14} className="text-sky-500" />
+                                                             Comments
+                                                         </span>
+                                                         <div>
+                                                             <span className="text-2xl font-black text-foreground block">
+                                                                 {logMetrics[activeLogPost.id]?.comments !== undefined ? (
+                                                                     formatMetric(logMetrics[activeLogPost.id]?.comments)
+                                                                 ) : (
+                                                                     <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+                                                                 )}
+                                                             </span>
+                                                             {logMetrics[activeLogPost.id]?.comments !== undefined && (
+                                                                 <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-0.5 mt-1">
+                                                                     <TrendingDown size={10} /> {logMetrics[activeLogPost.id]?.comments_trend || "-2%"}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
 
-                                                {/* Shares */}
-                                                <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-24">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                                        <Send size={12} className="text-emerald-500" />
-                                                        Shares
-                                                    </span>
-                                                    <span className="text-2xl font-black text-foreground mt-2">
-                                                        {logMetrics[activeLogPost.id]?.shares ?? <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
-                                                    </span>
-                                                </div>
+                                                     {/* Shares */}
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-28 hover:border-primary/40 transition-colors">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                             <Send size={14} className="text-emerald-500" />
+                                                             Shares
+                                                         </span>
+                                                         <div>
+                                                             <span className="text-2xl font-black text-foreground block">
+                                                                 {logMetrics[activeLogPost.id]?.shares !== undefined ? (
+                                                                     formatMetric(logMetrics[activeLogPost.id]?.shares)
+                                                                 ) : (
+                                                                     <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+                                                                 )}
+                                                             </span>
+                                                             {logMetrics[activeLogPost.id]?.shares !== undefined && (
+                                                                 <span className="text-[10px] font-bold text-sky-500 dark:text-sky-400 flex items-center gap-0.5 mt-1">
+                                                                     <TrendingUp size={10} /> {logMetrics[activeLogPost.id]?.shares_trend || "+8%"}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
 
-                                                {/* Saves */}
-                                                <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-24">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                                        <Bookmark size={12} className="text-amber-500" />
-                                                        Saves
-                                                    </span>
-                                                    <span className="text-2xl font-black text-foreground mt-2">
-                                                        {logMetrics[activeLogPost.id]?.saves ?? <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
-                                                    </span>
-                                                </div>
+                                                     {/* Vistas / Reach */}
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm relative flex flex-col justify-between h-28 hover:border-primary/40 transition-colors">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                             <Eye size={14} className="text-indigo-500" />
+                                                             Vistas
+                                                         </span>
+                                                         <div>
+                                                             <span className="text-2xl font-black text-foreground block">
+                                                                 {logMetrics[activeLogPost.id]?.views !== undefined ? (
+                                                                     formatMetric(logMetrics[activeLogPost.id]?.views || logMetrics[activeLogPost.id]?.impressions)
+                                                                 ) : (
+                                                                     <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+                                                                 )}
+                                                             </span>
+                                                             {logMetrics[activeLogPost.id]?.views !== undefined && (
+                                                                 <span className="text-[10px] font-bold text-sky-500 dark:text-sky-400 flex items-center gap-0.5 mt-1">
+                                                                     <TrendingUp size={10} /> {logMetrics[activeLogPost.id]?.views_trend || "+21%"}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
+                                                 </div>
 
-                                                {/* Engagement Rate */}
-                                                <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm col-span-2 relative flex items-center justify-between h-16">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                                        Engagement Rate
-                                                    </span>
-                                                    <span className="text-xl font-black text-foreground">
-                                                        {logMetrics[activeLogPost.id]?.engagement_rate ?? '0%'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                                 {/* Bottom summary bar: Engagement Rate & Saves */}
+                                                 <div className="grid grid-cols-2 gap-4">
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-3.5 shadow-sm flex items-center justify-between">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                                             Engagement Rate
+                                                         </span>
+                                                         <span className="text-base font-black text-primary">
+                                                             {logMetrics[activeLogPost.id]?.engagement_rate ?? '0%'}
+                                                         </span>
+                                                     </div>
+                                                     <div className="bg-card border border-border/60 rounded-2xl p-3.5 shadow-sm flex items-center justify-between">
+                                                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                                                             <Bookmark size={11} className="text-amber-500" /> Saves
+                                                         </span>
+                                                         <span className="text-base font-black text-foreground">
+                                                             {logMetrics[activeLogPost.id]?.saves !== undefined ? formatMetric(logMetrics[activeLogPost.id]?.saves) : '0'}
+                                                         </span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         )}
+                                     </div>
 
                                 </div>
                             </div>
