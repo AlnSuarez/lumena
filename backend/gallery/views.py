@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from .models import ClientFolder, ClientImage, SharedDocument, SHARED_CONTENT_FOLDER_NAME
 from .serializers import ClientFolderSerializer, ClientImageSerializer, SharedDocumentSerializer
 from .permissions import IsSuperUser
-from .utils import compress_image
+from .utils import compress_image, auto_orient_image
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
@@ -150,13 +150,16 @@ def upload_folder_images(request, folder_id):
 
     for file in files:
         try:
+            # Auto-orient image based on EXIF metadata (iPhone/camera photos)
+            oriented_file = auto_orient_image(file)
+
             # Create compressed version
-            compressed_file = compress_image(file)
+            compressed_file = compress_image(oriented_file)
 
             # Create the image object with both original and compressed versions
             image = ClientImage.objects.create(
                 folder=folder,
-                image=file,
+                image=oriented_file,
                 image_compressed=compressed_file,
                 uploaded_by=request.user
             )

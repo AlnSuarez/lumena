@@ -513,6 +513,11 @@ def upload_attachment(request):
         return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
     ext = os.path.splitext(file.name)[1] or '.jpg'
+    
+    if file.content_type and file.content_type.startswith('image/') or ext.lower() in ('.jpg', '.jpeg', '.png', '.webp'):
+        from gallery.utils import auto_orient_image
+        file = auto_orient_image(file)
+
     filename = f"attachments/{uuid.uuid4().hex}{ext}"
     
     saved_name = default_storage.save(filename, file)

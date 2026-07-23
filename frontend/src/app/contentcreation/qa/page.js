@@ -313,7 +313,7 @@ export default function QAPage() {
                                                                     {isVideo ? (
                                                                         <video key={imgSrc} src={imgSrc} controls playsInline preload="metadata" className="w-full h-full min-h-[300px] object-contain bg-black rounded-xl" />
                                                                     ) : (
-                                                                        <img src={imgSrc} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain" />
+                                                                        <img src={imgSrc} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
                                                                     )}
                                                                     {ci.gallery_image_details?.folio && (
                                                                         <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">

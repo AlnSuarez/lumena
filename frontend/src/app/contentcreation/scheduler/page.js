@@ -175,6 +175,7 @@ function ContentCard({ item, onPreview, primaryColor }) {
                             src={item.thumbnail}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            style={{ transform: `rotate(${(item.content_items?.[0]?.rotation || item.rotation || 0)}deg)` }}
                         />
                     )
                 ) : (
@@ -295,6 +296,7 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
     };
 
     const currentUrl = getImageUrl(current);
+    const currentRotation = current?.rotation || 0;
     const videoUrl = isVideo ? normalizeUrl(current.file_url) : null;
 
     const nextSlide = () => { setCurrentIndex((prev) => (prev + 1) % images.length); setIsPlaying(false); };
@@ -368,7 +370,7 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
                                             </div>
                                         </div>
                                         {currentUrl ? (
-                                            <img src={currentUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                            <img src={currentUrl} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300" style={{ transform: `rotate(${currentRotation}deg)` }} />
                                         ) : (
                                             <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
                                                 <ImageIcon size={40} className="text-white/40" />
@@ -405,7 +407,7 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
                                         ) : (
                                             <>
                                                 {currentUrl ? (
-                                                    <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain" />
+                                                    <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain transition-transform duration-300" style={{ transform: `rotate(${currentRotation}deg)` }} />
                                                 ) : (
                                                     <div className="bg-gradient-to-br from-blue-500 to-violet-600 w-full flex items-center justify-center py-20">
                                                         <Video size={40} className="text-white/40" />
@@ -426,7 +428,7 @@ function InstagramPreview({ item, onClose, onSelect, primaryColor }) {
                                 ) : (
                                     <div className="relative bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
                                         {currentUrl ? (
-                                            <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain" />
+                                            <img src={currentUrl} alt="" className="w-full max-h-[420px] object-contain transition-transform duration-300" style={{ transform: `rotate(${currentRotation}deg)` }} />
                                         ) : (
                                             <div className="bg-gradient-to-br from-purple-100 to-indigo-200 dark:from-purple-900/30 dark:to-indigo-900/30 w-full flex items-center justify-center py-20">
                                                 <ImageIcon size={40} className="text-purple-300 dark:text-purple-500/50" />

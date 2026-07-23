@@ -332,7 +332,7 @@ export default function ClientReviewPage() {
                                                                     {isVideo ? (
                                                                          <CardVideoPlayer src={src} />
                                                                     ) : (
-                                                                        <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-cover" />
+                                                                        <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-cover transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
                                                                     )}
 
                                                                     {/* Maximize Button on Hover */}
@@ -535,7 +535,7 @@ export default function ClientReviewPage() {
                                             return isVideo ? (
                                                 <video src={src} controls className="w-full h-full object-contain max-h-[75vh]" />
                                             ) : (
-                                                <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain max-h-[75vh]" />
+                                                <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain max-h-[75vh] transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
                                             );
                                         })()}
 

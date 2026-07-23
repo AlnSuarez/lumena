@@ -92,6 +92,8 @@ def publish_to_postproxy(post):
             return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop"
         return raw_url
 
+    from gallery.utils import get_or_create_rotated_image
+
     # 1. Check content_items (multiple items for carousels)
     if hasattr(post.content, "content_items") and post.content.content_items.exists():
         for item in post.content.content_items.all():
@@ -106,7 +108,10 @@ def publish_to_postproxy(post):
                     logger.error(f"[Postproxy] Failed to get URL for gallery image {item.gallery_image.id}: {e}")
             elif item.file_url:
                 url = item.file_url
-            
+
+            if url and getattr(item, 'rotation', 0) and (item.rotation % 360 != 0):
+                url = get_or_create_rotated_image(url, item.rotation)
+
             cleaned = clean_media_url(url)
             if cleaned:
                 media_urls.append(cleaned)

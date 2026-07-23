@@ -142,7 +142,8 @@ export default function CompletedContentPage() {
                                                     <img 
                                                         src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${post.content_details.linked_image_details.image_compressed}`} 
                                                         alt="Thumbnail" 
-                                                        className="w-full h-full object-cover" 
+                                                        className="w-full h-full object-cover transition-transform duration-300"
+                                                        style={{ transform: `rotate(${(post.content_details?.content_items?.[0]?.rotation || 0)}deg)` }}
                                                     />
                                                 ) : (
                                                     <Layers className="text-primary/45" size={24} />

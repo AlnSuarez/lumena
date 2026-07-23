@@ -295,7 +295,7 @@ export default function PublicationLogPage() {
                                             {/* Right thumbnail preview */}
                                             {thumb && (
                                                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted border border-border/40 shrink-0 relative">
-                                                    <img src={thumb} alt="Preview" className="w-full h-full object-cover" />
+                                                    <img src={thumb} alt="Preview" className="w-full h-full object-cover transition-transform duration-300" style={{ transform: `rotate(${(cDetails.content_items?.[0]?.rotation || 0)}deg)` }} />
                                                 </div>
                                             )}
                                         </div>
@@ -386,9 +386,11 @@ export default function PublicationLogPage() {
                                             {/* Feed Image/Video */}
                                             <div className="aspect-square w-full bg-secondary/40 relative flex items-center justify-center overflow-hidden border-b border-border/40 select-none">
                                                 {(() => {
-                                                    const thumb = activeLogPost.content_details?.linked_image_details?.image_url || activeLogPost.content_details?.linked_image_details?.image || null;
+                                                    const cItems = activeLogPost.content_details?.content_items || [];
+                                                    const rot = cItems[0]?.rotation || 0;
+                                                    const thumb = cItems[0]?.gallery_image_details?.image_url || cItems[0]?.gallery_image_details?.image_compressed || activeLogPost.content_details?.linked_image_details?.image_url || activeLogPost.content_details?.linked_image_details?.image || null;
                                                     if (thumb) {
-                                                        return <img src={thumb} alt="Preview" className="w-full h-full object-cover" />;
+                                                        return <img src={thumb} alt="Preview" className="w-full h-full object-cover transition-transform duration-300" style={{ transform: `rotate(${rot}deg)` }} />;
                                                     }
                                                     return (
                                                         <div className="text-center p-6 text-muted-foreground">
