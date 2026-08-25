@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { installApiSession } from "../apiSession";
 
 const ThemeContext = createContext();
 
@@ -19,6 +20,7 @@ export function ThemeProvider({ children }) {
 
     // Load from localStorage on mount
     useEffect(() => {
+        installApiSession();
         const saved = localStorage.getItem("lumena_customization");
         if (saved) {
             try {

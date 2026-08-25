@@ -26,11 +26,18 @@ class ScheduledPostSerializer(serializers.ModelSerializer):
                 "image": obj.content.linked_image.image.url if hasattr(obj.content.linked_image, 'image') and obj.content.linked_image.image else None,
                 "image_compressed": obj.content.linked_image.image_compressed.url if hasattr(obj.content.linked_image, 'image_compressed') and obj.content.linked_image.image_compressed else None
             }
+        
+        items_data = []
+        if hasattr(obj.content, 'content_items') and obj.content.content_items.exists():
+            from contents.serializers import ContentItemSerializer
+            items_data = ContentItemSerializer(obj.content.content_items.all(), many=True).data
+
         return {
             "id": obj.content.id,
             "request_type": obj.content.request_type,
             "month": obj.content.month,
-            "linked_image_details": linked_image
+            "linked_image_details": linked_image,
+            "content_items": items_data
         }
 
     def validate_platforms(self, value):

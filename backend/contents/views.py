@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -23,6 +23,7 @@ from .serializers import (
 )
 from .utils import suggest_content_creator, assign_to_least_busy_qa
 from users.models import User
+from core.permissions import actor, is_superuser_role, is_staff_role
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b")
@@ -30,34 +31,25 @@ OLLAMA_FALLBACK_MODEL = os.getenv("OLLAMA_FALLBACK_MODEL", "qwen2.5vl:3b")
 OLLAMA_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "240"))
 
 
-def _get_actor_from_request(request):
-    if request.user and request.user.is_authenticated:
-        return request.user
+def _visible_monthly_requests(user):
+    queryset = MonthlyRequest.objects.filter(
+        Q(available_from__isnull=True) |
+        Q(available_from__lte=timezone.now().date()) |
+        ~Q(status='TO_DO')
+    )
 
-    user_id = request.query_params.get('user_id') or request.data.get('user_id')
-    if not user_id:
-        return None
-
-    try:
-        return User.objects.get(id=user_id)
-    except (User.DoesNotExist, ValueError, TypeError):
-        return None
-
-
-def _get_admin_actor_from_request(request):
-    if request.user and request.user.is_authenticated and request.user.role == User.Role.SUPERUSER:
-        return request.user
-
-    user_id = request.query_params.get('user_id') or request.data.get('user_id')
-    if not user_id:
-        return None
-
-    try:
-        user = User.objects.get(id=user_id)
-    except (User.DoesNotExist, ValueError, TypeError):
-        return None
-
-    return user if user.role == User.Role.SUPERUSER else None
+    if user.role == User.Role.SUPERUSER:
+        return queryset
+    if user.role == User.Role.CONTENT_CREATOR:
+        return queryset.filter(assigned_to=user)
+    if user.role == User.Role.CLIENT:
+        return queryset.filter(client=user)
+    if user.role == User.Role.QA:
+        return queryset.filter(
+            Q(qa_assigned_to=user) | Q(qa_assigned_to__isnull=True),
+            status='QA'
+        )
+    return MonthlyRequest.objects.none()
 
 
 def _to_abs_url(django_request, maybe_relative_url):
@@ -102,7 +94,7 @@ def generate_caption(request, pk):
     - client profile context
     """
     try:
-        monthly_request = MonthlyRequest.objects.select_related('client', 'linked_image').get(pk=pk)
+        monthly_request = _visible_monthly_requests(request.user).select_related('client', 'linked_image').get(pk=pk)
     except MonthlyRequest.DoesNotExist:
         return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -242,7 +234,7 @@ def generate_caption(request, pk):
         )
 
     monthly_request.ai_caption = caption
-    monthly_request._current_user = _get_actor_from_request(request)
+    monthly_request._current_user = actor(request)
     monthly_request.save()
 
     return Response({
@@ -253,52 +245,20 @@ def generate_caption(request, pk):
 
 
 class MonthlyRequestListCreateView(generics.ListCreateAPIView):
-    permission_classes = [permissions.AllowAny] # Changed for dev/prototype without token auth
-
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return MonthlyRequestCreateSerializer
         return MonthlyRequestSerializer
 
     def get_queryset(self):
-        # In a real app, use self.request.user and IsAuthenticated
-        # Here we rely on query param for "simulation"
-        user_id = self.request.query_params.get('user_id')
-        role = self.request.query_params.get('role') # Pass role from frontend
-
-        queryset = MonthlyRequest.objects.filter(
-            Q(available_from__isnull=True) | 
-            Q(available_from__lte=timezone.now().date()) |
-            ~Q(status='TO_DO')
-        )
-
-        if role == "SUPERUSER":
-            return queryset
-
-        if not user_id or not role:
-            return MonthlyRequest.objects.none()
-
-        # CONTENT_CREATOR: solo ven lo asignado a ellos
-        if role == "CONTENT_CREATOR":
-            return queryset.filter(assigned_to_id=user_id)
-
-        # CLIENT: solo ve lo que creó
-        elif role == "CLIENT":
-            return queryset.filter(client_id=user_id)
-
-        # QA: ve lo asignado a él o lo que no esté asignado a ningún QA
-        elif role == "QA":
-            return queryset.filter(
-                Q(qa_assigned_to_id=user_id) | Q(qa_assigned_to__isnull=True),
-                status='QA'
-            )
-
-        # Cualquier otro caso: vacío
-        return MonthlyRequest.objects.none()
+        return _visible_monthly_requests(self.request.user)
 
     def perform_create(self, serializer):
-        user = _get_actor_from_request(self.request)
-        serializer.save(_current_user=user)
+        user = actor(self.request)
+        extra = {'_current_user': user}
+        if user and user.role == User.Role.CLIENT:
+            extra['client'] = user
+        serializer.save(**extra)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -309,19 +269,16 @@ class MonthlyRequestListCreateView(generics.ListCreateAPIView):
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
 class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [permissions.AllowAny]
-
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
             return MonthlyRequestCreateSerializer
         return MonthlyRequestSerializer
 
     def get_queryset(self):
-        # Similar logic or just AllowAny for detail if ID is known
-        return MonthlyRequest.objects.all()
+        return _visible_monthly_requests(self.request.user)
 
     def perform_update(self, serializer):
-        user = _get_actor_from_request(self.request)
+        user = actor(self.request)
         serializer.instance._current_user = user
         serializer.save()
 
@@ -350,6 +307,13 @@ def confirm_assignment(request, pk):
     except MonthlyRequest.DoesNotExist:
         return Response({"error": "Request not found"}, status=404)
 
+    user = actor(request)
+    if not user or (
+        not is_superuser_role(user)
+        and monthly_request.assigned_to_id != user.id
+    ):
+        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
     # Validar que tenga un assigned_to
     if not monthly_request.assigned_to:
         return Response({"error": "No assignment to confirm"}, status=400)
@@ -357,7 +321,7 @@ def confirm_assignment(request, pk):
     # Limpiar el note de sugerencia
     if monthly_request.notes and "Suggested assignment" in monthly_request.notes:
         monthly_request.notes = ""
-        monthly_request._current_user = _get_actor_from_request(request)
+        monthly_request._current_user = actor(request)
         monthly_request.save(update_fields=['notes'])
 
     serializer = MonthlyRequestSerializer(monthly_request)
@@ -370,6 +334,9 @@ def reassign_creator(request, pk):
     Reasigna manualmente un content creator.
     Puede recibir un creator_id específico o 'suggest' para regenerar sugerencia.
     """
+    if not is_superuser_role(request.user):
+        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
     try:
         monthly_request = MonthlyRequest.objects.get(pk=pk)
     except MonthlyRequest.DoesNotExist:
@@ -393,7 +360,7 @@ def reassign_creator(request, pk):
         monthly_request.notes = ""  # Limpiar sugerencia
 
     monthly_request.assigned_to_id = new_creator_id
-    monthly_request._current_user = _get_actor_from_request(request)
+    monthly_request._current_user = actor(request)
     monthly_request.save()
 
     serializer = MonthlyRequestSerializer(monthly_request)
@@ -406,6 +373,9 @@ def reassign_qa(request, pk):
     Reasigna manualmente un QA.
     Puede recibir un qa_id específico o 'auto' para usar la lógica de menor carga.
     """
+    if not is_superuser_role(request.user):
+        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
     try:
         monthly_request = MonthlyRequest.objects.get(pk=pk)
     except MonthlyRequest.DoesNotExist:
@@ -427,7 +397,7 @@ def reassign_qa(request, pk):
             return Response({"error": "Invalid QA user"}, status=400)
 
     monthly_request.qa_assigned_to_id = new_qa_id
-    monthly_request._current_user = _get_actor_from_request(request)
+    monthly_request._current_user = actor(request)
     monthly_request.save()
 
     serializer = MonthlyRequestSerializer(monthly_request)
@@ -440,6 +410,9 @@ def creator_workload_stats(request):
     Retorna estadísticas de carga de trabajo para cada content creator.
     Útil para el panel administrativo.
     """
+    if not is_staff_role(request.user):
+        return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
     content_creators = User.objects.filter(role='CONTENT_CREATOR')
 
     stats = []
@@ -494,8 +467,7 @@ def create_lets_talk_submission(request):
 
 @api_view(['GET'])
 def list_lets_talk_submissions(request):
-    admin_user = _get_admin_actor_from_request(request)
-    if not admin_user:
+    if not is_superuser_role(request.user):
         return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
 
     submissions = LetsTalkSubmission.objects.select_related('reviewed_by').all()
@@ -505,8 +477,6 @@ def list_lets_talk_submissions(request):
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
-@authentication_classes([])
-@permission_classes([AllowAny])
 def upload_attachment(request):
     file = request.FILES.get('file')
     if not file:
@@ -551,9 +521,9 @@ def upload_content_video(request):
 
 @api_view(['PATCH'])
 def mark_lets_talk_submission_reviewed(request, pk):
-    admin_user = _get_admin_actor_from_request(request)
-    if not admin_user:
+    if not is_superuser_role(request.user):
         return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
+    admin_user = request.user
 
     try:
         submission = LetsTalkSubmission.objects.get(pk=pk)

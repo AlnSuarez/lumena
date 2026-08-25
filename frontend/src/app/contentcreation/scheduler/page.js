@@ -876,6 +876,7 @@ export default function SchedulerPage() {
                     type: "success",
                 });
                 if (!isDraft) handleDiscard();
+                fetchLogs();
             } else {
                 const errData = await res.json().catch(() => ({}));
                 setToast({

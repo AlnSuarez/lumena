@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view, parser_classes, authentication_c
 from rest_framework.response import Response
 from rest_framework import status, parsers
 from rest_framework.permissions import AllowAny
+from core.permissions import IsStaffRole, IsSuperUserRole
 from .models import User
 from .serializers import UserSerializer, CreateClientSerializer, ManageUserSerializer
 import json
@@ -9,18 +10,21 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate as django_authenticate, login as django_login
 
 @api_view(['GET'])
+@permission_classes([IsStaffRole])
 def get_content_creators(request):
     creators = User.objects.filter(role=User.Role.CONTENT_CREATOR)
     serializer = UserSerializer(creators, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
+@permission_classes([IsStaffRole])
 def get_clients(request):
     clients = User.objects.filter(role=User.Role.CLIENT)
     serializer = UserSerializer(clients, many=True)
     return Response(serializer.data)
 
 @api_view(['POST'])
+@permission_classes([IsSuperUserRole])
 @parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
 def create_client(request):
     # Check if we have multipart data with 'json_data' field
@@ -49,6 +53,7 @@ def create_client(request):
 # --- USER MANAGEMENT VIEWS ---
 
 @api_view(['GET'])
+@permission_classes([IsStaffRole])
 def list_manageable_users(request):
     """List all users except superusers."""
     users = User.objects.exclude(is_superuser=True).order_by('username')
@@ -56,6 +61,7 @@ def list_manageable_users(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
+@permission_classes([IsSuperUserRole])
 def add_user(request):
     """Add a new user (internal staff or other roles)."""
     serializer = ManageUserSerializer(data=request.data)
@@ -65,6 +71,7 @@ def add_user(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PUT', 'PATCH'])
+@permission_classes([IsSuperUserRole])
 def update_user(request, user_id):
     """Update user details including password and role."""
     user = get_object_or_404(User, id=user_id)
@@ -78,6 +85,7 @@ def update_user(request, user_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
+@permission_classes([IsSuperUserRole])
 def delete_user(request, user_id):
     """Delete a user."""
     user = get_object_or_404(User, id=user_id)

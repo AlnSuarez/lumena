@@ -241,7 +241,8 @@ export default function PublicationLogPage() {
                                     const cInitials = matchedClient ? matchedClient.initials : (clDetails.username ? clDetails.username.slice(0,1).toUpperCase() : 'U');
                                     const cColor = matchedClient ? matchedClient.color : '#6B7280';
                                     
-                                    const thumb = cDetails.linked_image_details?.image_compressed || cDetails.linked_image_details?.image || null;
+                                    const cItems = cDetails.content_items || [];
+                                    const thumb = cItems[0]?.gallery_image_details?.image_compressed || cItems[0]?.gallery_image_details?.image || cDetails.linked_image_details?.image_compressed || cDetails.linked_image_details?.image || null;
                                     const pubTime = post.published_at || post.scheduled_at;
 
                                     return (

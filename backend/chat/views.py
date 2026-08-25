@@ -4,37 +4,19 @@ from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 
+from core.permissions import actor, is_superuser_role
 from .models import ChatMessage
 from .serializers import ChatMessageSerializer, ChatMessageCreateSerializer
-from users.models import User
-
-
-def _get_actor_from_request(request):
-    if request.user and request.user.is_authenticated:
-        return request.user
-
-    user_id = request.query_params.get('user_id') or request.data.get('user_id')
-    if not user_id:
-        return None
-
-    try:
-        return User.objects.get(id=user_id)
-    except (User.DoesNotExist, ValueError, TypeError):
-        return None
-
-
-def _is_admin(user):
-    return user and user.role in ['SUPERUSER', 'ADMIN']
 
 
 @csrf_exempt
 @api_view(['GET'])
 def list_chat_contacts(request):
-    user = _get_actor_from_request(request)
+    user = actor(request)
     if not user:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    if _is_admin(user):
+    if is_superuser_role(user):
         clients = ChatMessage.objects.values('client', 'client__username').distinct()
         contacts = {}
         for c in clients:
@@ -71,11 +53,11 @@ def list_chat_contacts(request):
 @csrf_exempt
 @api_view(['GET'])
 def get_chat_messages(request, contact_id):
-    user = _get_actor_from_request(request)
+    user = actor(request)
     if not user:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    if _is_admin(user):
+    if is_superuser_role(user):
         messages = ChatMessage.objects.filter(
             client_id=contact_id,
             is_deleted_by_admin=False
@@ -95,12 +77,12 @@ def get_chat_messages(request, contact_id):
 @csrf_exempt
 @api_view(['POST'])
 def send_chat_message(request):
-    user = _get_actor_from_request(request)
+    user = actor(request)
     if not user:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     data = request.data.copy()
-    if _is_admin(user):
+    if is_superuser_role(user):
         if 'client' not in data:
             return Response({'error': 'client is required'}, status=status.HTTP_400_BAD_REQUEST)
     elif user.role == 'CLIENT':
@@ -118,12 +100,12 @@ def send_chat_message(request):
 @csrf_exempt
 @api_view(['PATCH'])
 def mark_messages_read(request, contact_id):
-    user = _get_actor_from_request(request)
+    user = actor(request)
     if not user:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     now = timezone.now()
-    if _is_admin(user):
+    if is_superuser_role(user):
         updated = ChatMessage.objects.filter(
             client_id=contact_id,
             is_read=False,
@@ -143,8 +125,8 @@ def mark_messages_read(request, contact_id):
 @csrf_exempt
 @api_view(['DELETE'])
 def delete_conversation(request, contact_id):
-    user = _get_actor_from_request(request)
-    if not user or not _is_admin(user):
+    user = actor(request)
+    if not user or not is_superuser_role(user):
         return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
     deleted, _ = ChatMessage.objects.filter(

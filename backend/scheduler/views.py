@@ -11,28 +11,38 @@ from .serializers import ScheduledPostSerializer, SocialAccountSerializer
 from .publisher import get_api_key, fetch_profiles
 from contents.models import MonthlyRequest
 from users.models import User
+from core.permissions import actor, can_access_client, is_superuser_role, is_staff_role
 
 
-def _get_actor_from_request(request):
-    if request.user and request.user.is_authenticated:
-        return request.user
-    user_id = request.query_params.get('user_id') or request.data.get('user_id')
-    if not user_id:
-        return None
-    try:
-        return User.objects.get(id=user_id)
-    except (User.DoesNotExist, ValueError, TypeError):
-        return None
+def _scheduled_posts_for(user, request):
+    queryset = ScheduledPost.objects.all()
+    status_filter = request.query_params.get('status')
+    client_id = request.query_params.get('client_id')
+
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+
+    if user.role == User.Role.CLIENT:
+        return queryset.filter(client=user)
+
+    if client_id:
+        if not can_access_client(user, client_id):
+            return queryset.none()
+        return queryset.filter(client_id=client_id)
+
+    if is_superuser_role(user):
+        return queryset
+
+    return queryset.filter(created_by=user)
 
 
 class SchedulePostView(generics.CreateAPIView):
     queryset = ScheduledPost.objects.all()
     serializer_class = ScheduledPostSerializer
-    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         try:
-            user = _get_actor_from_request(request)
+            user = actor(request)
 
             content_id = request.data.get('content_id')
             client_id = request.data.get('client_id')
@@ -59,6 +69,9 @@ class SchedulePostView(generics.CreateAPIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+            if not can_access_client(user, client.id):
+                return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
             if not platforms:
                 return Response(
                     {"error": "At least one platform is required."},
@@ -71,14 +84,23 @@ class SchedulePostView(generics.CreateAPIView):
             else:
                 scheduled_at_str = f"{schedule_date} {release_time}"
                 try:
-                    scheduled_at = timezone.datetime.fromisoformat(scheduled_at_str)
-                    if timezone.is_naive(scheduled_at):
-                        scheduled_at = timezone.make_aware(scheduled_at)
-                except (ValueError, TypeError):
-                    return Response(
-                        {"error": "Invalid date/time format."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                    import zoneinfo
+                    cdmx_tz = zoneinfo.ZoneInfo("America/Mexico_City")
+                    naive_dt = timezone.datetime.fromisoformat(scheduled_at_str)
+                    if timezone.is_naive(naive_dt):
+                        scheduled_at = timezone.make_aware(naive_dt, timezone=cdmx_tz)
+                    else:
+                        scheduled_at = naive_dt.astimezone(cdmx_tz)
+                except Exception:
+                    try:
+                        scheduled_at = timezone.datetime.fromisoformat(scheduled_at_str)
+                        if timezone.is_naive(scheduled_at):
+                            scheduled_at = timezone.make_aware(scheduled_at)
+                    except (ValueError, TypeError):
+                        return Response(
+                            {"error": "Invalid date/time format."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
 
             scheduled_post = ScheduledPost.objects.create(
                 content=content,
@@ -139,23 +161,9 @@ class SchedulePostView(generics.CreateAPIView):
 
 class ScheduledPostListCreateView(generics.ListCreateAPIView):
     serializer_class = ScheduledPostSerializer
-    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        user_id = self.request.query_params.get('user_id')
-        status_filter = self.request.query_params.get('status')
-        client_id = self.request.query_params.get('client_id')
-
-        queryset = ScheduledPost.objects.all()
-
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        if client_id:
-            queryset = queryset.filter(client_id=client_id)
-        if user_id:
-            queryset = queryset.filter(client_id=user_id)
-
-        # Sync recently scheduled/published posts with Postproxy status
+        queryset = _scheduled_posts_for(self.request.user, self.request)
         from datetime import timedelta
         from django.utils import timezone
         from .publisher import sync_post_status
@@ -173,14 +181,15 @@ class ScheduledPostListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        user = _get_actor_from_request(self.request)
+        user = actor(self.request)
         serializer.save(created_by=user)
 
 
 class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ScheduledPost.objects.all()
     serializer_class = ScheduledPostSerializer
-    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return _scheduled_posts_for(self.request.user, self.request)
 
     def get_object(self):
         obj = super().get_object()
@@ -195,7 +204,7 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
         old_status = instance.status
         old_postproxy_id = instance.postproxy_id
 
-        user = _get_actor_from_request(self.request)
+        user = actor(self.request)
         updated_post = serializer.save(created_by=user)
 
         # Handle rescheduling/cancellation on Postproxy
@@ -239,23 +248,30 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class SocialAccountListCreateView(generics.ListAPIView):
     serializer_class = SocialAccountSerializer
-    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
+        user = self.request.user
         client_id = self.request.query_params.get('client_id')
+        if user.role == User.Role.CLIENT:
+            return SocialAccount.objects.filter(client=user)
         if client_id:
+            if not can_access_client(user, client_id):
+                return SocialAccount.objects.none()
             return SocialAccount.objects.filter(client_id=client_id)
-        return SocialAccount.objects.all()
+        if is_superuser_role(user):
+            return SocialAccount.objects.all()
+        return SocialAccount.objects.none()
 
 
 class ConnectSocialAccountView(APIView):
-    permission_classes = [permissions.AllowAny]
-
     def post(self, request, *args, **kwargs):
         client_id = request.data.get('client_id')
         platform = request.data.get('platform')
         if not client_id or not platform:
             return Response({"error": "client_id and platform are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not can_access_client(request.user, client_id):
+            return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
         api_key = get_api_key()
         if not api_key:
@@ -425,9 +441,15 @@ class SocialAccountCallbackView(APIView):
 
 
 class SocialAccountDestroyView(generics.DestroyAPIView):
-    queryset = SocialAccount.objects.all()
     serializer_class = SocialAccountSerializer
-    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == User.Role.CLIENT:
+            return SocialAccount.objects.filter(client=user)
+        if is_staff_role(user):
+            return SocialAccount.objects.all()
+        return SocialAccount.objects.none()
 
     def perform_destroy(self, instance):
         if instance.postproxy_profile_id:
@@ -437,10 +459,10 @@ class SocialAccountDestroyView(generics.DestroyAPIView):
 
 
 class ScheduledPostMetricsView(APIView):
-    permission_classes = [permissions.AllowAny]
-
     def get(self, request, pk, *args, **kwargs):
         post = get_object_or_404(ScheduledPost, pk=pk)
+        if not can_access_client(request.user, post.client_id):
+            return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         
         if post.postproxy_id and post.status in ['PUBLISHED', 'PUBLISHING']:
             from .publisher import sync_post_status
