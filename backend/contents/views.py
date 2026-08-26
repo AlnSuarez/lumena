@@ -519,6 +519,36 @@ def upload_content_video(request):
     return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
 
 
+PDF_MAX_BYTES = 100 * 1024 * 1024
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_content_pdf(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    content_type = (getattr(file, 'content_type', '') or '').lower()
+    ext = os.path.splitext(file.name)[1].lower()
+    if content_type not in ('application/pdf', 'application/x-pdf') and ext != '.pdf':
+        return Response({"error": "File must be a PDF."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if getattr(file, 'size', 0) and file.size > PDF_MAX_BYTES:
+        return Response(
+            {"error": "PDF must be 100 MB or smaller (LinkedIn document limit)."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    filename = f"pdfs/{uuid.uuid4().hex}.pdf"
+    saved_name = default_storage.save(filename, file)
+    url = default_storage.url(saved_name)
+    if not url.startswith(('http://', 'https://')):
+        url = request.build_absolute_uri(url)
+
+    return Response({"url": url, "filename": file.name}, status=status.HTTP_201_CREATED)
+
+
 @api_view(['PATCH'])
 def mark_lets_talk_submission_reviewed(request, pk):
     if not is_superuser_role(request.user):

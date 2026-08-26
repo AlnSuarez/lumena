@@ -1,8 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Palette, Sun, Moon, Type, Layout, Check, Shield } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+    Sun,
+    Moon,
+    Check,
+    CircleHelp,
+    X,
+} from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import "../customize.css";
+
+const THEMES = [
+    { name: "Ocean Blue", color: "#3B82F6" },
+    { name: "Royal Purple", color: "#8B5CF6" },
+    { name: "Emerald Green", color: "#10B981" },
+    { name: "Sunset Orange", color: "#F97316" },
+    { name: "Crimson Red", color: "#EF4444" },
+    { name: "Slate Grey", color: "#64748B" },
+];
+
+const FONT_SIZES = ["small", "medium", "large"];
+
+const DENSITY = [
+    { id: "comfortable", label: "Comfortable", meaning: "Default spacing", bars: 2, barClass: "" },
+    { id: "compact", label: "Compact", meaning: "Tighter rows and cards", bars: 3, barClass: " is-compact" },
+    { id: "relaxed", label: "Relaxed", meaning: "More room between items", bars: 2, barClass: " is-relaxed" },
+];
+
+const PIPELINE_STAGES = [
+    { id: "TO_DO", number: 1, name: "To Do", meaning: "Waiting to start" },
+    { id: "IN_PROGRESS", number: 2, name: "In Progress", meaning: "Being created" },
+    { id: "QA", number: 3, name: "QA", meaning: "Internal review" },
+    { id: "IN_REVISION", number: 4, name: "In Revision", meaning: "Changes requested" },
+    { id: "CLIENT_REVIEW", number: 5, name: "Client Review", meaning: "Waiting on client" },
+    { id: "APPROVED", number: 6, name: "Approved", meaning: "Ready to schedule" },
+    { id: "DONE", number: 7, name: "Done", meaning: "Published" },
+];
 
 export default function CustomizePage() {
     const {
@@ -10,228 +44,317 @@ export default function CustomizePage() {
         isDarkMode,
         fontSize,
         density,
-        borderRadius,
         requireQAReview,
-        updateSettings
+        updateSettings,
     } = useTheme();
 
-    const [userRole, setUserRole] = useState('GUEST');
+    const [isSuperuser, setIsSuperuser] = useState(false);
+    const [showLearn, setShowLearn] = useState(false);
+    const [activeSection, setActiveSection] = useState("color");
 
     useEffect(() => {
-        setUserRole(localStorage.getItem('userRole') || 'GUEST');
+        setIsSuperuser(localStorage.getItem("userRole") === "SUPERUSER");
     }, []);
 
-    const themes = [
-        { name: "Ocean Blue", color: "#3B82F6", class: "bg-blue-500" },
-        { name: "Royal Purple", color: "#8B5CF6", class: "bg-purple-500" },
-        { name: "Emerald Green", color: "#10B981", class: "bg-emerald-500" },
-        { name: "Sunset Orange", color: "#F97316", class: "bg-orange-500" },
-        { name: "Crimson Red", color: "#EF4444", class: "bg-red-500" },
-        { name: "Slate Grey", color: "#64748B", class: "bg-slate-500" },
+    const flowSteps = [
+        { id: "color", number: 1, name: "Color", meaning: "Accent used on buttons and highlights" },
+        { id: "look", number: 2, name: "Look", meaning: "Light or dark, and how large text is" },
+        { id: "space", number: 3, name: "Space", meaning: "Comfortable, compact, or relaxed" },
+        ...(isSuperuser
+            ? [{ id: "review", number: 4, name: "Review", meaning: "Whether monthly content goes through QA" }]
+            : []),
     ];
 
+    const landingStage = requireQAReview ? "QA" : "CLIENT_REVIEW";
+    const fontIndex = FONT_SIZES.indexOf(fontSize) + 1 || 2;
+
+    const handleFlowClick = (stepId) => {
+        setShowLearn(false);
+        setActiveSection(stepId);
+        window.setTimeout(() => {
+            document.getElementById(`sp-${stepId}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 0);
+    };
+
     return (
-        <div className="w-full flex flex-col px-0 py-2 h-full">
-            <div className={`bg-secondary ${borderRadius} p-8 flex flex-col h-[85vh] min-h-0 mx-0 relative overflow-hidden transition-all duration-300`}>
-
-                {/* Header */}
-                <div className="flex flex-col gap-2 mb-8">
-                    <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                        <Palette className="text-primary" size={32} />
-                        Site Personalization
-                    </h1>
-                    <p className="text-muted-foreground max-w-2xl">
-                        Customize the visual appearance of your workspace. Changes are saved automatically to your browser.
-                    </p>
+        <div className="site-personalize">
+            <header className="sp-header">
+                <div className="sp-header__titles">
+                    <h1>Site Personalization</h1>
+                    <p>Tune how the workspace looks on this browser. Changes save as you go.</p>
                 </div>
+                <div className="sp-header__actions">
+                    <span className="sp-chip">
+                        <span className="sp-chip__dot" />
+                        Saves here
+                    </span>
+                    {isSuperuser && (
+                        <span className="sp-chip">
+                            <span className={`sp-chip__dot${requireQAReview ? " is-qa" : " is-client"}`} />
+                            Monthly content goes to {requireQAReview ? "QA" : "Client Review"}
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        className={`sp-learn-btn${showLearn ? " is-open" : ""}`}
+                        onClick={() => setShowLearn(true)}
+                        aria-expanded={showLearn}
+                        aria-controls="sp-learn-panel"
+                    >
+                        <CircleHelp size={16} />
+                        How this works
+                    </button>
+                </div>
+            </header>
 
-                <div className="flex-1 overflow-y-auto pr-4 space-y-8 pb-10">
-
-                    {/* Theme Color Section */}
-                    <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                <Palette size={20} />
-                            </div>
+            {showLearn && (
+                <div className="sp-learn-overlay" onClick={() => setShowLearn(false)}>
+                    <div
+                        id="sp-learn-panel"
+                        className="sp-learn"
+                        role="dialog"
+                        aria-labelledby="sp-learn-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="sp-learn__head">
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Theme Color</h2>
-                                <p className="text-xs text-muted-foreground">Select your primary accent color</p>
+                                <h2 id="sp-learn-title">How personalization works</h2>
+                                <p>These choices stay on this device. The QA setting changes where monthly content goes next on the Content Board.</p>
                             </div>
+                            <button type="button" className="sp-icon-btn" onClick={() => setShowLearn(false)} aria-label="Close">
+                                <X size={16} />
+                            </button>
                         </div>
-
-                        <div className="flex flex-wrap gap-4">
-                            {themes.map((theme) => (
+                        <p className="sp-learn__label">On this page</p>
+                        <nav className={`sp-flow${isSuperuser ? "" : " is-three"}`} aria-label="Personalization steps">
+                            {flowSteps.map((s) => (
                                 <button
-                                    key={theme.name}
-                                    onClick={() => updateSettings({ primaryColor: theme.color })}
-                                    className={`group relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${primaryColor === theme.color ? 'border-foreground bg-muted' : 'border-transparent hover:bg-muted'}`}
+                                    key={s.id}
+                                    type="button"
+                                    className={`sp-flow__step${activeSection === s.id ? " is-active" : ""}`}
+                                    onClick={() => handleFlowClick(s.id)}
                                 >
-                                    <div className={`w-12 h-12 rounded-full shadow-md ${theme.class} flex items-center justify-center transition-transform group-hover:scale-110`}>
-                                        {primaryColor === theme.color && <Check className="text-white" size={24} />}
+                                    <div className="sp-flow__top">
+                                        <span className="sp-flow__num">{s.number}</span>
+                                        <span className="sp-flow__name">{s.name}</span>
                                     </div>
-                                    <span className="text-xs font-semibold text-muted-foreground">{theme.name}</span>
+                                    <p className="sp-flow__meaning">{s.meaning}</p>
                                 </button>
                             ))}
-                        </div>
-
-                        {/* Preview Block */}
-                        <div className="mt-6 p-4 rounded-xl bg-muted border border-border">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 block">Live Preview</span>
-                            <div className="flex gap-3">
-                                <button className="px-4 py-2 rounded-lg text-primary-foreground font-medium shadow-lg transition-colors" style={{ backgroundColor: primaryColor }}>
-                                    Primary Button
-                                </button>
-                                <button className="px-4 py-2 rounded-lg bg-card border border-border font-medium shadow-sm" style={{ color: primaryColor }}>
-                                    Secondary Button
-                                </button>
+                        </nav>
+                        {isSuperuser && (
+                            <div className="sp-destination">
+                                <p className="sp-destination__label">Monthly content pipeline</p>
+                                <div className="sp-destination__track">
+                                    {PIPELINE_STAGES.map((stage) => {
+                                        const isLanding = stage.id === landingStage;
+                                        return (
+                                            <div
+                                                key={stage.id}
+                                                className={`sp-dest${isLanding ? " is-landing" : ""}`}
+                                                data-stage={stage.id}
+                                            >
+                                                <div className="sp-dest__top">
+                                                    <span className="sp-dest__num">{stage.number}</span>
+                                                    <span className="sp-dest__name">{stage.name}</span>
+                                                </div>
+                                                <p className="sp-dest__meaning">
+                                                    {isLanding
+                                                        ? (requireQAReview ? "Lands here when QA is on" : "Lands here when QA is off")
+                                                        : stage.meaning}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <div className="sp-card">
+                <section
+                    id="sp-color"
+                    className={`sp-section${activeSection === "color" ? " is-active" : ""}`}
+                >
+                    <div className="sp-section__label">
+                        <span className="sp-section__num">1</span>
+                        <div>
+                            <h3>Color</h3>
+                            <p>Primary accent for buttons, chips, and selected states.</p>
                         </div>
                     </div>
+                    <div className="sp-swatches">
+                        {THEMES.map((theme) => (
+                            <button
+                                key={theme.color}
+                                type="button"
+                                className={`sp-swatch${primaryColor === theme.color ? " is-on" : ""}`}
+                                onClick={() => {
+                                    setActiveSection("color");
+                                    updateSettings({ primaryColor: theme.color });
+                                }}
+                            >
+                                <span className="sp-swatch__dot" style={{ background: theme.color }}>
+                                    {primaryColor === theme.color && <Check size={16} />}
+                                </span>
+                                <span>{theme.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="sp-preview">
+                        <p className="sp-preview__label">Live preview</p>
+                        <div className="sp-preview__row">
+                            <button type="button" className="sp-btn sp-btn--primary">Primary button</button>
+                            <button type="button" className="sp-btn sp-btn--ghost">Secondary button</button>
+                            <span className="sp-chip">
+                                <span className="sp-chip__dot" />
+                                Accent chip
+                            </span>
+                        </div>
+                    </div>
+                </section>
 
-                    {/* Appearance Mode Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg text-purple-600 dark:text-purple-400">
-                                    <Sun size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-bold text-foreground">Appearance</h2>
-                                    <p className="text-xs text-muted-foreground">Light or Dark mode</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 bg-muted p-1.5 rounded-xl">
+                <section
+                    id="sp-look"
+                    className={`sp-section${activeSection === "look" ? " is-active" : ""}`}
+                >
+                    <div className="sp-section__label">
+                        <span className="sp-section__num">2</span>
+                        <div>
+                            <h3>Look</h3>
+                            <p>Light or dark, plus how large the text is.</p>
+                        </div>
+                    </div>
+                    <div className="sp-look-grid">
+                        <div className="sp-field">
+                            <label>Appearance</label>
+                            <div className="sp-segment">
                                 <button
-                                    onClick={() => updateSettings({ isDarkMode: false })}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${!isDarkMode ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    type="button"
+                                    className={!isDarkMode ? "is-on" : ""}
+                                    onClick={() => {
+                                        setActiveSection("look");
+                                        updateSettings({ isDarkMode: false });
+                                    }}
                                 >
                                     <Sun size={16} />
                                     Light
                                 </button>
                                 <button
-                                    onClick={() => updateSettings({ isDarkMode: true })}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${isDarkMode ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    type="button"
+                                    className={isDarkMode ? "is-on" : ""}
+                                    onClick={() => {
+                                        setActiveSection("look");
+                                        updateSettings({ isDarkMode: true });
+                                    }}
                                 >
                                     <Moon size={16} />
                                     Dark
                                 </button>
                             </div>
                         </div>
+                        <div className="sp-field">
+                            <label htmlFor="sp-font-size">Font size</label>
+                            <input
+                                id="sp-font-size"
+                                className="sp-range"
+                                type="range"
+                                min="1"
+                                max="3"
+                                step="1"
+                                value={fontIndex}
+                                onChange={(e) => {
+                                    setActiveSection("look");
+                                    updateSettings({ fontSize: FONT_SIZES[parseInt(e.target.value, 10) - 1] });
+                                }}
+                            />
+                            <div className="sp-range-labels">
+                                {FONT_SIZES.map((size) => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        className={fontSize === size ? "is-on" : ""}
+                                        onClick={() => {
+                                            setActiveSection("look");
+                                            updateSettings({ fontSize: size });
+                                        }}
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-                        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg text-orange-600 dark:text-orange-400">
-                                    <Type size={20} />
+                <section
+                    id="sp-space"
+                    className={`sp-section${activeSection === "space" ? " is-active" : ""}`}
+                >
+                    <div className="sp-section__label">
+                        <span className="sp-section__num">3</span>
+                        <div>
+                            <h3>Space</h3>
+                            <p>How tight or open the interface feels.</p>
+                        </div>
+                    </div>
+                    <div className="sp-density">
+                        {DENSITY.map((opt) => (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                className={`sp-density__opt${density === opt.id ? " is-on" : ""}`}
+                                onClick={() => {
+                                    setActiveSection("space");
+                                    updateSettings({ density: opt.id });
+                                }}
+                            >
+                                <div className={`sp-density__bars${opt.barClass}`}>
+                                    {Array.from({ length: opt.bars }).map((_, i) => (
+                                        <span key={i} className="sp-density__bar" />
+                                    ))}
                                 </div>
+                                <strong>{opt.label}</strong>
+                                <span>{opt.meaning}</span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {isSuperuser && (
+                    <section
+                        id="sp-review"
+                        className={`sp-section${activeSection === "review" ? " is-active" : ""}`}
+                    >
+                        <div className="sp-review">
+                            <div className="sp-section__label">
+                                <span className="sp-section__num">4</span>
                                 <div>
-                                    <h2 className="text-lg font-bold text-foreground">Font Size</h2>
-                                    <p className="text-xs text-muted-foreground">Adjust text readability</p>
+                                    <h3>Review</h3>
+                                    <p>
+                                        {requireQAReview
+                                            ? "Monthly content must pass QA before Client Review."
+                                            : "Monthly content goes straight to Client Review when it is finished."}
+                                    </p>
                                 </div>
                             </div>
-
-                            <div className="space-y-4">
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="3"
-                                    step="1"
-                                    value={fontSize === 'small' ? 1 : fontSize === 'medium' ? 2 : 3}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        updateSettings({ fontSize: val === 1 ? 'small' : val === 2 ? 'medium' : 'large' });
-                                    }}
-                                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                                />
-                                <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase">
-                                    <span>Small</span>
-                                    <span>Medium</span>
-                                    <span>Large</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Layout Density Section */}
-                    <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg text-emerald-600 dark:text-emerald-400">
-                                <Layout size={20} />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-foreground">Interface Density</h2>
-                                <p className="text-xs text-muted-foreground">Adjust spacing and layout compactness</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <button
-                                onClick={() => updateSettings({ density: 'comfortable' })}
-                                className={`flex flex-col items-center p-4 border rounded-xl transition-all ${density === 'comfortable' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
+                                type="button"
+                                className={`sp-switch${requireQAReview ? " is-on" : ""}`}
+                                onClick={() => {
+                                    setActiveSection("review");
+                                    updateSettings({ requireQAReview: !requireQAReview });
+                                }}
+                                aria-pressed={requireQAReview}
+                                aria-label="Require QA review for monthly content"
                             >
-                                <div className="space-y-2 w-full mb-3 opacity-60">
-                                    <div className="h-2 w-3/4 bg-muted-foreground/30 rounded-full"></div>
-                                    <div className="h-2 w-1/2 bg-muted-foreground/30 rounded-full"></div>
-                                </div>
-                                <span className="text-sm font-bold text-foreground">Comfortable</span>
-                            </button>
-
-                            <button
-                                onClick={() => updateSettings({ density: 'compact' })}
-                                className={`flex flex-col items-center p-4 border rounded-xl transition-all ${density === 'compact' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                            >
-                                <div className="space-y-1 w-full mb-3 opacity-60">
-                                    <div className="h-2 w-3/4 bg-muted-foreground/30 rounded-full"></div>
-                                    <div className="h-2 w-1/2 bg-muted-foreground/30 rounded-full"></div>
-                                    <div className="h-2 w-3/4 bg-muted-foreground/30 rounded-full"></div>
-                                </div>
-                                <span className="text-sm font-bold text-foreground">Compact</span>
-                            </button>
-
-                            <button
-                                onClick={() => updateSettings({ density: 'relaxed' })}
-                                className={`flex flex-col items-center p-4 border rounded-xl transition-all ${density === 'relaxed' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                            >
-                                <div className="space-y-4 w-full mb-3 opacity-60">
-                                    <div className="h-2 w-3/4 bg-muted-foreground/30 rounded-full"></div>
-                                    <div className="h-2 w-1/2 bg-muted-foreground/30 rounded-full"></div>
-                                </div>
-                                <span className="text-sm font-bold text-foreground">Relaxed</span>
+                                <span className="sp-switch__knob" />
                             </button>
                         </div>
-                    </div>
-
-                    {/* QA Review Toggle - Only visible to SUPERUSER */}
-                    {userRole === 'SUPERUSER' && (
-                        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-600 dark:text-amber-400">
-                                        <Shield size={20} />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-foreground">Monthly Content QA Review</h2>
-                                        <p className="text-xs text-muted-foreground">
-                                            {requireQAReview
-                                                ? 'Content must pass through QA before Client Review'
-                                                : 'Content goes directly to Client Review after completion'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => updateSettings({ requireQAReview: !requireQAReview })}
-                                    className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
-                                        requireQAReview ? 'bg-primary' : 'bg-muted-foreground/30'
-                                    }`}
-                                >
-                                    <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
-                                        requireQAReview ? 'left-9' : 'left-1'
-                                    }`} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    </section>
+                )}
             </div>
         </div>
     );

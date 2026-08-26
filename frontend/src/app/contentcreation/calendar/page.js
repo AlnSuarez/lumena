@@ -1,11 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, Plus, User, Video } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, User, Video, X } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import "../content-board.css";
+import "./calendar.css";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 const REQUESTS_API = `${API_BASE}/contents/monthly-requests/`;
 const USERS_API = `${API_BASE}/users/manage/`;
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const STATUS_MEANING = {
+    TO_DO: "Ready to start",
+    IN_PROGRESS: "Being created",
+    QA: "Internal review",
+    IN_REVISION: "Changes requested",
+    CLIENT_REVIEW: "Waiting on client",
+    APPROVED: "Ready to schedule",
+    DONE: "Completed",
+};
+
+function todayIso() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function todayMonth() {
+    return todayIso().slice(0, 7);
+}
 
 function normalizeShootDate(value) {
     if (!value) return "";
@@ -19,12 +43,17 @@ function normalizeShootDate(value) {
 function formatDateLabel(value) {
     const normalized = normalizeShootDate(value);
     if (!normalized) return "No date";
-    const date = new Date(`${normalized}T00:00:00`);
-    return date.toLocaleDateString(undefined, {
+    return new Date(`${normalized}T00:00:00`).toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
-        day: "numeric"
+        day: "numeric",
     });
+}
+
+function formatMonthLabel(month) {
+    const date = new Date(`${month}-01T00:00:00`);
+    if (Number.isNaN(date.getTime())) return month;
+    return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
 function monthKey(value) {
@@ -61,27 +90,43 @@ function shiftMonth(month, delta) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getClientName(shoot) {
+    return shoot?.client_details?.client_profile?.practice_name
+        || shoot?.client_details?.username
+        || (shoot?.client ? `Client #${shoot.client}` : "Untitled client");
+}
+
+function getPersonName(user) {
+    if (!user) return "Unassigned";
+    if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
+    return user.username || "Unassigned";
+}
+
+function statusLabel(status) {
+    return String(status || "TO_DO").replaceAll("_", " ");
+}
+
 export default function VideoShootsCalendarPage() {
     const [role, setRole] = useState("GUEST");
     const [userId, setUserId] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState("");
-    const [showCreatePopover, setShowCreatePopover] = useState(false);
+    const [showCreate, setShowCreate] = useState(false);
     const [requests, setRequests] = useState([]);
     const [clients, setClients] = useState([]);
     const [videographers, setVideographers] = useState([]);
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [selectedMonth, setSelectedMonth] = useState("");
     const [selectedDate, setSelectedDate] = useState("");
-
     const [form, setForm] = useState({
         clientId: "",
         shootDate: "",
         videographerId: "",
-        description: ""
+        description: "",
     });
 
     const isAdmin = role === "SUPERUSER";
+    const today = todayIso();
 
     const loadData = async (currentRole, currentUserId) => {
         setIsLoading(true);
@@ -98,8 +143,7 @@ export default function VideoShootsCalendarPage() {
             }
 
             const requestsData = await requestsResponse.json();
-            const videoShoots = requestsData.filter((item) => item.request_type === "VIDEO_SHOOT");
-            setRequests(videoShoots);
+            setRequests(requestsData.filter((item) => item.request_type === "VIDEO_SHOOT"));
 
             if (currentRole === "SUPERUSER") {
                 const usersResponse = await fetch(USERS_API);
@@ -112,6 +156,7 @@ export default function VideoShootsCalendarPage() {
         } catch (loadError) {
             console.error(loadError);
             setError(loadError.message || "Could not load data.");
+            toast.error(loadError.message || "Could not load the calendar.");
         } finally {
             setIsLoading(false);
         }
@@ -128,6 +173,7 @@ export default function VideoShootsCalendarPage() {
 
         setRole(storedRole);
         setUserId(storedUserId);
+        setSelectedMonth(todayMonth());
         loadData(storedRole, storedUserId);
     }, []);
 
@@ -149,24 +195,39 @@ export default function VideoShootsCalendarPage() {
             .sort((a, b) => String(a.month).localeCompare(String(b.month)));
     }, [requests, selectedMonth]);
 
-    const selectedDayShoots = useMemo(() => {
-        if (!selectedDate) return [];
-        return shootsByDate[selectedDate] || [];
-    }, [selectedDate, shootsByDate]);
+    const selectedDayShoots = selectedDate ? (shootsByDate[selectedDate] || []) : [];
+    const visibleShoots = selectedDate ? selectedDayShoots : shootsInMonth;
+    const daysWithShoots = Object.keys(shootsByDate).filter((key) => monthKey(key) === selectedMonth).length;
+    const unassignedCount = shootsInMonth.filter((item) => !item.assigned_to_details).length;
+
+    const goToMonth = (month) => {
+        setSelectedMonth(month);
+        setSelectedDate("");
+    };
 
     const resetForm = () => {
         setForm({
             clientId: "",
-            shootDate: "",
+            shootDate: selectedDate || "",
             videographerId: "",
-            description: ""
+            description: "",
         });
+    };
+
+    const openCreate = () => {
+        setForm({
+            clientId: "",
+            shootDate: selectedDate || today,
+            videographerId: "",
+            description: "",
+        });
+        setShowCreate(true);
     };
 
     const handleCreateShoot = async (event) => {
         event.preventDefault();
         if (!form.clientId || !form.shootDate || !form.videographerId) {
-            alert("Client, date, and videographer are required.");
+            toast.error("Client, date, and videographer are required.");
             return;
         }
 
@@ -183,8 +244,8 @@ export default function VideoShootsCalendarPage() {
                     request_type: "VIDEO_SHOOT",
                     month: form.shootDate,
                     status: "TO_DO",
-                    notes: form.description || ""
-                })
+                    notes: form.description || "",
+                }),
             });
 
             if (!createResponse.ok) {
@@ -192,14 +253,13 @@ export default function VideoShootsCalendarPage() {
             }
 
             const created = await createResponse.json();
-
             const assignUrl = new URL(`${REQUESTS_API}${created.id}/reassign/`);
             assignUrl.searchParams.append("user_id", userId);
 
             const assignResponse = await fetch(assignUrl.toString(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ creator_id: form.videographerId })
+                body: JSON.stringify({ creator_id: form.videographerId }),
             });
 
             if (!assignResponse.ok) {
@@ -207,286 +267,265 @@ export default function VideoShootsCalendarPage() {
             }
 
             resetForm();
-            setShowCreatePopover(false);
+            setShowCreate(false);
             setSelectedMonth(form.shootDate.slice(0, 7));
             setSelectedDate(form.shootDate);
+            toast.success("Video shoot added to the calendar.");
             await loadData(role, userId);
         } catch (createError) {
             console.error(createError);
-            alert(createError.message || "Could not create video shoot.");
+            toast.error(createError.message || "Could not create video shoot.");
         } finally {
             setIsCreating(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-secondary/30 p-4 md:p-8 animate-in fade-in duration-500">
-            <div className="max-w-7xl mx-auto space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                    <div className="pl-1 border-l-4 border-primary">
-                        <h1 className="text-4xl font-black text-foreground tracking-tight">Calendar</h1>
-                        <p className="mt-2 text-muted-foreground text-lg">View all video shoots by date.</p>
-                    </div>
+        <div className="content-board video-calendar">
+            <Toaster position="bottom-right" richColors />
 
-                    <div className="flex items-center gap-2">
+            <div className="cb-header">
+                <div className="cb-header__titles">
+                    <h1>Calendar</h1>
+                    <p>Video shoots by day. Click a date to see who is filming.</p>
+                </div>
+                <div className="cb-header__actions">
+                    <div className="cal-nav">
                         <button
                             type="button"
-                            onClick={() => {
-                                setSelectedMonth((prev) => shiftMonth(prev, -1));
-                                setSelectedDate("");
-                            }}
-                            className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-semibold text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5"
+                            className="cb-icon-btn"
+                            onClick={() => goToMonth(shiftMonth(selectedMonth, -1))}
+                            aria-label="Previous month"
                         >
-                            <ChevronLeft size={15} />
-                            Previous
+                            <ChevronLeft size={16} />
                         </button>
-
-                        <input
-                            type="month"
-                            value={selectedMonth}
-                            onChange={(e) => {
-                                setSelectedMonth(e.target.value);
-                                setSelectedDate("");
-                            }}
-                            className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm outline-none"
-                        />
-
+                        <label className="cal-month">
+                            <strong>{formatMonthLabel(selectedMonth)}</strong>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => goToMonth(e.target.value)}
+                                aria-label="Choose month"
+                            />
+                        </label>
                         <button
                             type="button"
-                            onClick={() => {
-                                const todayMonth = new Date().toISOString().slice(0, 7);
-                                setSelectedMonth(todayMonth);
-                                setSelectedDate("");
-                            }}
-                            className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
+                            className="cb-icon-btn"
+                            onClick={() => goToMonth(shiftMonth(selectedMonth, 1))}
+                            aria-label="Next month"
                         >
+                            <ChevronRight size={16} />
+                        </button>
+                        <button type="button" className="cb-btn cb-btn--ghost" onClick={() => goToMonth(todayMonth())}>
                             Today
                         </button>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSelectedMonth((prev) => shiftMonth(prev, 1));
-                                setSelectedDate("");
-                            }}
-                            className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-semibold text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5"
-                        >
-                            Next
-                            <ChevronRight size={15} />
+                    </div>
+                    {isAdmin && (
+                        <button type="button" className="cb-btn cb-btn--primary" onClick={openCreate}>
+                            <Plus size={16} />
+                            New shoot
                         </button>
+                    )}
+                </div>
+            </div>
 
-                        {isAdmin && (
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCreatePopover((prev) => !prev)}
-                                    className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
-                                >
-                                    <Plus size={16} />
-                                    New Video Shoot
-                                </button>
+            <div className="cb-summary">
+                <button type="button" className={`cb-chip${!selectedDate ? " is-active" : ""}`} onClick={() => setSelectedDate("")}>
+                    <span>This month<small>All shoots in view</small></span>
+                    <strong>{shootsInMonth.length}</strong>
+                </button>
+                <div className="cb-chip">
+                    <span>Days booked<small>Days with at least one shoot</small></span>
+                    <strong>{daysWithShoots}</strong>
+                </div>
+                <button
+                    type="button"
+                    className={`cb-chip${selectedDate ? " is-active" : ""}`}
+                    onClick={() => selectedDate && setSelectedDate(selectedDate)}
+                    disabled={!selectedDate}
+                >
+                    <span>Selected day<small>{selectedDate ? formatDateLabel(selectedDate) : "Pick a date"}</small></span>
+                    <strong>{selectedDate ? selectedDayShoots.length : "—"}</strong>
+                </button>
+                <div className="cb-chip">
+                    <span>Unassigned<small>No videographer yet</small></span>
+                    <strong>{unassignedCount}</strong>
+                </div>
+            </div>
 
-                                {showCreatePopover && (
-                                    <div className="absolute right-0 mt-2 w-[360px] z-30 bg-card border border-border rounded-2xl shadow-2xl p-4">
-                                        <h3 className="font-black text-foreground text-lg mb-3">Create Video Shoot</h3>
-                                        <form onSubmit={handleCreateShoot} className="space-y-3">
-                                            <div>
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">Client</label>
-                                                <select
-                                                    value={form.clientId}
-                                                    onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm outline-none"
-                                                    required
-                                                >
-                                                    <option value="">Select client</option>
-                                                    {clients.map((client) => (
-                                                        <option key={`calendar-client-${client.id}`} value={client.id}>
-                                                            {client.client_profile?.practice_name || client.username}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={form.shootDate}
-                                                    onChange={(e) => setForm((prev) => ({ ...prev, shootDate: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm outline-none"
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">Assigned Videographer</label>
-                                                <select
-                                                    value={form.videographerId}
-                                                    onChange={(e) => setForm((prev) => ({ ...prev, videographerId: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm outline-none"
-                                                    required
-                                                >
-                                                    <option value="">Select videographer</option>
-                                                    {videographers.map((videographer) => (
-                                                        <option key={`calendar-videographer-${videographer.id}`} value={videographer.id}>
-                                                            {videographer.username} ({videographer.role})
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 block">Description (optional)</label>
-                                                <textarea
-                                                    rows={3}
-                                                    value={form.description}
-                                                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 rounded-xl border border-input bg-input/50 text-sm outline-none resize-none"
-                                                    placeholder="Add details for the videographer"
-                                                />
-                                            </div>
-
-                                            <div className="pt-1 flex items-center justify-end gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setShowCreatePopover(false);
-                                                        resetForm();
-                                                    }}
-                                                    className="px-3 py-2 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    type="submit"
-                                                    disabled={isCreating}
-                                                    className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                                                >
-                                                    {isCreating && <Loader2 size={14} className="animate-spin" />}
-                                                    {isCreating ? "Creating..." : "Create"}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+            {isLoading || !selectedMonth ? (
+                <div className="cal-body">
+                    <div className="cal-grid">
+                        <div className="cb-skel cb-skel--card cal-skel" />
+                    </div>
+                    <div className="cal-side">
+                        <div className="cb-skel cb-skel--card cal-skel--side" />
                     </div>
                 </div>
+            ) : (
+                <div className="cal-body">
+                    <section className="cal-grid" aria-label="Month calendar">
+                        <div className="cal-weekdays">
+                            {WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
+                        </div>
+                        <div className="cal-days">
+                            {days.map((day) => {
+                                if (day.isEmpty) {
+                                    return <div key={day.key} className="cal-day is-empty" aria-hidden="true" />;
+                                }
 
-                {isLoading && (
-                    <div className="bg-card border border-border rounded-2xl p-10 flex items-center justify-center gap-3 text-muted-foreground">
-                        <Loader2 className="animate-spin" size={20} />
-                        <span className="font-semibold">Loading calendar...</span>
+                                const dayShoots = shootsByDate[day.iso] || [];
+                                const names = dayShoots.slice(0, 2).map(getClientName).join(", ");
+                                const extra = dayShoots.length > 2 ? ` +${dayShoots.length - 2}` : "";
+
+                                return (
+                                    <button
+                                        key={day.key}
+                                        type="button"
+                                        className={`cal-day${selectedDate === day.iso ? " is-selected" : ""}${day.iso === today ? " is-today" : ""}`}
+                                        onClick={() => setSelectedDate((prev) => (prev === day.iso ? "" : day.iso))}
+                                    >
+                                        <div className="cal-day__top">
+                                            <span className="cal-day__num">{day.day}</span>
+                                            {dayShoots.length > 0 && <span className="cal-count">{dayShoots.length}</span>}
+                                        </div>
+                                        {dayShoots.length > 0 && (
+                                            <p className="cal-day__names">{names}{extra}</p>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    <section className="cal-side" aria-label="Shoot details">
+                        <div className="cal-side__head">
+                            <div>
+                                <h2>{selectedDate ? formatDateLabel(selectedDate) : formatMonthLabel(selectedMonth)}</h2>
+                                <p>{selectedDate ? "Shoots on this day." : "All shoots this month."}</p>
+                            </div>
+                            {selectedDate && (
+                                <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setSelectedDate("")}>
+                                    Month
+                                </button>
+                            )}
+                        </div>
+                        <div className="cal-side__list">
+                            {visibleShoots.length === 0 ? (
+                                <div className="cb-empty">
+                                    <div className="cb-empty__icon"><Video size={18} /></div>
+                                    <strong>No shoots here</strong>
+                                    <p>{selectedDate ? "Nothing is booked on this day." : "No video shoots in this month."}</p>
+                                </div>
+                            ) : (
+                                visibleShoots.map((shoot) => (
+                                    <article key={shoot.id} className="cal-card">
+                                        <div className="cal-card__top">
+                                            <h3>{getClientName(shoot)}</h3>
+                                            <span className="cal-badge" data-status={shoot.status} title={STATUS_MEANING[shoot.status] || ""}>
+                                                {statusLabel(shoot.status)}
+                                            </span>
+                                        </div>
+                                        <div className="cal-card__meta">
+                                            <p><CalendarIcon size={13} /> {formatDateLabel(shoot.month)}</p>
+                                            <p><User size={13} /> {getPersonName(shoot.assigned_to_details)}</p>
+                                            <p><Video size={13} /> {STATUS_MEANING[shoot.status] || "Video shoot"}</p>
+                                        </div>
+                                        <p className="cal-card__notes">{shoot.notes?.trim() || "No description yet."}</p>
+                                    </article>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                </div>
+            )}
+
+            {showCreate && (
+                <div className="cb-overlay">
+                    <div className="cal-create">
+                        <div className="cal-create__head">
+                            <div>
+                                <h2>New video shoot</h2>
+                                <p>Pick the client, day, and who will film.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="cb-icon-btn"
+                                onClick={() => { setShowCreate(false); resetForm(); }}
+                                aria-label="Close"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateShoot}>
+                            <div className="cb-field">
+                                <label htmlFor="cal-client">Client</label>
+                                <select
+                                    id="cal-client"
+                                    value={form.clientId}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
+                                    required
+                                >
+                                    <option value="">Select client</option>
+                                    {clients.map((client) => (
+                                        <option key={client.id} value={client.id}>
+                                            {client.client_profile?.practice_name || client.username}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="cb-field">
+                                <label htmlFor="cal-date">Shoot date</label>
+                                <input
+                                    id="cal-date"
+                                    type="date"
+                                    value={form.shootDate}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, shootDate: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div className="cb-field">
+                                <label htmlFor="cal-videographer">Videographer</label>
+                                <select
+                                    id="cal-videographer"
+                                    value={form.videographerId}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, videographerId: e.target.value }))}
+                                    required
+                                >
+                                    <option value="">Select videographer</option>
+                                    {videographers.map((videographer) => (
+                                        <option key={videographer.id} value={videographer.id}>
+                                            {getPersonName(videographer)} ({videographer.role.replaceAll("_", " ")})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="cb-field">
+                                <label htmlFor="cal-notes">Description</label>
+                                <textarea
+                                    id="cal-notes"
+                                    value={form.description}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Optional notes for the videographer"
+                                />
+                            </div>
+                            <div className="cal-create__actions">
+                                <button
+                                    type="button"
+                                    className="cb-btn cb-btn--ghost"
+                                    onClick={() => { setShowCreate(false); resetForm(); }}
+                                    disabled={isCreating}
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="cb-btn cb-btn--primary" disabled={isCreating}>
+                                    {isCreating ? "Creating..." : "Create shoot"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                )}
-
-                {!isLoading && error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4">
-                        {error}
-                    </div>
-                )}
-
-                {!isLoading && !error && (
-                    <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1fr] gap-5">
-                        <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
-                            <div className="grid grid-cols-7 gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2 px-1">
-                                <span>Sun</span>
-                                <span>Mon</span>
-                                <span>Tue</span>
-                                <span>Wed</span>
-                                <span>Thu</span>
-                                <span>Fri</span>
-                                <span>Sat</span>
-                            </div>
-
-                            <div className="grid grid-cols-7 gap-2">
-                                {days.map((day) => {
-                                    if (day.isEmpty) {
-                                        return <div key={day.key} className="h-24 rounded-xl border border-transparent" />;
-                                    }
-
-                                    const dayShoots = shootsByDate[day.iso] || [];
-                                    const isSelected = selectedDate === day.iso;
-
-                                    return (
-                                        <button
-                                            key={day.key}
-                                            type="button"
-                                            onClick={() => setSelectedDate(day.iso)}
-                                            className={`h-24 rounded-xl border p-2 text-left transition-colors ${isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-bold text-foreground">{day.day}</span>
-                                                {dayShoots.length > 0 && (
-                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                        {dayShoots.length}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {dayShoots.length > 0 && (
-                                                <p className="text-[11px] text-muted-foreground mt-2 truncate">
-                                                    {dayShoots[0].client_details?.client_profile?.practice_name || dayShoots[0].client_details?.username || "Client"}
-                                                </p>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </section>
-
-                        <section className="bg-card border border-border rounded-2xl p-4 md:p-5">
-                            <div className="mb-3">
-                                <h2 className="text-xl font-black text-foreground tracking-tight inline-flex items-center gap-2">
-                                    <CalendarIcon size={18} className="text-primary" />
-                                    {selectedDate ? `Shoots on ${formatDateLabel(selectedDate)}` : "Shoots This Month"}
-                                </h2>
-                            </div>
-
-                            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-                                {(selectedDate ? selectedDayShoots : shootsInMonth).length === 0 ? (
-                                    <div className="border border-dashed border-border rounded-xl p-6 text-center text-muted-foreground text-sm">
-                                        No video shoots found for this selection.
-                                    </div>
-                                ) : (
-                                    (selectedDate ? selectedDayShoots : shootsInMonth).map((shoot) => (
-                                        <article key={`shoot-${shoot.id}`} className="border border-border rounded-xl p-3.5 bg-secondary/20">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <p className="font-bold text-foreground text-sm truncate">
-                                                    {shoot.client_details?.client_profile?.practice_name || shoot.client_details?.username || `Client #${shoot.client}`}
-                                                </p>
-                                                <span className="text-[11px] uppercase tracking-wide font-bold px-2 py-0.5 rounded-full border bg-slate-100 text-slate-700 border-slate-200">
-                                                    {shoot.status?.replaceAll("_", " ") || "TO DO"}
-                                                </span>
-                                            </div>
-
-                                            <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-                                                <p className="inline-flex items-center gap-1.5">
-                                                    <CalendarIcon size={13} />
-                                                    {formatDateLabel(shoot.month)}
-                                                </p>
-                                                <p className="inline-flex items-center gap-1.5">
-                                                    <User size={13} />
-                                                    {shoot.assigned_to_details?.username || "Unassigned videographer"}
-                                                </p>
-                                                <p className="inline-flex items-center gap-1.5">
-                                                    <Video size={13} />
-                                                    Request #{shoot.id}
-                                                </p>
-                                            </div>
-
-                                            <p className="mt-2 text-sm text-foreground/90">
-                                                {shoot.notes?.trim() || "No description provided."}
-                                            </p>
-                                        </article>
-                                    ))
-                                )}
-                            </div>
-                        </section>
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

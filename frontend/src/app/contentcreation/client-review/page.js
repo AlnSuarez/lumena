@@ -27,6 +27,7 @@ import {
     Pause
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import ContentMediaPreview, { isPdfMedia, isVideoMedia } from "../../../components/ContentMediaPreview";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 
@@ -318,18 +319,13 @@ export default function ClientReviewPage() {
                                                         const src = ci.gallery_image_details?.image_url || ci.gallery_image_details?.image_compressed || ci.gallery_image_details?.image || normalizeUrl(ci.file_url) || normalizeUrl(req.linked_image_details?.image_compressed) || normalizeUrl(req.linked_image_details?.image);
 
                                                         if (src) {
-                                                            const isVideo = ci.media_type === 'VIDEO' || 
-                                                                (typeof src === 'string' && (
-                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
-                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
-                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
-                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
-                                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
-                                                                    src.toLowerCase().includes('/videos/')
-                                                                ));
+                                                            const isVideo = isVideoMedia(ci, src);
+                                                            const isPdf = isPdfMedia(ci, src);
                                                             return (
                                                                 <>
-                                                                    {isVideo ? (
+                                                                    {isPdf ? (
+                                                                        <ContentMediaPreview src={src} item={ci} alt={ci.file_name || "PDF"} />
+                                                                    ) : isVideo ? (
                                                                          <CardVideoPlayer src={src} />
                                                                     ) : (
                                                                         <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-cover transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
@@ -523,16 +519,11 @@ export default function ClientReviewPage() {
                                 {src ? (
                                     <>
                                         {(() => {
-                                            const isVideo = ci.media_type === 'VIDEO' || 
-                                                (typeof src === 'string' && (
-                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
-                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
-                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
-                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
-                                                    src.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
-                                                    src.toLowerCase().includes('/videos/')
-                                                ));
-                                            return isVideo ? (
+                                            const isVideo = isVideoMedia(ci, src);
+                                            const isPdf = isPdfMedia(ci, src);
+                                            return isPdf ? (
+                                                <ContentMediaPreview src={src} item={ci} alt={ci.file_name || "PDF"} className="w-full h-full min-h-[300px]" />
+                                            ) : isVideo ? (
                                                 <video src={src} controls className="w-full h-full object-contain max-h-[75vh]" />
                                             ) : (
                                                 <img src={src} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain max-h-[75vh] transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />

@@ -6,6 +6,27 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
+def content_has_pdf(content):
+    if not content or not hasattr(content, "content_items"):
+        return False
+    return content.content_items.filter(media_type="PDF").exists()
+
+
+def validate_pdf_publish(content, platforms):
+    """Return an error string if a PDF cannot be published with these platforms."""
+    if not content_has_pdf(content):
+        return None
+    platforms_lower = [str(p).lower() for p in (platforms or [])]
+    if not platforms_lower:
+        return "At least one platform is required."
+    if any(p != "linkedin" for p in platforms_lower):
+        return "PDF documents can only be published to LinkedIn."
+    if content.content_items.filter(media_type="PDF").count() > 1:
+        return "LinkedIn document posts allow only one PDF."
+    return None
+
+
 def get_api_key():
     return getattr(settings, "POSTPROXY_API_KEY", os.getenv("POSTPROXY_API_KEY"))
 
@@ -33,6 +54,10 @@ def publish_to_postproxy(post):
     api_key = get_api_key()
     if not api_key:
         return {"success": False, "error": "POSTPROXY_API_KEY not configured in environment or settings"}
+
+    pdf_error = validate_pdf_publish(post.content, post.platforms)
+    if pdf_error:
+        return {"success": False, "error": pdf_error}
 
     # Map platforms to client's connected profile IDs in our database
     from .models import SocialAccount
@@ -79,7 +104,7 @@ def publish_to_postproxy(post):
     media_urls = []
     
     # Helper to resolve and test public URLs
-    def clean_media_url(raw_url):
+    def clean_media_url(raw_url, is_pdf=False):
         if not raw_url:
             return None
         # If relative path, prefix with localhost/127.0.0.1 URL for completeness
@@ -88,7 +113,8 @@ def publish_to_postproxy(post):
             
         # Postproxy cannot download from localhost/127.0.0.1.
         # Fallback to a high-quality public image for local development tests.
-        if "127.0.0.1" in raw_url or "localhost" in raw_url:
+        # Do not substitute a stock photo for PDFs — LinkedIn needs a real document URL.
+        if ("127.0.0.1" in raw_url or "localhost" in raw_url) and not is_pdf:
             return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop"
         return raw_url
 
@@ -109,10 +135,11 @@ def publish_to_postproxy(post):
             elif item.file_url:
                 url = item.file_url
 
-            if url and getattr(item, 'rotation', 0) and (item.rotation % 360 != 0):
+            is_pdf = getattr(item, "media_type", "") == "PDF"
+            if url and not is_pdf and getattr(item, 'rotation', 0) and (item.rotation % 360 != 0):
                 url = get_or_create_rotated_image(url, item.rotation)
 
-            cleaned = clean_media_url(url)
+            cleaned = clean_media_url(url, is_pdf=is_pdf)
             if cleaned:
                 media_urls.append(cleaned)
                 

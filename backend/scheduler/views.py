@@ -78,6 +78,11 @@ class SchedulePostView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            from .publisher import validate_pdf_publish
+            pdf_error = validate_pdf_publish(content, platforms)
+            if pdf_error:
+                return Response({"error": pdf_error}, status=status.HTTP_400_BAD_REQUEST)
+
             if publish_now:
                 scheduled_at = timezone.now()
                 status_val = ScheduledPost.Status.PUBLISHING
@@ -206,6 +211,15 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         user = actor(self.request)
         updated_post = serializer.save(created_by=user)
+
+        from .publisher import validate_pdf_publish
+        if updated_post.status in ['SCHEDULED', 'PUBLISHING', 'PUBLISHED']:
+            pdf_error = validate_pdf_publish(updated_post.content, updated_post.platforms)
+            if pdf_error:
+                updated_post.status = 'FAILED'
+                updated_post.error_message = pdf_error
+                updated_post.save(update_fields=['status', 'error_message'])
+                return
 
         # Handle rescheduling/cancellation on Postproxy
         if updated_post.status != 'SCHEDULED' and old_status == 'SCHEDULED' and old_postproxy_id:

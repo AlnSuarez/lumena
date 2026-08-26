@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Check, ChevronDown, ChevronLeft, X, MessageSquare, Sparkles } from 'lucide-react';
+import ContentMediaPreview, { isPdfMedia, isVideoMedia } from '../../../components/ContentMediaPreview';
 
 export default function QAPage() {
     const [clientName, setClientName] = useState("");
@@ -299,18 +300,13 @@ export default function QAPage() {
                                                         const ci = items[safeIndex];
                                                         const imgSrc = ci.gallery_image_details?.image_url || normalizeUrl(ci.file_url) || normalizeUrl(activeItem.originalData?.linked_image_details?.image_url);
                                                         if (imgSrc) {
-                                                            const isVideo = ci.media_type === 'VIDEO' || 
-                                                                (typeof imgSrc === 'string' && (
-                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mp4') || 
-                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mov') || 
-                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.webm') || 
-                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.mkv') || 
-                                                                    imgSrc.toLowerCase().split('?')[0].split('#')[0].endsWith('.avi') ||
-                                                                    imgSrc.toLowerCase().includes('/videos/')
-                                                                ));
+                                                            const isVideo = isVideoMedia(ci, imgSrc);
+                                                            const isPdf = isPdfMedia(ci, imgSrc);
                                                             return (
                                                                 <>
-                                                                    {isVideo ? (
+                                                                    {isPdf ? (
+                                                                        <ContentMediaPreview src={imgSrc} item={ci} alt={ci.file_name || "PDF"} className="w-full h-full min-h-[300px]" />
+                                                                    ) : isVideo ? (
                                                                         <video key={imgSrc} src={imgSrc} controls playsInline preload="metadata" className="w-full h-full min-h-[300px] object-contain bg-black rounded-xl" />
                                                                     ) : (
                                                                         <img src={imgSrc} alt={ci.gallery_image_details?.title || "Media"} className="w-full h-full object-contain transition-transform duration-300" style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />

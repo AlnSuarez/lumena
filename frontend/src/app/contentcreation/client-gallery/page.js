@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     Search,
@@ -9,19 +9,59 @@ import {
     Trash2,
     Folder,
     ArrowLeft,
-    X,
     AlertCircle,
     Download,
     Lock,
-    Eye,
+    FileText,
+    File,
 } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import "../content-board.css";
+import "./client-gallery.css";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
 const CREATED_FOLDER_NAME = "Created";
 
+function getCsrfToken() {
+    const name = "csrftoken";
+    if (!document.cookie) return "";
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i += 1) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === `${name}=`) {
+            return decodeURIComponent(cookie.substring(name.length + 1));
+        }
+    }
+    return "";
+}
+
+function clientName(client) {
+    return client?.client_profile?.practice_name || client?.username || "Untitled client";
+}
+
+function isSharedFolder(folder) {
+    return folder?.folder_name?.trim().toLowerCase() === "shared content";
+}
+
+function FileKind({ item }) {
+    if (item.is_pdf) {
+        return (
+            <div className="cg-tile__file cg-tile__file--pdf">
+                <FileText size={28} />
+                <span>PDF</span>
+            </div>
+        );
+    }
+    return (
+        <div className="cg-tile__file">
+            <File size={28} />
+            <span>.{item.file_type?.toUpperCase() || "FILE"}</span>
+        </div>
+    );
+}
+
 export default function ClientGalleryPage() {
     const router = useRouter();
-    // State Management
     const [clients, setClients] = useState([]);
     const [selectedClient, setSelectedClient] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -30,98 +70,59 @@ export default function ClientGalleryPage() {
     const [selectedFolder, setSelectedFolder] = useState(null);
     const [images, setImages] = useState([]);
     const [selectedFiles, setSelectedFiles] = useState([]);
-
-    // Loading and Error States
     const [loadingClients, setLoadingClients] = useState(true);
+    const [loadClientsError, setLoadClientsError] = useState(false);
     const [loadingFolders, setLoadingFolders] = useState(false);
     const [loadingImages, setLoadingImages] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [error, setError] = useState(null);
-    const [successMessage, setSuccessMessage] = useState(null);
     const [isDragOver, setIsDragOver] = useState(false);
-
-    // Modal States
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
     const [newFolderName, setNewFolderName] = useState("");
     const [folderNameError, setFolderNameError] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
-    const [deleteConfirmType, setDeleteConfirmType] = useState('image');
-
-    // CSRF Token
+    const [deleteConfirmType, setDeleteConfirmType] = useState("image");
+    const [isDeleting, setIsDeleting] = useState(false);
     const [csrfToken, setCsrfToken] = useState("");
 
-    // Get CSRF token from cookies
-    const getCsrfToken = () => {
-        const name = "csrftoken";
-        let cookieValue = "";
-        if (document.cookie && document.cookie !== "") {
-            const cookies = document.cookie.split(";");
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === name + "=") {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    };
-
-    // Check authentication and fetch clients on mount
     useEffect(() => {
-        // Check if user is logged in
-        const userId = localStorage.getItem('userId');
+        const userId = localStorage.getItem("userId");
         if (!userId) {
-            router.push('/login');
+            router.push("/login");
             return;
         }
-
         setCsrfToken(getCsrfToken());
         fetchClients();
     }, [router]);
 
-    // Fetch folders when client is selected
     useEffect(() => {
-        if (selectedClient) {
-            fetchFolders(selectedClient.id);
-        }
+        if (selectedClient) fetchFolders(selectedClient.id);
     }, [selectedClient]);
 
-    // Fetch images when folder is selected
     useEffect(() => {
         if (selectedFolder) {
             fetchImages(selectedFolder.id);
-            setImageSearchTerm(""); // Clear search when changing folders
+            setImageSearchTerm("");
         }
     }, [selectedFolder]);
 
     const fetchClients = async () => {
+        setLoadingClients(true);
+        setLoadClientsError(false);
         try {
-            setLoadingClients(true);
-            setError(null);
             const response = await fetch(`${API_BASE}/users/clients/`, {
-                credentials: 'include',
+                credentials: "include",
             });
-
             if (!response.ok) {
-                // Check if authentication failed
-                if (response.status === 401 || response.status === 403) {
-                    localStorage.removeItem('userId');
-                    localStorage.removeItem('userRole');
-                    localStorage.removeItem('userPermissions');
-                    localStorage.removeItem('username');
-                    router.push('/login');
-                    return;
-                }
-
-                const errorData = await response.json().catch(() => ({}));
-                const errorMessage = errorData.detail || errorData.error || `Failed to fetch clients (${response.status})`;
-                throw new Error(errorMessage);
+                setClients([]);
+                setLoadClientsError(true);
+                toast.error("Could not load clients.");
+                return;
             }
-            const data = await response.json();
-            setClients(data);
+            setClients(await response.json());
         } catch (err) {
-            setError(err.message);
+            setClients([]);
+            setLoadClientsError(true);
+            toast.error("Network error while loading clients.");
             console.error("Error fetching clients:", err);
         } finally {
             setLoadingClients(false);
@@ -131,34 +132,19 @@ export default function ClientGalleryPage() {
     const fetchFolders = async (clientId) => {
         try {
             setLoadingFolders(true);
-            setError(null);
             const response = await fetch(`${API_BASE}/gallery/clients/${clientId}/folders/`, {
-                credentials: 'include',
+                credentials: "include",
             });
 
             if (!response.ok) {
-                // Check if authentication failed
-                if (response.status === 401 || response.status === 403) {
-                    const errorData = await response.json().catch(() => ({}));
-                    // Only redirect to login if it's an authentication issue
-                    if (errorData.detail && errorData.detail.includes('Authentication')) {
-                        localStorage.removeItem('userId');
-                        localStorage.removeItem('userRole');
-                        localStorage.removeItem('userPermissions');
-                        localStorage.removeItem('username');
-                        router.push('/login');
-                        return;
-                    }
-                }
-
-                const errorData = await response.json().catch(() => ({}));
-                const errorMessage = errorData.detail || errorData.error || `Failed to fetch folders (${response.status})`;
-                throw new Error(errorMessage);
+                toast.error("Could not load folders.");
+                setFolders([]);
+                return;
             }
+
             const data = await response.json();
             let nextFolders = data;
 
-            // Ensure the default "Created" folder exists and is visible in Client Gallery.
             const hasCreated = data.some(
                 (folder) => folder.folder_name?.trim().toLowerCase() === CREATED_FOLDER_NAME.toLowerCase()
             );
@@ -181,38 +167,30 @@ export default function ClientGalleryPage() {
                     const createdFolder = await createResponse.json();
                     nextFolders = [createdFolder, ...data];
                 } else {
-                    // If concurrent request created it, refetch once.
                     const retryResponse = await fetch(`${API_BASE}/gallery/clients/${clientId}/folders/`, {
                         credentials: "include",
                     });
-                    if (retryResponse.ok) {
-                        nextFolders = await retryResponse.json();
-                    }
+                    if (retryResponse.ok) nextFolders = await retryResponse.json();
                 }
             }
 
-            // Auto-create/get the "shared content" system folder
             try {
                 const sharedResponse = await fetch(
                     `${API_BASE}/gallery/clients/${clientId}/shared-content/`,
                     {
                         method: "POST",
                         credentials: "include",
-                        headers: {
-                            "X-CSRFToken": csrfToken || getCsrfToken(),
-                        },
+                        headers: { "X-CSRFToken": csrfToken || getCsrfToken() },
                     }
                 );
                 if (sharedResponse.ok) {
                     const sharedFolder = await sharedResponse.json();
                     const hasShared = nextFolders.some(
-                        (f) => f.folder_name?.trim().toLowerCase() === "shared content"
+                        (folder) => folder.folder_name?.trim().toLowerCase() === "shared content"
                     );
-                    if (!hasShared) {
-                        nextFolders = [sharedFolder, ...nextFolders];
-                    }
+                    if (!hasShared) nextFolders = [sharedFolder, ...nextFolders];
                 }
-            } catch (_) {
+            } catch {
                 /* non-critical */
             }
 
@@ -220,7 +198,7 @@ export default function ClientGalleryPage() {
             setSelectedFolder(null);
             setImages([]);
         } catch (err) {
-            setError(err.message);
+            toast.error("Network error while loading folders.");
             console.error("Error fetching folders:", err);
         } finally {
             setLoadingFolders(false);
@@ -230,25 +208,30 @@ export default function ClientGalleryPage() {
     const fetchImages = async (folderId) => {
         try {
             setLoadingImages(true);
-            setError(null);
-            const isShared = selectedFolder?.folder_name?.toLowerCase() === "shared content";
+            const isShared = isSharedFolder(selectedFolder);
             const url = isShared && selectedClient
                 ? `${API_BASE}/gallery/clients/${selectedClient.id}/shared-content/images/`
                 : `${API_BASE}/gallery/folders/${folderId}/images/`;
 
-            const response = await fetch(url, {
-                credentials: 'include',
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch images");
-            const data = await response.json();
-            setImages(data);
+            const response = await fetch(url, { credentials: "include" });
+            if (!response.ok) {
+                toast.error("Could not load files.");
+                setImages([]);
+                return;
+            }
+            setImages(await response.json());
         } catch (err) {
-            setError(err.message);
+            toast.error("Network error while loading files.");
             console.error("Error fetching images:", err);
         } finally {
             setLoadingImages(false);
         }
+    };
+
+    const closeCreateFolder = () => {
+        setShowCreateFolderModal(false);
+        setNewFolderName("");
+        setFolderNameError(null);
     };
 
     const handleCreateFolder = async (e) => {
@@ -259,15 +242,12 @@ export default function ClientGalleryPage() {
             setFolderNameError("Folder name is required");
             return;
         }
-
         if (newFolderName.trim().toLowerCase() === "shared content") {
             setFolderNameError("This folder name is reserved");
             return;
         }
-
-        // Check if folder already exists
-        if (folders.some(f => f.folder_name === newFolderName)) {
-            setFolderNameError("Folder with this name already exists");
+        if (folders.some((folder) => folder.folder_name === newFolderName)) {
+            setFolderNameError("A folder with this name already exists");
             return;
         }
 
@@ -276,27 +256,25 @@ export default function ClientGalleryPage() {
                 `${API_BASE}/gallery/clients/${selectedClient.id}/folders/create/`,
                 {
                     method: "POST",
-                    credentials: 'include',
+                    credentials: "include",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken,
+                        "X-CSRFToken": csrfToken || getCsrfToken(),
                     },
                     body: JSON.stringify({ folder_name: newFolderName }),
                 }
             );
 
             if (!response.ok) {
-                const data = await response.json();
-                setFolderNameError(data.error || "Failed to create folder");
+                const data = await response.json().catch(() => ({}));
+                setFolderNameError(data.error || "Could not create folder");
                 return;
             }
 
             const newFolder = await response.json();
             setFolders([newFolder, ...folders]);
-            setShowCreateFolderModal(false);
-            setNewFolderName("");
-            setSuccessMessage("Folder created successfully!");
-            setTimeout(() => setSuccessMessage(null), 3000);
+            closeCreateFolder();
+            toast.success("Folder created.");
         } catch (err) {
             setFolderNameError(err.message);
             console.error("Error creating folder:", err);
@@ -304,8 +282,7 @@ export default function ClientGalleryPage() {
     };
 
     const handleFileSelect = (e) => {
-        const files = Array.from(e.target.files);
-        setSelectedFiles(files);
+        setSelectedFiles(Array.from(e.target.files || []));
     };
 
     const handleDragOver = (e) => {
@@ -331,31 +308,24 @@ export default function ClientGalleryPage() {
         e.preventDefault();
         e.stopPropagation();
         setIsDragOver(false);
-
         if (uploading) return;
-
         const droppedFiles = Array.from(e.dataTransfer.files);
         if (droppedFiles.length === 0) return;
-
         setSelectedFiles(droppedFiles);
     };
 
     const handleUploadImages = async () => {
         if (selectedFiles.length === 0) {
-            setError("Please select at least one file");
+            toast.error("Select at least one file.");
             return;
         }
 
         try {
             setUploading(true);
-            setError(null);
-
-            const isShared = selectedFolder?.folder_name?.toLowerCase() === "shared content";
+            const isShared = isSharedFolder(selectedFolder);
             const formData = new FormData();
             const fieldName = isShared ? "files" : "images";
-            selectedFiles.forEach(file => {
-                formData.append(fieldName, file);
-            });
+            selectedFiles.forEach((file) => formData.append(fieldName, file));
 
             const url = isShared && selectedClient
                 ? `${API_BASE}/gallery/clients/${selectedClient.id}/shared-content/upload/`
@@ -363,19 +333,17 @@ export default function ClientGalleryPage() {
 
             const response = await fetch(url, {
                 method: "POST",
-                credentials: 'include',
-                headers: {
-                    "X-CSRFToken": csrfToken,
-                },
+                credentials: "include",
+                headers: { "X-CSRFToken": csrfToken || getCsrfToken() },
                 body: formData,
             });
 
             const responseData = await response.json().catch(() => null);
             if (!response.ok) {
                 let errorMessage =
-                    responseData?.error ||
-                    responseData?.message ||
-                    `Failed to upload (HTTP ${response.status})`;
+                    responseData?.error
+                    || responseData?.message
+                    || `Could not upload (HTTP ${response.status})`;
 
                 const details = responseData?.details || responseData?.errors;
                 if (Array.isArray(details) && details.length > 0) {
@@ -386,538 +354,395 @@ export default function ClientGalleryPage() {
                         errorMessage += ` First failure: ${first.error}`;
                     }
                 }
-
                 throw new Error(errorMessage);
             }
 
             const uploadedItems = responseData.documents || responseData.images || responseData;
-
             setImages([...uploadedItems, ...images]);
             setSelectedFiles([]);
 
-            let message = `${uploadedItems.length} file(s) uploaded successfully!`;
+            let message = `${uploadedItems.length} file(s) uploaded.`;
             if (responseData.errors && responseData.errors.length > 0) {
                 message += ` (${responseData.errors.length} failed)`;
             }
-            setSuccessMessage(message);
-            setTimeout(() => setSuccessMessage(null), 3000);
+            toast.success(message);
 
             const fileInput = document.getElementById("imageInput");
             if (fileInput) fileInput.value = "";
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message || "Could not upload.");
             console.error("Error uploading:", err);
         } finally {
             setUploading(false);
         }
     };
 
-    const handleDeleteImage = async (imageId, itemType) => {
+    const handleDeleteImage = async () => {
+        if (!deleteConfirm) return;
+        setIsDeleting(true);
         try {
-            const isDoc = itemType === 'document';
+            const isDoc = deleteConfirmType === "document";
             const url = isDoc
-                ? `${API_BASE}/gallery/shared-documents/${imageId}/`
-                : `${API_BASE}/gallery/images/${imageId}/`;
+                ? `${API_BASE}/gallery/shared-documents/${deleteConfirm}/`
+                : `${API_BASE}/gallery/images/${deleteConfirm}/`;
 
             const response = await fetch(url, {
                 method: "DELETE",
-                credentials: 'include',
-                headers: {
-                    "X-CSRFToken": csrfToken,
-                },
+                credentials: "include",
+                headers: { "X-CSRFToken": csrfToken || getCsrfToken() },
             });
 
-            if (!response.ok) throw new Error("Failed to delete");
+            if (!response.ok) throw new Error("Could not delete this file.");
 
-            setImages(images.filter(img => img.id !== imageId));
+            setImages((prev) => prev.filter((img) => img.id !== deleteConfirm));
             setDeleteConfirm(null);
-            setSuccessMessage("Deleted successfully!");
-            setTimeout(() => setSuccessMessage(null), 3000);
+            toast.success("File deleted.");
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
             console.error("Error deleting:", err);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
-    const filteredClients = clients.filter(client =>
-        (client.client_profile?.practice_name || client.username)
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
+    const filteredClients = clients.filter((client) =>
+        clientName(client).toLowerCase().includes(searchTerm.toLowerCase())
+        || (client.username || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredImages = images.filter(image => {
+    const filteredImages = images.filter((image) => {
         if (!imageSearchTerm) return true;
         const searchLower = imageSearchTerm.toLowerCase();
         return (
-            image.title?.toLowerCase().includes(searchLower) ||
-            image.folio?.toLowerCase().includes(searchLower)
+            image.title?.toLowerCase().includes(searchLower)
+            || image.folio?.toLowerCase().includes(searchLower)
         );
     });
 
+    const shared = isSharedFolder(selectedFolder);
+
     return (
-        <div className="min-h-screen bg-secondary/30 p-8 animate-in fade-in duration-500">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8 pl-1 border-l-4 border-primary">
-                    <h1 className="text-4xl font-black text-foreground tracking-tight">Client Gallery</h1>
-                    <p className="text-muted-foreground mt-2 text-lg">Manage and organize client images and assets.</p>
+        <div className="content-board client-gallery">
+            <Toaster position="bottom-right" richColors />
+
+            <div className="cb-header">
+                <div className="cb-header__titles">
+                    <h1>Client Gallery</h1>
+                    <p>Libraries of images and files, organized by client and folder.</p>
                 </div>
-
-                {/* Error Alert */}
-                {error && (
-                    <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
-                        <AlertCircle className="text-destructive mt-0.5 flex-shrink-0" size={20} />
-                        <div className="flex-1">
-                            <p className="text-destructive font-bold">Error</p>
-                            <p className="text-destructive/80 text-sm">{error}</p>
-                        </div>
-                        <button onClick={() => setError(null)} className="text-destructive hover:text-destructive/80 transition-colors">
-                            <X size={18} />
+                <div className="cb-header__actions">
+                    {selectedClient && !selectedFolder && (
+                        <button type="button" className="cb-btn cb-btn--primary" onClick={() => setShowCreateFolderModal(true)}>
+                            <FolderPlus size={16} />
+                            Create folder
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
+            </div>
 
-                {/* Success Message */}
-                {successMessage && (
-                    <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2">
-                        <div className="text-green-600 dark:text-green-400 font-bold">{successMessage}</div>
-                        <button onClick={() => setSuccessMessage(null)} className="ml-auto text-green-600 dark:text-green-400 hover:opacity-75 transition-opacity">
-                            <X size={18} />
-                        </button>
-                    </div>
-                )}
-
-                {/* Client Selector Section */}
-                {!selectedClient ? (
-                    <div className="bg-card/60 backdrop-blur-xl border border-border/60 rounded-3xl p-8 shadow-xl">
-                        <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-                            <Folder className="text-primary" size={28} />
-                            Select a Client
-                        </h2>
-
-                        {/* Search Input */}
-                        <div className="mb-6">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-3.5 text-muted-foreground" size={20} />
-                                <input
-                                    type="text"
-                                    placeholder="Search clients..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground placeholder:text-muted-foreground"
-                                />
-                            </div>
+            {!selectedClient ? (
+                <>
+                    <div className="cg-toolbar">
+                        <div className="cg-search">
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search clients"
+                                aria-label="Search clients"
+                            />
                         </div>
+                    </div>
 
-                        {/* Clients Grid */}
+                    <div className="cg-panel">
                         {loadingClients ? (
-                            <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                            <div className="cb-empty"><strong>Loading clients…</strong></div>
+                        ) : loadClientsError ? (
+                            <div className="cb-empty">
+                                <div className="cb-empty__icon"><Folder size={18} /></div>
+                                <strong>Could not load clients</strong>
+                                <p>Sign in with an admin account, then try again.</p>
+                                <button type="button" className="cb-btn cb-btn--ghost" onClick={fetchClients}>Retry</button>
                             </div>
                         ) : filteredClients.length === 0 ? (
-                            <div className="text-center py-12 bg-muted/30 rounded-2xl border border-dashed border-border">
-                                <p className="text-muted-foreground text-lg">No clients found</p>
+                            <div className="cb-empty">
+                                <div className="cb-empty__icon"><Search size={18} /></div>
+                                <strong>No clients found</strong>
+                                <p>{clients.length === 0 ? "There are no client libraries yet." : "Try another search."}</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredClients.map(client => (
+                            <div className="cg-grid">
+                                {filteredClients.map((client) => (
                                     <button
                                         key={client.id}
+                                        type="button"
+                                        className="cg-card"
                                         onClick={() => setSelectedClient(client)}
-                                        className="p-5 text-left border border-border bg-card hover:bg-muted/50 rounded-2xl hover:border-primary hover:shadow-lg hover:shadow-primary/5 transition-all group"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                                {(client.client_profile?.practice_name || client.username).charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-foreground group-hover:text-primary transition-colors">
-                                                    {client.client_profile?.practice_name || client.username}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground group-hover:text-foreground/70 transition-colors">@{client.username}</p>
-                                            </div>
+                                        <span className="cg-avatar">{clientName(client).charAt(0).toUpperCase()}</span>
+                                        <div className="cg-card__meta">
+                                            <strong>{clientName(client)}</strong>
+                                            <span>@{client.username}</span>
                                         </div>
                                     </button>
                                 ))}
                             </div>
                         )}
                     </div>
-                ) : (
-                    /* Folder and Image Management */
-                    <div>
-                        {/* Breadcrumb and Back Button */}
-                        <div className="mb-6 flex items-center gap-2">
-                            <button
-                                onClick={() => {
-                                    setSelectedClient(null);
+                </>
+            ) : (
+                <>
+                    <nav className="cg-crumb">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (selectedFolder) {
                                     setSelectedFolder(null);
-                                    setSearchTerm("");
-                                }}
-                                className="flex items-center gap-2 text-primary hover:text-primary/80 font-bold transition-colors"
-                            >
-                                <ArrowLeft size={18} />
-                                Back to Clients
-                            </button>
-                            <span className="text-muted-foreground/40">•</span>
-                            <span className="text-muted-foreground font-medium">
-                                {selectedClient.client_profile?.practice_name || selectedClient.username}
-                            </span>
-                        </div>
-
-                        {/* Folder List View */}
-                        {!selectedFolder ? (
-                            <div className="bg-card/60 backdrop-blur-xl border border-border/60 rounded-3xl p-8 shadow-xl animate-in slide-in-from-bottom-5">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h2 className="text-2xl font-bold text-foreground">Folders</h2>
-                                    <button
-                                        onClick={() => setShowCreateFolderModal(true)}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 hover:scale-105 transition-all shadow-lg shadow-primary/20"
-                                    >
-                                        <FolderPlus size={18} />
-                                        Create Folder
-                                    </button>
-                                </div>
-
-                                {/* Folders Grid */}
-                                {loadingFolders ? (
-                                    <div className="flex justify-center py-12">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                                    </div>
-                                ) : folders.length === 0 ? (
-                                    <div className="text-center py-12 bg-muted/30 rounded-2xl border border-dashed border-border/50">
-                                        <Folder className="mx-auto text-muted-foreground/50 mb-4" size={56} />
-                                        <p className="text-muted-foreground text-lg font-medium">No folders yet</p>
-                                        <p className="text-muted-foreground/60 text-sm mt-1">Create a folder to start organizing images</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                                        {folders.map(folder => (
-                                            <button
-                                                key={folder.id}
-                                                onClick={() => setSelectedFolder(folder)}
-                                                className={`p-6 text-left bg-card border border-border rounded-2xl hover:border-primary hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all group ${folder.is_system_folder ? "border-dashed border-amber-400/40 bg-amber-50/30 dark:bg-amber-950/10" : ""}`}
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <div className={`p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors ${folder.is_system_folder ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" : "bg-primary/10"}`}>
-                                                                {folder.is_system_folder ? <Lock size={24} /> : <Folder size={24} />}
-                                                            </div>
-                                                            <p className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">{folder.folder_name}</p>
-                                                            {folder.is_system_folder && (
-                                                                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">System</span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground pl-11">
-                                                            {folder.image_count} image{folder.image_count !== 1 ? "s" : ""}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            /* Image Gallery View */
-                            <div className="bg-card/60 backdrop-blur-xl border border-border/60 rounded-3xl p-8 shadow-xl animate-in zoom-in-95 duration-300">
-                                <div className="mb-8">
-                                    <div className="flex items-center gap-4 mb-6">
-                                        <button
-                                            onClick={() => setSelectedFolder(null)}
-                                            className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all"
-                                        >
-                                            <ArrowLeft size={24} />
-                                        </button>
-                                        <div className="flex-1">
-                                            <h2 className="text-3xl font-black text-foreground tracking-tight">{selectedFolder.folder_name}</h2>
-                                            <p className="text-sm text-muted-foreground mt-1">{filteredImages.length} of {images.length} image(s)</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Search Images */}
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-3.5 text-muted-foreground" size={20} />
-                                        <input
-                                            type="text"
-                                            placeholder="Search by title or folio..."
-                                            value={imageSearchTerm}
-                                            onChange={(e) => setImageSearchTerm(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Upload Area */}
-                                <div
-                                    className={`relative mb-8 p-8 border-2 border-dashed rounded-2xl transition-colors group ${
-                                        isDragOver
-                                            ? "border-primary bg-primary/20"
-                                            : "border-primary/20 bg-primary/5 hover:bg-primary/10"
-                                    }`}
-                                    onDragOver={handleDragOver}
-                                    onDragEnter={handleDragEnter}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                >
-                                    {/* Drag Overlay */}
-                                    {isDragOver && (
-                                        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-primary/20 backdrop-blur-sm rounded-2xl pointer-events-none">
-                                            <div className="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary border-dashed flex items-center justify-center mb-4 animate-pulse">
-                                                <Upload size={32} className="text-primary" />
-                                            </div>
-                                            <p className="text-primary font-black text-lg">Drop files to upload</p>
-                                            <p className="text-primary/70 text-sm mt-1">
-                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content"
-                                                    ? "Any file type supported"
-                                                    : "Images and videos supported"}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <input
-                                        id="imageInput"
-                                        type="file"
-                                        multiple
-                                        accept={selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "*/*" : "image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"}
-                                        onChange={handleFileSelect}
-                                        className="hidden"
-                                    />
-                                    <label htmlFor="imageInput" className="cursor-pointer block">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                                <Upload className="text-primary" size={32} />
-                                            </div>
-                                            <p className="font-bold text-foreground text-lg">
-                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "Click to select any file type" : "Click to select images or videos"}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                {selectedFolder?.folder_name?.toLowerCase() === "shared content" ? "Supports PDFs, Word, Excel, images, videos, and more" : "Supports JPG, PNG, GIF, WebP, MP4, MOV, AVI"}
-                                            </p>
-                                        </div>
-                                    </label>
-
-                                    {/* Selected Files Preview */}
-                                    {selectedFiles.length > 0 && (
-                                        <div className="mt-6 pt-6 border-t border-primary/10">
-                                            <p className="text-sm font-bold text-foreground mb-3">Selected Files ({selectedFiles.length}):</p>
-                                            <div className="max-h-32 overflow-y-auto space-y-1 mb-4 pr-2 scrollbar-thin scrollbar-thumb-border">
-                                                {selectedFiles.map((file, idx) => (
-                                                    <div key={idx} className="text-xs text-muted-foreground bg-background/50 px-3 py-1.5 rounded-md flex justify-between">
-                                                        <span className="truncate">{file.name}</span>
-                                                        <span className="opacity-70">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <button
-                                                onClick={handleUploadImages}
-                                                disabled={uploading}
-                                                className="w-full sm:w-auto px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20 hover:scale-[1.02]"
-                                            >
-                                                {uploading ? "Uploading..." : "Upload Images"}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Images Grid */}
-                                {loadingImages ? (
-                                    <div className="flex justify-center py-12">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                                    </div>
-                                ) : images.length === 0 ? (
-                                    <div className="text-center py-12 bg-muted/30 rounded-2xl border border-dashed border-border/50">
-                                        <p className="text-muted-foreground text-lg">No files in this folder</p>
-                                        <p className="text-muted-foreground/60 text-sm">Upload files to get started</p>
-                                    </div>
-                                ) : filteredImages.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-muted-foreground text-lg">No files match your search</p>
-                                        <p className="text-muted-foreground/60 text-sm">Try a different search term</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                        {filteredImages.map(item => {
-                                            const isDoc = item._type === 'document';
-                                            return (
-                                                <div key={`${isDoc ? 'doc' : 'img'}-${item.id}`} className="relative group rounded-xl overflow-hidden shadow-md bg-card border border-border aspect-square">
-                                                    {isDoc ? (
-                                                        item.is_image ? (
-                                                            <img
-                                                                src={item.file_url}
-                                                                alt={item.title || "Shared file"}
-                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                            />
-                                                        ) : item.is_video ? (
-                                                            <video
-                                                                src={item.file_url}
-                                                                className="w-full h-full object-cover"
-                                                                muted
-                                                                preload="metadata"
-                                                            />
-                                                        ) : item.is_pdf ? (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
-                                                                <svg className="w-16 h-16 text-red-500 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                                    <polyline points="14 2 14 8 20 8" />
-                                                                    <line x1="16" y1="13" x2="8" y2="13" />
-                                                                    <line x1="16" y1="17" x2="8" y2="17" />
-                                                                    <polyline points="10 9 9 9 8 9" />
-                                                                </svg>
-                                                                <p className="text-xs text-center font-semibold text-foreground truncate w-full">PDF</p>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-muted p-4">
-                                                                <svg className="w-16 h-16 text-primary mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                                    <polyline points="14 2 14 8 20 8" />
-                                                                    <line x1="16" y1="13" x2="8" y2="13" />
-                                                                    <line x1="16" y1="17" x2="8" y2="17" />
-                                                                </svg>
-                                                                <p className="text-xs text-center font-semibold text-foreground truncate w-full">.{item.file_type?.toUpperCase()}</p>
-                                                            </div>
-                                                        )
-                                                    ) : (
-                                                        <img
-                                                            src={item.image_url}
-                                                            alt={item.title || "Gallery image"}
-                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                        />
-                                                    )}
-                                                    {/* Info overlay */}
-                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-14 pb-3 px-3 text-white opacity-100">
-                                                        {item.folio && (
-                                                            <p className="text-[10px] font-mono font-bold tracking-wide text-white/90 mb-1 drop-shadow-sm">
-                                                                {item.folio}
-                                                            </p>
-                                                        )}
-                                                        <p className="text-xs font-black truncate text-white drop-shadow-sm" title={item.title}>
-                                                            {item.title || "Untitled"}
-                                                        </p>
-                                                    </div>
-                                                    {/* Hover actions */}
-                                                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                        <a
-                                                            href={isDoc ? item.file_url : (item.image_url_original || item.image_url)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="p-2 bg-black/50 text-white rounded-full hover:bg-primary hover:text-primary-foreground backdrop-blur-sm transition-all"
-                                                            title="View / Download"
-                                                        >
-                                                            <Download size={16} />
-                                                        </a>
-                                                        <button
-                                                            onClick={() => { setDeleteConfirm(item.id); setDeleteConfirmType(isDoc ? 'document' : 'image'); }}
-                                                            className="p-2 bg-black/50 text-white rounded-full hover:bg-destructive hover:text-destructive-foreground backdrop-blur-sm transition-all"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
+                                    setSelectedFiles([]);
+                                    return;
+                                }
+                                setSelectedClient(null);
+                                setSelectedFolder(null);
+                                setSearchTerm("");
+                            }}
+                        >
+                            <ArrowLeft size={14} />
+                            {selectedFolder ? "Folders" : "Clients"}
+                        </button>
+                        <span>/</span>
+                        <strong>{clientName(selectedClient)}</strong>
+                        {selectedFolder && (
+                            <>
+                                <span>/</span>
+                                <strong>{selectedFolder.folder_name}</strong>
+                            </>
                         )}
-                    </div>
-                )}
+                    </nav>
 
-                {/* Create Folder Modal */}
-                {showCreateFolderModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-200">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                    <FolderPlus size={24} className="text-primary" />
-                                    Create New Folder
-                                </h3>
-                                <button
-                                    onClick={() => {
-                                        setShowCreateFolderModal(false);
-                                        setNewFolderName("");
-                                        setFolderNameError(null);
-                                    }}
-                                    className="text-muted-foreground hover:bg-muted p-2 rounded-full transition-colors"
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleCreateFolder}>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-semibold text-muted-foreground mb-1 uppercase text-xs">Folder Name</label>
+                    {!selectedFolder ? (
+                        <div className="cg-panel">
+                            {loadingFolders ? (
+                                <div className="cb-empty"><strong>Loading folders…</strong></div>
+                            ) : folders.length === 0 ? (
+                                <div className="cb-empty">
+                                    <div className="cb-empty__icon"><Folder size={18} /></div>
+                                    <strong>No folders yet</strong>
+                                    <p>Create a folder to start organizing files.</p>
+                                </div>
+                            ) : (
+                                <div className="cg-grid">
+                                    {folders.map((folder) => (
+                                        <button
+                                            key={folder.id}
+                                            type="button"
+                                            className={`cg-card cg-card--folder${folder.is_system_folder ? " cg-card--system" : ""}`}
+                                            onClick={() => setSelectedFolder(folder)}
+                                        >
+                                            <span className="cg-folder-icon">
+                                                {folder.is_system_folder ? <Lock size={16} /> : <Folder size={16} />}
+                                            </span>
+                                            <div className="cg-card__meta">
+                                                <div className="cg-folder-name">
+                                                    <strong>{folder.folder_name}</strong>
+                                                    {folder.is_system_folder && <span className="cg-system">System</span>}
+                                                </div>
+                                                <span>
+                                                    {folder.image_count} {folder.image_count === 1 ? "file" : "files"}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="cg-panel">
+                            <div className="cg-toolbar">
+                                <div className="cg-search">
+                                    <Search size={16} />
                                     <input
                                         type="text"
-                                        placeholder="e.g., Marketing Assets 2024"
-                                        value={newFolderName}
-                                        onChange={(e) => setNewFolderName(e.target.value)}
-                                        className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground placeholder:text-muted-foreground"
-                                        autoFocus
+                                        value={imageSearchTerm}
+                                        onChange={(e) => setImageSearchTerm(e.target.value)}
+                                        placeholder="Search by title or folio"
+                                        aria-label="Search files"
                                     />
                                 </div>
+                            </div>
 
-                                {folderNameError && (
-                                    <p className="text-destructive text-sm mb-4 font-medium flex items-center gap-1">
-                                        <AlertCircle size={14} /> {folderNameError}
+                            <div
+                                className={`cg-drop${isDragOver ? " is-over" : ""}`}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                            >
+                                <input
+                                    id="imageInput"
+                                    type="file"
+                                    multiple
+                                    accept={shared ? "*/*" : "image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"}
+                                    onChange={handleFileSelect}
+                                />
+                                <label htmlFor="imageInput" className="cg-drop__label">
+                                    <span className="cg-drop__icon"><Upload size={18} /></span>
+                                    <strong>{isDragOver ? "Drop files to upload" : (shared ? "Click or drop any file type" : "Click or drop images and videos")}</strong>
+                                    <p>
+                                        {shared
+                                            ? "PDFs, Word, Excel, images, videos, and more"
+                                            : "JPG, PNG, GIF, WebP, MP4, MOV, AVI"}
                                     </p>
+                                </label>
+
+                                {selectedFiles.length > 0 && (
+                                    <div className="cg-files">
+                                        <p>Selected ({selectedFiles.length})</p>
+                                        <div className="cg-file-list">
+                                            {selectedFiles.map((file, idx) => (
+                                                <div key={`${file.name}-${idx}`} className="cg-file">
+                                                    <span>{file.name}</span>
+                                                    <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="cb-btn cb-btn--primary"
+                                            onClick={handleUploadImages}
+                                            disabled={uploading}
+                                        >
+                                            <Upload size={15} />
+                                            {uploading ? "Uploading…" : "Upload files"}
+                                        </button>
+                                    </div>
                                 )}
-
-                                <div className="flex gap-3 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowCreateFolderModal(false);
-                                            setNewFolderName("");
-                                            setFolderNameError(null);
-                                        }}
-                                        className="flex-1 px-4 py-3 border border-border text-foreground font-bold rounded-xl hover:bg-muted transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="flex-1 px-4 py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
-                                    >
-                                        Create Folder
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )}
-
-                {/* Delete Confirmation Modal */}
-                {deleteConfirm && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
-                            <div className="text-center mb-6">
-                                <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4 text-destructive">
-                                    <Trash2 size={32} />
-                                </div>
-                                <h3 className="text-xl font-bold text-foreground mb-2">Delete File?</h3>
-                                <p className="text-muted-foreground">This action cannot be undone. Are you sure you want to permanently delete this file?</p>
                             </div>
 
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setDeleteConfirm(null)}
-                                    className="flex-1 px-4 py-3 border border-border text-foreground font-bold rounded-xl hover:bg-muted transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteImage(deleteConfirm, deleteConfirmType)}
-                                    className="flex-1 px-4 py-3 bg-destructive text-destructive-foreground font-bold rounded-xl hover:bg-destructive/90 transition-colors shadow-lg shadow-destructive/20"
-                                >
-                                    Delete
-                                </button>
+                            {loadingImages ? (
+                                <div className="cb-empty"><strong>Loading files…</strong></div>
+                            ) : images.length === 0 ? (
+                                <div className="cb-empty">
+                                    <div className="cb-empty__icon"><Upload size={18} /></div>
+                                    <strong>No files in this folder</strong>
+                                    <p>Drop files above to get started.</p>
+                                </div>
+                            ) : filteredImages.length === 0 ? (
+                                <div className="cb-empty">
+                                    <div className="cb-empty__icon"><Search size={18} /></div>
+                                    <strong>No files match</strong>
+                                    <p>Try another title or folio.</p>
+                                </div>
+                            ) : (
+                                <div className="cg-tiles">
+                                    {filteredImages.map((item) => {
+                                        const isDoc = item._type === "document";
+                                        const href = isDoc ? item.file_url : (item.image_url_original || item.image_url);
+                                        return (
+                                            <div key={`${isDoc ? "doc" : "img"}-${item.id}`} className="cg-tile">
+                                                {isDoc ? (
+                                                    item.is_image ? (
+                                                        <img src={item.file_url} alt={item.title || "Shared file"} />
+                                                    ) : item.is_video ? (
+                                                        <video src={item.file_url} muted preload="metadata" />
+                                                    ) : (
+                                                        <FileKind item={item} />
+                                                    )
+                                                ) : (
+                                                    <img src={item.image_url} alt={item.title || "Gallery image"} />
+                                                )}
+                                                <div className="cg-tile__meta">
+                                                    {item.folio && <small>{item.folio}</small>}
+                                                    <p title={item.title}>{item.title || "Untitled"}</p>
+                                                </div>
+                                                <div className="cg-tile__actions">
+                                                    <a href={href} target="_blank" rel="noopener noreferrer" title="View / download" aria-label="View or download">
+                                                        <Download size={14} />
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        title="Delete"
+                                                        aria-label="Delete file"
+                                                        onClick={() => {
+                                                            setDeleteConfirm(item.id);
+                                                            setDeleteConfirmType(isDoc ? "document" : "image");
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </>
+            )}
+
+            {showCreateFolderModal && (
+                <div className="cb-overlay">
+                    <div className="cb-dialog">
+                        <form onSubmit={handleCreateFolder}>
+                            <div className="cb-dialog__body">
+                                <div className="cb-dialog__intro">
+                                    <div className="cb-dialog__icon cg-dialog-icon">
+                                        <FolderPlus size={18} />
+                                    </div>
+                                    <div>
+                                        <h3>Create folder</h3>
+                                        <p>A new library inside {clientName(selectedClient)}.</p>
+                                    </div>
+                                </div>
+                                <div className="cb-field">
+                                    <label htmlFor="cg-folder-name">Folder name</label>
+                                    <input
+                                        id="cg-folder-name"
+                                        type="text"
+                                        value={newFolderName}
+                                        onChange={(e) => setNewFolderName(e.target.value)}
+                                        placeholder="e.g. Marketing 2026"
+                                        autoFocus
+                                    />
+                                    {folderNameError && (
+                                        <p className="cg-field-error"><AlertCircle size={13} /> {folderNameError}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="cb-dialog__actions">
+                                <button type="button" className="cb-btn cb-btn--ghost" onClick={closeCreateFolder}>Cancel</button>
+                                <button type="submit" className="cb-btn cb-btn--primary">Create folder</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirm && (
+                <div className="cb-overlay cb-overlay--top">
+                    <div className="cb-dialog">
+                        <div className="cb-dialog__body">
+                            <div className="cb-dialog__intro">
+                                <div className="cb-dialog__icon"><Trash2 size={20} /></div>
+                                <div>
+                                    <h3>Delete file</h3>
+                                    <p>This cannot be undone.</p>
+                                </div>
+                            </div>
+                            <div className="cb-warn">
+                                Remove this file from the gallery?
                             </div>
                         </div>
+                        <div className="cb-dialog__actions">
+                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setDeleteConfirm(null)} disabled={isDeleting}>Cancel</button>
+                            <button type="button" className="cb-btn cb-btn--danger" onClick={handleDeleteImage} disabled={isDeleting}>
+                                {isDeleting ? "Deleting…" : "Yes, delete"}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

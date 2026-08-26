@@ -1,42 +1,86 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Image as ImageIcon, Layers, Video, Type, Plus, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+    Calendar,
+    Image as ImageIcon,
+    Layers,
+    Video,
+    Type,
+    Plus,
+    ChevronDown,
+    ChevronUp,
+    Loader2,
+    CircleHelp,
+    X,
+} from "lucide-react";
+import "../create-monthly-plan.css";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const CATEGORIES = [
+    { id: "photos", label: "Photos", icon: ImageIcon },
+    { id: "carousels", label: "Carousels", icon: Layers },
+    { id: "videos", label: "Videos", icon: Video },
+    { id: "stories", label: "Stories", icon: Type },
+];
+
+const FLOW_STEPS = [
+    { id: "mix", number: 1, name: "Mix", meaning: "How many photos, carousels, videos, and stories" },
+    { id: "who", number: 2, name: "Who", meaning: "Client and the person who will create the plan" },
+    { id: "when", number: 3, name: "When", meaning: "Month and the brief for the team" },
+    { id: "create", number: 4, name: "Create", meaning: "Sends the plan to To Do" },
+];
+
+const PIPELINE_STAGES = [
+    { id: "TO_DO", number: 1, name: "To Do", meaning: "New plans land here", landing: true },
+    { id: "IN_PROGRESS", number: 2, name: "In Progress", meaning: "Being created" },
+    { id: "QA", number: 3, name: "QA", meaning: "Internal review" },
+    { id: "IN_REVISION", number: 4, name: "In Revision", meaning: "Changes requested" },
+    { id: "CLIENT_REVIEW", number: 5, name: "Client Review", meaning: "Waiting on client" },
+    { id: "APPROVED", number: 6, name: "Approved", meaning: "Ready to schedule" },
+    { id: "DONE", number: 7, name: "Done", meaning: "Published" },
+];
+
+const DEFAULT_COUNTS = {
+    photos: 4,
+    carousels: 4,
+    videos: 4,
+    stories: 4,
+};
+
+const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+    });
+};
 
 export default function CreateMonthlyPlanPage() {
     const [clients, setClients] = useState([]);
     const [contentCreators, setContentCreators] = useState([]);
-    const [selectedClient, setSelectedClient] = useState('');
-    const [assignedUser, setAssignedUser] = useState('');
-    const [month, setMonth] = useState('');
-    const [instructions, setInstructions] = useState('');
+    const [selectedClient, setSelectedClient] = useState("");
+    const [assignedUser, setAssignedUser] = useState("");
+    const [month, setMonth] = useState("");
+    const [instructions, setInstructions] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const [counts, setCounts] = useState({
-        photos: 4,
-        carousels: 4,
-        videos: 4,
-        stories: 4
-    });
-
-    const categories = [
-        { id: 'photos', label: 'Photos', icon: ImageIcon, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-        { id: 'carousels', label: 'Carousels', icon: Layers, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-        { id: 'videos', label: 'Videos', icon: Video, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-        { id: 'stories', label: 'Stories', icon: Type, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-    ];
+    const [formError, setFormError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+    const [showLearn, setShowLearn] = useState(false);
+    const [counts, setCounts] = useState(DEFAULT_COUNTS);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const [clientsRes, creatorsRes] = await Promise.all([
-                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/clients/'),
-                    fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/')
+                    fetch(`${API_BASE}/api/users/clients/`),
+                    fetch(`${API_BASE}/api/users/content-creators/`),
                 ]);
 
                 if (clientsRes.ok) {
                     const data = await clientsRes.json();
-                    setClients(data.map(u => ({
+                    setClients(data.map((u) => ({
                         id: String(u.id),
                         name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username,
                     })));
@@ -44,310 +88,481 @@ export default function CreateMonthlyPlanPage() {
 
                 if (creatorsRes.ok) {
                     const data = await creatorsRes.json();
-                    setContentCreators(data.map(u => ({
+                    setContentCreators(data.map((u) => ({
                         id: String(u.id),
                         name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username,
-                        role: u.role
+                        role: u.role,
                     })));
                 }
             } catch (error) {
-                console.error('Error fetching data:', error);
+                console.error("Error fetching data:", error);
             }
         };
 
         fetchData();
     }, []);
 
+    useEffect(() => {
+        if (!showLearn) return undefined;
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") setShowLearn(false);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [showLearn]);
+
     const adjustCount = (category, delta) => {
-        setCounts(prev => ({
+        setCounts((prev) => ({
             ...prev,
-            [category]: Math.max(1, Math.min(20, (prev[category] || 0) + delta))
+            [category]: Math.max(1, Math.min(20, (prev[category] || 0) + delta)),
         }));
     };
 
     const setExactCount = (category, value) => {
         const num = parseInt(value, 10);
         if (!isNaN(num)) {
-            setCounts(prev => ({
+            setCounts((prev) => ({
                 ...prev,
-                [category]: Math.max(1, Math.min(20, num))
+                [category]: Math.max(1, Math.min(20, num)),
             }));
         }
     };
 
     const totalItems = counts.photos + counts.carousels + counts.videos + counts.stories;
+    const hasMix = totalItems > 0;
+    const hasWho = Boolean(selectedClient && assignedUser);
+    const hasWhen = Boolean(month);
+    const canCreate = hasWho && hasWhen;
+
+    let activeStep = "mix";
+    if (!hasMix) activeStep = "mix";
+    else if (!hasWho) activeStep = "who";
+    else if (!hasWhen) activeStep = "when";
+    else activeStep = "create";
+
+    const assignedMember = contentCreators.find((u) => u.id === assignedUser);
+    const selectedClientName = clients.find((c) => c.id === selectedClient)?.name;
 
     const handleCreatePlan = async () => {
+        setSuccessMessage("");
+
         if (!selectedClient) {
-            alert("Please select a client.");
+            setFormError("Please select a client.");
+            scrollToSection("mp-feedback");
             return;
         }
 
         if (!assignedUser) {
-            alert("Please assign the request to a team member.");
+            setFormError("Please assign the request to a team member.");
+            scrollToSection("mp-feedback");
             return;
         }
 
         if (!month) {
-            alert("Please select a month.");
+            setFormError("Please select a month.");
+            scrollToSection("mp-feedback");
             return;
         }
 
+        setFormError("");
         setIsSubmitting(true);
 
         const notes = [
             instructions,
-            '',
-            '[Monthly Plan]',
+            "",
+            "[Monthly Plan]",
             `Photos: ${counts.photos}`,
             `Carousels: ${counts.carousels}`,
             `Videos: ${counts.videos}`,
             `Stories: ${counts.stories}`,
             `Total: ${totalItems} items`,
-        ].filter(Boolean).join('\n');
+        ].filter(Boolean).join("\n");
 
         const payload = {
             client: selectedClient,
             assigned_to: assignedUser,
-            request_type: 'MONTHLY_CONTENT',
+            request_type: "MONTHLY_CONTENT",
             month: month,
             notes: notes,
-            status: 'TO_DO'
+            status: "TO_DO",
         };
 
         try {
-            const userId = localStorage.getItem('userId');
-            const createUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
-            if (userId) createUrl.searchParams.append('user_id', userId);
+            const userId = localStorage.getItem("userId");
+            const createUrl = new URL(`${API_BASE}/api/contents/monthly-requests/`);
+            if (userId) createUrl.searchParams.append("user_id", userId);
 
             const response = await fetch(createUrl.toString(), {
-                method: 'POST',
+                method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify(payload),
             });
 
             if (response.ok) {
-                alert("Monthly plan created successfully! It will appear in Monthly Contents.");
-                setSelectedClient('');
-                setAssignedUser('');
-                setMonth('');
-                setInstructions('');
-                setCounts({ photos: 4, carousels: 4, videos: 4, stories: 4 });
+                setSuccessMessage("This monthly plan is now in To Do. It will also appear in Monthly Contents.");
+                setSelectedClient("");
+                setAssignedUser("");
+                setMonth("");
+                setInstructions("");
+                setCounts(DEFAULT_COUNTS);
             } else {
                 const err = await response.json();
                 console.error("Error creating plan:", err);
-                alert("Failed to create monthly plan. Check console.");
+                setFormError("Failed to create monthly plan. Check the console for details.");
             }
         } catch (error) {
             console.error("Network error:", error);
-            alert("Network error.");
+            setFormError("Network error. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const handleFlowClick = (stepId) => {
+        setShowLearn(false);
+        if (stepId === "create") {
+            window.setTimeout(() => document.getElementById("mp-submit")?.focus(), 0);
+            return;
+        }
+        window.setTimeout(() => scrollToSection(`mp-${stepId}`), 0);
+    };
+
     return (
-        <div className="flex flex-col h-[calc(100vh-160px)] min-h-[600px] w-full max-w-[1800px] mx-auto animate-in fade-in zoom-in duration-500 p-6 lg:p-8">
-            <div className="flex items-end justify-between mb-6 shrink-0">
-                <div>
-                    <h1 className="text-3xl font-black text-foreground tracking-tight">Create Monthly Plan</h1>
-                    <p className="text-muted-foreground font-medium">Configure a new monthly content package for a client</p>
+        <div className="monthly-plan">
+            <header className="mp-header">
+                <div className="mp-header__titles">
+                    <h1>Monthly plan</h1>
+                    <p>Set the mix for a client’s month. Creating it puts a package on the Content Board in To Do.</p>
                 </div>
-                <div className="hidden md:block">
-                    <span className="px-4 py-1.5 rounded-full bg-primary/5 text-primary text-sm font-bold border border-primary/10">
-                        {totalItems} items
+                <div className="mp-header__actions">
+                    <span className="mp-chip">
+                        <span className="mp-chip__dot" />
+                        Goes to To Do
                     </span>
+                    <span className="mp-chip">{totalItems} items</span>
+                    <button
+                        type="button"
+                        className={`mp-learn-btn${showLearn ? " is-open" : ""}`}
+                        onClick={() => setShowLearn(true)}
+                        aria-expanded={showLearn}
+                        aria-controls="mp-learn-panel"
+                    >
+                        <CircleHelp size={16} />
+                        How this works
+                    </button>
                 </div>
-            </div>
+            </header>
 
-            <div className="flex-1 bg-card/60 backdrop-blur-xl rounded-[2.5rem] p-6 lg:p-8 shadow-2xl shadow-black/5 border border-white/20 dark:border-border relative overflow-hidden flex flex-col lg:flex-row gap-8">
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -z-10 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {showLearn && (
+                <div className="mp-learn-overlay" onClick={() => setShowLearn(false)}>
+                    <div
+                        id="mp-learn-panel"
+                        className="mp-learn"
+                        role="dialog"
+                        aria-labelledby="mp-learn-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mp-learn__head">
+                            <div>
+                                <h2 id="mp-learn-title">How this plan works</h2>
+                                <p>Fill Mix, Who, and When. Creating the plan puts it on the board in To Do.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="mp-icon-btn"
+                                onClick={() => setShowLearn(false)}
+                                aria-label="Close"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
 
-                {/* Left: Category Counters */}
-                <div className="lg:w-[35%] xl:w-[32%] flex flex-col gap-6">
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Content Breakdown</label>
-                        <div className="space-y-3">
-                            {categories.map(cat => {
-                                const Icon = cat.icon;
-                                const count = counts[cat.id];
+                        <p className="mp-learn__label">On this page</p>
+                        <nav className="mp-flow" aria-label="Plan steps">
+                            {FLOW_STEPS.map((step) => {
+                                const isDone =
+                                    (step.id === "mix" && hasMix) ||
+                                    (step.id === "who" && hasWho) ||
+                                    (step.id === "when" && hasWhen);
+                                const isActive = activeStep === step.id;
+                                const isReady = step.id === "create" && canCreate;
+                                const className = [
+                                    "mp-flow__step",
+                                    isDone && !isActive ? "is-done" : "",
+                                    isActive ? "is-active" : "",
+                                    isReady ? "is-ready" : "",
+                                ].filter(Boolean).join(" ");
+
                                 return (
-                                    <div
-                                        key={cat.id}
-                                        className={`flex items-center justify-between p-4 rounded-2xl border-2 border-border bg-card hover:border-primary/20 transition-all`}
+                                    <button
+                                        key={step.id}
+                                        type="button"
+                                        className={className}
+                                        onClick={() => handleFlowClick(step.id)}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-xl ${cat.bg} flex items-center justify-center ${cat.color}`}>
-                                                <Icon size={20} />
-                                            </div>
-                                            <span className="font-bold text-foreground">{cat.label}</span>
+                                        <div className="mp-flow__top">
+                                            <span className="mp-flow__num">{step.number}</span>
+                                            <span className="mp-flow__name">{step.name}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => adjustCount(cat.id, -1)}
-                                                className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all font-bold"
-                                            >
-                                                <ChevronDown size={16} />
-                                            </button>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="20"
-                                                value={count}
-                                                onChange={(e) => setExactCount(cat.id, e.target.value)}
-                                                className="w-14 text-center bg-input/50 border border-input rounded-lg text-foreground font-bold text-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 py-1.5"
-                                            />
-                                            <button
-                                                onClick={() => adjustCount(cat.id, 1)}
-                                                className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all font-bold"
-                                            >
-                                                <ChevronUp size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
+                                        <p className="mp-flow__meaning">{step.meaning}</p>
+                                    </button>
                                 );
                             })}
+                        </nav>
+
+                        <div className="mp-destination">
+                            <p className="mp-learn__label">After you create — Content Board pipeline</p>
+                            <div className="mp-destination__track">
+                                {PIPELINE_STAGES.map((stage) => (
+                                    <div
+                                        key={stage.id}
+                                        data-stage={stage.id}
+                                        className={`mp-dest${stage.landing ? " is-landing" : ""}`}
+                                    >
+                                        <div className="mp-dest__top">
+                                            <span className="mp-dest__num">{stage.number}</span>
+                                            <span className="mp-dest__name">{stage.name}</span>
+                                        </div>
+                                        <p className="mp-dest__meaning">{stage.meaning}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
+                </div>
+            )}
 
-                    <div className="pt-4 border-t border-border mt-auto">
-                        <div className="bg-secondary/30 rounded-2xl p-5 border border-border/50">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Items</span>
-                                <span className="text-2xl font-black text-foreground">{totalItems}</span>
+            <div className="mp-card">
+                {successMessage && (
+                    <div id="mp-feedback" className="mp-banner mp-banner--ok" role="status">
+                        <div>
+                            <h2>Plan created</h2>
+                            <p>{successMessage}</p>
+                        </div>
+                        <div className="mp-banner__links">
+                            <Link href="/contentcreation">Open Content Board</Link>
+                            <Link href="/contentcreation/monthly-contents">Open Monthly Contents</Link>
+                        </div>
+                    </div>
+                )}
+
+                {formError && (
+                    <div id="mp-feedback" className="mp-banner mp-banner--err" role="alert">
+                        <div>
+                            <h2>Can’t create yet</h2>
+                            <p>{formError}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="mp-workspace">
+                    <div className="mp-col">
+                        <section
+                            id="mp-mix"
+                            className={`mp-section${activeStep === "mix" ? " is-active" : ""}`}
+                        >
+                            <div className="mp-section__label">
+                                <span className="mp-section__num">1</span>
+                                <div>
+                                    <h3>Mix</h3>
+                                    <p>How many of each format this month. Each count stays between 1 and 20.</p>
+                                </div>
                             </div>
-                            <div className="flex gap-1 mt-3">
-                                {categories.map(cat => {
-                                    const pct = totalItems > 0 ? Math.round((counts[cat.id] / totalItems) * 100) : 0;
-                                    const barColors = {
-                                        photos: 'bg-blue-500',
-                                        carousels: 'bg-purple-500',
-                                        videos: 'bg-pink-500',
-                                        stories: 'bg-orange-500',
-                                    };
+
+                            <div className="mp-mix">
+                                {CATEGORIES.map((cat) => {
+                                    const Icon = cat.icon;
                                     return (
-                                        <div
-                                            key={cat.id}
-                                            className={`h-2 rounded-full ${barColors[cat.id]}`}
-                                            style={{ width: `${pct}%` }}
-                                        />
+                                        <div key={cat.id} className="mp-format" data-format={cat.id}>
+                                            <div className="mp-format__id">
+                                                <span className="mp-format__icon">
+                                                    <Icon size={18} />
+                                                </span>
+                                                <strong>{cat.label}</strong>
+                                            </div>
+                                            <div className="mp-stepper">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => adjustCount(cat.id, -1)}
+                                                    aria-label={`Decrease ${cat.label}`}
+                                                >
+                                                    <ChevronDown size={16} />
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="20"
+                                                    value={counts[cat.id]}
+                                                    onChange={(e) => setExactCount(cat.id, e.target.value)}
+                                                    aria-label={`${cat.label} count`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => adjustCount(cat.id, 1)}
+                                                    aria-label={`Increase ${cat.label}`}
+                                                >
+                                                    <ChevronUp size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     );
                                 })}
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Divider */}
-                <div className="hidden lg:block w-px bg-border my-2"></div>
-
-                {/* Right: Form Fields */}
-                <div className="lg:w-[65%] xl:w-[68%] flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
-
-                    {/* Instructions */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Instructions</label>
-                        <div className="relative group">
-                            <textarea
-                                value={instructions}
-                                onChange={(e) => setInstructions(e.target.value)}
-                                className="w-full h-24 px-5 py-4 bg-input/50 border border-input focus:bg-card focus:border-primary rounded-2xl text-foreground placeholder-muted-foreground/50 resize-none outline-none transition-all font-medium shadow-sm"
-                                placeholder="Describe the overall requirements for this month's content..."
-                            />
-                        </div>
-                    </div>
-
-                    {/* Client Selection */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Client</label>
-                        <div className="relative">
-                            <select
-                                value={selectedClient}
-                                onChange={(e) => setSelectedClient(e.target.value)}
-                                className="w-full px-5 py-4 pl-12 bg-input/50 border border-input rounded-2xl text-foreground font-bold outline-none focus:border-primary focus:bg-card appearance-none transition-all"
-                            >
-                                <option value="">Select Client...</option>
-                                {clients.map(client => (
-                                    <option key={client.id} value={client.id}>{client.name}</option>
-                                ))}
-                            </select>
-                            <Users size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        </div>
+                            <div className="mp-total">
+                                <div className="mp-total__top">
+                                    <span>Total items</span>
+                                    <b>{totalItems}</b>
+                                </div>
+                                <div className="mp-total__bars" aria-hidden="true">
+                                    {CATEGORIES.map((cat) => {
+                                        const pct = totalItems > 0
+                                            ? Math.round((counts[cat.id] / totalItems) * 100)
+                                            : 0;
+                                        return (
+                                            <div
+                                                key={cat.id}
+                                                className="mp-total__bar"
+                                                data-format={cat.id}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
-                    {/* Assign To */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Assign To</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="relative">
+                    <div className="mp-col">
+                        <section
+                            id="mp-who"
+                            className={`mp-section${activeStep === "who" ? " is-active" : ""}`}
+                        >
+                            <div className="mp-section__label">
+                                <span className="mp-section__num">2</span>
+                                <div>
+                                    <h3>Who</h3>
+                                    <p>The client this package is for, and who on the team owns it.</p>
+                                </div>
+                            </div>
+
+                            <div className="mp-field">
+                                <label htmlFor="mp-client">Client</label>
                                 <select
-                                    value={assignedUser}
-                                    onChange={(e) => setAssignedUser(e.target.value)}
-                                    className="w-full px-5 py-4 bg-input/50 border border-input rounded-2xl text-foreground font-bold outline-none focus:border-primary focus:bg-card appearance-none transition-all"
+                                    id="mp-client"
+                                    value={selectedClient}
+                                    onChange={(e) => setSelectedClient(e.target.value)}
                                 >
-                                    <option value="">Select Team Member...</option>
-                                    {contentCreators.map(user => (
-                                        <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
+                                    <option value="">Select client…</option>
+                                    {clients.map((client) => (
+                                        <option key={client.id} value={client.id}>{client.name}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div className="flex items-center gap-2 px-4 py-2 bg-muted/30 border border-border rounded-2xl">
-                                {assignedUser ? (
+                            <div className="mp-field">
+                                <label htmlFor="mp-assignee">Assign to</label>
+                                <div className="mp-assign">
+                                    <select
+                                        id="mp-assignee"
+                                        value={assignedUser}
+                                        onChange={(e) => setAssignedUser(e.target.value)}
+                                    >
+                                        <option value="">Select team member…</option>
+                                        {contentCreators.map((user) => (
+                                            <option key={user.id} value={user.id}>
+                                                {user.name} ({user.role})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="mp-assignee">
+                                        {assignedMember ? (
+                                            <>
+                                                <span className="mp-avatar">
+                                                    {assignedMember.name.charAt(0)}
+                                                </span>
+                                                <div>
+                                                    <p>{assignedMember.name}</p>
+                                                    <small>{assignedMember.role}</small>
+                                                </div>
+                                            </>
+                                        ) : selectedClientName ? (
+                                            <span>Client: {selectedClientName}. Pick a teammate.</span>
+                                        ) : (
+                                            <span>No one selected yet</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section
+                            id="mp-when"
+                            className={`mp-section${activeStep === "when" ? " is-active" : ""}`}
+                        >
+                            <div className="mp-section__label">
+                                <span className="mp-section__num">3</span>
+                                <div>
+                                    <h3>When</h3>
+                                    <p>The month this package covers, plus any brief for the team.</p>
+                                </div>
+                            </div>
+
+                            <div className="mp-field">
+                                <label htmlFor="mp-month">Month</label>
+                                <input
+                                    id="mp-month"
+                                    type="date"
+                                    value={month}
+                                    onChange={(e) => setMonth(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="mp-field">
+                                <label htmlFor="mp-instructions">Instructions</label>
+                                <textarea
+                                    id="mp-instructions"
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                    placeholder="Describe the overall requirements for this month’s content…"
+                                />
+                            </div>
+                        </section>
+
+                        <section
+                            id="mp-create"
+                            className={`mp-section${activeStep === "create" ? " is-active" : ""}`}
+                        >
+                            <div className="mp-section__label">
+                                <span className="mp-section__num">4</span>
+                                <div>
+                                    <h3>Create</h3>
+                                    <p>Sends the package to To Do on the Content Board.</p>
+                                </div>
+                            </div>
+
+                            <button
+                                id="mp-submit"
+                                type="button"
+                                className={`mp-btn mp-btn--primary${canCreate ? " is-ready" : ""}`}
+                                onClick={handleCreatePlan}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
                                     <>
-                                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                                            {contentCreators.find(u => u.id === assignedUser)?.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-foreground">{contentCreators.find(u => u.id === assignedUser)?.name}</p>
-                                            <p className="text-[10px] font-bold text-muted-foreground uppercase">{contentCreators.find(u => u.id === assignedUser)?.role}</p>
-                                        </div>
+                                        <Loader2 size={18} className="mp-spin" />
+                                        Creating plan…
                                     </>
                                 ) : (
-                                    <p className="text-xs text-muted-foreground font-medium px-2">No user selected</p>
+                                    <>
+                                        Create monthly plan
+                                        <Plus size={16} />
+                                    </>
                                 )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Date */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Date</label>
-                        <div className="relative max-w-xs">
-                            <input
-                                type="date"
-                                value={month}
-                                onChange={(e) => setMonth(e.target.value)}
-                                className="w-full pl-11 pr-4 py-4 bg-input/50 border border-input rounded-2xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold transition-all"
-                            />
-                            <Calendar size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        </div>
-                    </div>
-
-                    {/* Submit */}
-                    <div className="pt-4 mt-auto">
-                        <button
-                            onClick={handleCreatePlan}
-                            disabled={isSubmitting}
-                            className="w-full py-4 bg-foreground hover:bg-foreground/90 text-background rounded-xl font-bold text-lg shadow-lg shadow-black/10 hover:shadow-xl active:scale-[0.99] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 size={20} className="animate-spin" />
-                                    <span>Creating Plan...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>Create Monthly Plan</span>
-                                    <div className="w-6 h-6 rounded-full bg-background/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                                        <Plus size={14} strokeWidth={3} />
-                                    </div>
-                                </>
-                            )}
-                        </button>
+                            </button>
+                        </section>
                     </div>
                 </div>
             </div>

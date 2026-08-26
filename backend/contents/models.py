@@ -146,6 +146,7 @@ class ContentItem(models.Model):
         VIDEO = 'VIDEO', _('Video')
         CAROUSEL_IMAGE = 'CAROUSEL_IMAGE', _('Carousel Image')
         STORY = 'STORY', _('Story')
+        PDF = 'PDF', _('PDF')
 
     request = models.ForeignKey(MonthlyRequest, on_delete=models.CASCADE, related_name='content_items')
     media_type = models.CharField(max_length=20, choices=MediaType.choices, default=MediaType.IMAGE)

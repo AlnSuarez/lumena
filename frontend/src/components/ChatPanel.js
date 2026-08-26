@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, X, Send, ChevronLeft, Trash2 } from "lucide-react";
+import "./navbar.css";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -183,8 +184,10 @@ export default function ChatPanel() {
     };
 
     return (
-        <div className="relative">
+        <div className="nb-slot">
             <button
+                type="button"
+                className={`nb-icon-btn${isOpen ? " is-open" : ""}`}
                 onClick={() => {
                     setIsOpen(!isOpen);
                     if (!isOpen) {
@@ -194,80 +197,54 @@ export default function ChatPanel() {
                         initializedRef.current = false;
                     }
                 }}
-                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all relative ${
-                    isOpen
-                        ? "bg-primary/10 text-primary"
-                        : "bg-white/50 border border-primary/10 text-gray-500 hover:text-primary hover:bg-white dark:hover:text-primary"
-                }`}
+                aria-label="Chat"
+                aria-expanded={isOpen}
             >
-                <MessageCircle size={20} />
+                <MessageCircle size={16} />
                 {totalUnread > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-pulse">
-                        {totalUnread}
-                    </span>
+                    <span className="nb-badge">{totalUnread > 9 ? "9+" : totalUnread}</span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-3 w-96 max-h-[560px] overflow-hidden flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-primary/10 rounded-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-black/5 z-50">
+                <div className="nb-panel">
                     {view === "list" && (
                         <>
-                            <div className="p-5 border-b border-primary/5 bg-primary/5 flex items-center justify-between shrink-0">
+                            <div className="nb-panel__head">
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-base">Chats</h3>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                        {contacts.length} client{contacts.length !== 1 ? "s" : ""}
-                                    </p>
+                                    <h3>Chats</h3>
+                                    <p>{contacts.length} {contacts.length === 1 ? "client" : "clients"}</p>
                                 </div>
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="p-1.5 hover:bg-white/50 rounded-full text-slate-400 transition-colors"
-                                >
+                                <button type="button" className="nb-icon-btn" onClick={() => setIsOpen(false)} aria-label="Close">
                                     <X size={16} />
                                 </button>
                             </div>
 
-                            <div className="overflow-y-auto p-2 space-y-1">
+                            <div className="nb-panel__body">
                                 {contacts.length === 0 ? (
-                                    <div className="py-12 text-center text-slate-400 px-8">
-                                        <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <MessageCircle size={24} />
-                                        </div>
-                                        <p className="font-medium text-sm text-slate-600">No conversations</p>
-                                        <p className="text-xs mt-1 text-slate-400">Clients will appear here when they send messages.</p>
+                                    <div className="nb-empty">
+                                        <div className="nb-empty__icon"><MessageCircle size={18} /></div>
+                                        <strong>No conversations</strong>
+                                        <p>Clients appear here when they send a message.</p>
                                     </div>
                                 ) : (
-                                    contacts.map(c => (
-                                        <div key={c.contact_id} className="flex items-center gap-1 group">
-                                            <button
-                                                onClick={() => openChat(c)}
-                                                className="flex-1 p-3 flex items-center gap-3 rounded-2xl hover:bg-primary/5 transition-all text-left"
-                                            >
-                                                <div className="relative shrink-0">
-                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                                        <span className="text-sm font-bold text-primary">
-                                                            {c.contact_name?.[0]?.toUpperCase() || "?"}
-                                                        </span>
-                                                    </div>
-                                                    {(c.unread_count || 0) > 0 && (
-                                                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white">
-                                                            {c.unread_count}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-sm text-slate-800 truncate">
-                                                        {c.contact_name}
-                                                    </p>
-                                                    <p className="text-xs text-slate-400 truncate mt-0.5">
-                                                        {c.last_message || "No messages"}
-                                                    </p>
-                                                </div>
-                                                {(c.unread_count || 0) > 0 && (
-                                                    <span className="w-2 h-2 bg-primary rounded-full shrink-0" />
-                                                )}
+                                    contacts.map((c) => (
+                                        <div key={c.contact_id} className="nb-contact">
+                                            <button type="button" className="nb-contact__btn" onClick={() => openChat(c)}>
+                                                <span className="nb-mini-avatar">
+                                                    {c.contact_name?.[0]?.toUpperCase() || "?"}
+                                                </span>
+                                                <span className="nb-contact__meta">
+                                                    <strong>{c.contact_name}</strong>
+                                                    <span>{c.last_message || "No messages"}</span>
+                                                </span>
+                                                {(c.unread_count || 0) > 0 && <span className="nb-contact__unread" />}
                                             </button>
                                             <button
+                                                type="button"
+                                                className="nb-contact__del"
+                                                title="Delete conversation"
+                                                aria-label="Delete conversation"
                                                 onClick={async (e) => {
                                                     e.stopPropagation();
                                                     if (window.confirm(`Delete conversation with ${c.contact_name}?`)) {
@@ -275,8 +252,6 @@ export default function ChatPanel() {
                                                         fetchContacts();
                                                     }
                                                 }}
-                                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                                                title="Delete conversation"
                                             >
                                                 <Trash2 size={14} />
                                             </button>
@@ -289,104 +264,71 @@ export default function ChatPanel() {
 
                     {view === "chat" && activeContact && (
                         <>
-                            <div className="p-4 border-b border-primary/5 bg-primary/5 flex items-center gap-3 shrink-0">
+                            <div className="nb-chat-head">
                                 {isAdmin && (
-                                    <button
-                                        onClick={backToList}
-                                        className="p-1 hover:bg-white/50 rounded-full text-slate-400 transition-colors"
-                                    >
-                                        <ChevronLeft size={18} />
+                                    <button type="button" className="nb-icon-btn" onClick={backToList} aria-label="Back to chats">
+                                        <ChevronLeft size={16} />
                                     </button>
                                 )}
-                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <span className="text-xs font-bold text-primary">
-                                        {activeContact.contact_name?.[0]?.toUpperCase() || "?"}
-                                    </span>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-sm text-slate-800">
-                                            {isClient ? "Chat with your team" : activeContact.contact_name}
-                                        </h4>
-                                        <p className="text-[10px] text-slate-400">Online</p>
+                                <span className="nb-mini-avatar">{activeContact.contact_name?.[0]?.toUpperCase() || "?"}</span>
+                                <div className="nb-chat-head__who">
+                                    <h4>{isClient ? "Chat with your team" : activeContact.contact_name}</h4>
+                                    <p>Online</p>
                                 </div>
                                 {isAdmin && (
                                     <button
+                                        type="button"
+                                        className="nb-icon-btn"
                                         onClick={() => setDeleteConfirm(true)}
-                                        className="p-1.5 hover:bg-red-50 rounded-full text-slate-400 hover:text-red-500 transition-colors"
                                         title="Delete conversation"
+                                        aria-label="Delete conversation"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={15} />
                                     </button>
                                 )}
                                 <button
+                                    type="button"
+                                    className="nb-icon-btn"
                                     onClick={() => { setIsOpen(false); backToList(); }}
-                                    className="p-1.5 hover:bg-white/50 rounded-full text-slate-400 transition-colors"
+                                    aria-label="Close"
                                 >
                                     <X size={16} />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[280px] max-h-[360px]">
+                            <div className="nb-messages">
                                 {deleteConfirm && (
-                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-center gap-3">
-                                        <p className="text-xs text-red-700 flex-1">
-                                            {`Delete entire conversation with ${activeContact.contact_name}?`}
-                                        </p>
-                                        <button
-                                            onClick={() => setDeleteConfirm(false)}
-                                            className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={handleDeleteConversation}
-                                            className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg transition-colors"
-                                        >
-                                            Delete
-                                        </button>
+                                    <div className="nb-inline-warn">
+                                        <p>Delete the conversation with {activeContact.contact_name}?</p>
+                                        <button type="button" onClick={() => setDeleteConfirm(false)}>Cancel</button>
+                                        <button type="button" className="nb-btn" onClick={handleDeleteConversation}>Delete</button>
                                     </div>
                                 )}
                                 {loading ? (
-                                    <div className="flex items-center justify-center h-full">
-                                        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
-                                    </div>
+                                    <div className="nb-empty"><strong>Loading…</strong></div>
                                 ) : messages.length === 0 ? (
-                                    <div className="py-12 text-center text-slate-400">
-                                        <MessageCircle size={32} className="mx-auto mb-2 text-slate-300" />
-                                        <p className="text-sm">Start the conversation</p>
+                                    <div className="nb-empty">
+                                        <div className="nb-empty__icon"><MessageCircle size={18} /></div>
+                                        <strong>Start the conversation</strong>
                                     </div>
                                 ) : (
                                     messages.map((msg, i) => {
                                         const isMine = String(msg.sender) === String(userInfo.userId);
-                                        const showDate = i === 0 ||
-                                            new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
+                                        const showDate = i === 0
+                                            || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
 
                                         return (
                                             <React.Fragment key={msg.id}>
                                                 {showDate && (
-                                                    <div className="flex justify-center">
-                                                        <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                                                            {formatDate(msg.created_at)}
-                                                        </span>
-                                                    </div>
+                                                    <div className="nb-day"><span>{formatDate(msg.created_at)}</span></div>
                                                 )}
-                                                <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                                                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
-                                                        isMine
-                                                            ? "bg-primary text-primary-foreground rounded-br-md"
-                                                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-md"
-                                                    }`}>
+                                                <div className={`nb-bubble-row${isMine ? " is-mine" : ""}`}>
+                                                    <div className="nb-bubble">
                                                         {!isMine && msg.sender_role !== "CLIENT" && (
-                                                            <p className="text-[10px] font-bold text-primary mb-0.5">
-                                                                {msg.sender_name}
-                                                            </p>
+                                                            <p className="nb-bubble__from">{msg.sender_name}</p>
                                                         )}
-                                                        <p className="whitespace-pre-wrap break-words">{msg.message}</p>
-                                                        <span className={`text-[10px] mt-1 block ${
-                                                            isMine ? "text-primary-foreground/80" : "text-slate-400"
-                                                        }`}>
-                                                            {formatTime(msg.created_at)}
-                                                        </span>
+                                                        <p>{msg.message}</p>
+                                                        <small>{formatTime(msg.created_at)}</small>
                                                     </div>
                                                 </div>
                                             </React.Fragment>
@@ -396,20 +338,16 @@ export default function ChatPanel() {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <form onSubmit={handleSend} className="p-3 border-t border-primary/5 flex items-center gap-2 shrink-0">
+                            <form onSubmit={handleSend} className="nb-compose">
                                 <input
                                     type="text"
                                     value={newMessage}
-                                    onChange={e => setNewMessage(e.target.value)}
-                                    placeholder="Type a message..."
-                                    className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-sm outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Type a message…"
+                                    aria-label="Message"
                                 />
-                                <button
-                                    type="submit"
-                                    disabled={!newMessage.trim()}
-                                    className="w-9 h-9 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                                >
-                                    <Send size={16} />
+                                <button type="submit" disabled={!newMessage.trim()} aria-label="Send">
+                                    <Send size={15} />
                                 </button>
                             </form>
                         </>

@@ -1,36 +1,79 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Filter, User as UserIcon, AlertTriangle, Loader2, X, Trash2 } from "lucide-react";
+import {
+    Filter,
+    AlertTriangle,
+    Loader2,
+    X,
+    Trash2,
+    CircleHelp,
+    ChevronDown,
+} from "lucide-react";
+import "../assignments.css";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+
 const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "CLIENT_REVIEW", "APPROVED", "DONE"];
 
-const statusBadge = (status) => {
-    const map = {
-        TO_DO: "bg-slate-100 text-slate-700",
-        IN_PROGRESS: "bg-yellow-100 text-yellow-700",
-        QA: "bg-purple-100 text-purple-700",
-        IN_REVISION: "bg-orange-100 text-orange-700",
-        CLIENT_REVIEW: "bg-blue-100 text-blue-700",
-        APPROVED: "bg-teal-100 text-teal-700",
-        DONE: "bg-emerald-100 text-emerald-700",
-    };
-    return map[status] || "bg-slate-100 text-slate-700";
+const STATUS_LABELS = {
+    TO_DO: "To Do",
+    IN_PROGRESS: "In Progress",
+    QA: "QA",
+    IN_REVISION: "In Revision",
+    CLIENT_REVIEW: "Client Review",
+    APPROVED: "Approved",
+    DONE: "Done",
 };
 
-const statusSelectClass = (status) => {
-    const map = {
-        TO_DO: "bg-slate-100 text-slate-700 border-slate-200",
-        IN_PROGRESS: "bg-yellow-100 text-yellow-700 border-yellow-200",
-        QA: "bg-purple-100 text-purple-700 border-purple-200",
-        IN_REVISION: "bg-orange-100 text-orange-700 border-orange-200",
-        CLIENT_REVIEW: "bg-blue-100 text-blue-700 border-blue-200",
-        APPROVED: "bg-teal-100 text-teal-700 border-teal-200",
-        DONE: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    };
-    return map[status] || "bg-slate-100 text-slate-700 border-slate-200";
-};
+const TYPE_OPTIONS = [
+    { id: "ALL", label: "All" },
+    { id: "MONTHLY_CONTENT", label: "Monthly" },
+    { id: "VIDEO_SHOOT", label: "Video shoot" },
+    { id: "CONTENT_REQUEST", label: "Request" },
+];
+
+const HEALTH_OPTIONS = [
+    { id: "ALL", label: "All" },
+    { id: "AT_RISK", label: "At risk" },
+    { id: "UNASSIGNED_CREATOR", label: "No creator" },
+    { id: "UNASSIGNED_QA", label: "No QA" },
+    { id: "OVERDUE", label: "Overdue" },
+];
+
+const FLOW_STEPS = [
+    { id: "filter", number: 1, name: "Filter", meaning: "Narrow by type, person, or health" },
+    { id: "load", number: 2, name: "Load", meaning: "See who already has active work" },
+    { id: "assign", number: 3, name: "Assign", meaning: "Set creator, QA, and stage" },
+    { id: "open", number: 4, name: "Open", meaning: "Inspect a task or remove it" },
+];
+
+const PIPELINE_STAGES = [
+    { id: "TO_DO", number: 1, name: "To Do", meaning: "Waiting to start" },
+    { id: "IN_PROGRESS", number: 2, name: "In Progress", meaning: "Being created" },
+    { id: "QA", number: 3, name: "QA", meaning: "Internal review" },
+    { id: "IN_REVISION", number: 4, name: "In Revision", meaning: "Changes requested" },
+    { id: "CLIENT_REVIEW", number: 5, name: "Client Review", meaning: "Waiting on client" },
+    { id: "APPROVED", number: 6, name: "Approved", meaning: "Ready to schedule" },
+    { id: "DONE", number: 7, name: "Done", meaning: "Published" },
+];
+
+function Toast({ message, onClose }) {
+    useEffect(() => {
+        const t = setTimeout(onClose, 3500);
+        return () => clearTimeout(t);
+    }, [onClose]);
+
+    return (
+        <div className="as-toast">
+            <AlertTriangle size={16} />
+            {message}
+            <button type="button" onClick={onClose} aria-label="Dismiss">
+                <X size={14} />
+            </button>
+        </div>
+    );
+}
 
 export default function AssignmentsPage() {
     const [requests, setRequests] = useState([]);
@@ -40,10 +83,13 @@ export default function AssignmentsPage() {
     const [filterType, setFilterType] = useState("ALL");
     const [filterUser, setFilterUser] = useState("ALL");
     const [filterHealth, setFilterHealth] = useState("ALL");
+    const [showFilter, setShowFilter] = useState(false);
+    const [showLearn, setShowLearn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState("");
     const [savingKey, setSavingKey] = useState("");
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+    const [toast, setToast] = useState(null);
 
     const loadAssignments = async (role, userId) => {
         const reqUrl = new URL(`${API_BASE}/contents/monthly-requests/`);
@@ -182,10 +228,10 @@ export default function AssignmentsPage() {
                 body: JSON.stringify({ creator_id: creatorId }),
             });
             if (response.ok) await refreshOnlyRequests();
-            else alert("Failed to reassign content creator.");
+            else setToast("Failed to reassign content creator.");
         } catch (error) {
             console.error("Error reassigning creator:", error);
-            alert("Network error while reassigning creator.");
+            setToast("Network error while reassigning creator.");
         } finally {
             setSavingKey("");
         }
@@ -204,10 +250,10 @@ export default function AssignmentsPage() {
                 body: JSON.stringify({ qa_id: qaId }),
             });
             if (response.ok) await refreshOnlyRequests();
-            else alert("Failed to reassign QA.");
+            else setToast("Failed to reassign QA.");
         } catch (error) {
             console.error("Error reassigning QA:", error);
-            alert("Network error while reassigning QA.");
+            setToast("Network error while reassigning QA.");
         } finally {
             setSavingKey("");
         }
@@ -226,10 +272,10 @@ export default function AssignmentsPage() {
                 body: JSON.stringify({ status }),
             });
             if (response.ok) await refreshOnlyRequests();
-            else alert("Failed to update status.");
+            else setToast("Failed to update status.");
         } catch (error) {
             console.error("Error updating status:", error);
-            alert("Network error while updating status.");
+            setToast("Network error while updating status.");
         } finally {
             setSavingKey("");
         }
@@ -246,208 +292,356 @@ export default function AssignmentsPage() {
                 await refreshOnlyRequests();
                 setConfirmDeleteId(null);
             } else {
-                alert("Failed to delete task.");
+                setToast("Failed to delete task.");
             }
         } catch (error) {
             console.error("Error deleting task:", error);
-            alert("Network error while deleting task.");
+            setToast("Network error while deleting task.");
         }
     };
 
+    const activeFilterCount = [filterType !== "ALL", filterUser !== "ALL", filterHealth !== "ALL"].filter(Boolean).length;
+
+    const toggleHealth = (id) => {
+        setFilterHealth((prev) => (prev === id ? "ALL" : id));
+    };
+
+    const handleFlowClick = (stepId) => {
+        setShowLearn(false);
+        window.setTimeout(() => {
+            if (stepId === "filter") setShowFilter(true);
+            else document.getElementById(`as-${stepId}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 0);
+    };
+
+    const clientName = (req) =>
+        req.client_details?.client_profile?.practice_name || req.client_details?.username || `Client #${req.client}`;
+
     return (
-        <div className="w-full flex flex-col px-0 py-2 h-full">
-            <div className="bg-secondary rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
-                <div className="mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
-                            <ClipboardList size={30} className="text-primary" />
-                            Assignment Monitor
-                        </h1>
-                        <p className="text-muted-foreground mt-1 text-sm">Track which tasks are assigned to clients, content creators and QA.</p>
+        <div className="assignments">
+            <header className="as-header">
+                <div className="as-header__titles">
+                    <h1>Assignments</h1>
+                    <p>See who owns each piece, fill gaps, and move it on the Content Board.</p>
+                </div>
+                <div className="as-header__actions">
+                    <span className="as-chip">
+                        <span className="as-chip__dot" />
+                        Moves the board
+                    </span>
+                    {overdueCount > 0 && (
+                        <span className="as-chip">
+                            <span className="as-chip__dot is-due" />
+                            {overdueCount} overdue
+                        </span>
+                    )}
+                    <div className="as-filter">
+                        <button
+                            type="button"
+                            className={`as-filter__trigger${showFilter ? " is-open" : ""}`}
+                            onClick={() => setShowFilter((v) => !v)}
+                        >
+                            <Filter size={16} />
+                            {filtered.length} tasks
+                            {activeFilterCount > 0 && <span className="as-filter__count">{activeFilterCount}</span>}
+                            <ChevronDown size={14} />
+                        </button>
+                        {showFilter && (
+                            <>
+                                <div className="as-filter__scrim" onClick={() => setShowFilter(false)} />
+                                <div className="as-filter__panel" id="as-filter">
+                                    <div className="as-filter__group">
+                                        <label>Type</label>
+                                        <div className="as-chips">
+                                            {TYPE_OPTIONS.map((opt) => (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    className={`as-chip-opt${filterType === opt.id ? " is-on" : ""}`}
+                                                    onClick={() => setFilterType(opt.id)}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="as-filter__group">
+                                        <label htmlFor="as-filter-user">Person</label>
+                                        <select
+                                            id="as-filter-user"
+                                            value={filterUser}
+                                            onChange={(e) => setFilterUser(e.target.value)}
+                                        >
+                                            <option value="ALL">All people</option>
+                                            {users.map((u) => (
+                                                <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="as-filter__group">
+                                        <label>Health</label>
+                                        <div className="as-chips">
+                                            {HEALTH_OPTIONS.map((opt) => (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    className={`as-chip-opt${filterHealth === opt.id ? " is-on" : ""}`}
+                                                    onClick={() => setFilterHealth(opt.id)}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {activeFilterCount > 0 && (
+                                        <button
+                                            type="button"
+                                            className="as-btn as-btn--ghost as-filter__clear"
+                                            onClick={() => {
+                                                setFilterType("ALL");
+                                                setFilterUser("ALL");
+                                                setFilterHealth("ALL");
+                                            }}
+                                        >
+                                            Clear filters
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
+                    <button
+                        type="button"
+                        className={`as-learn-btn${showLearn ? " is-open" : ""}`}
+                        onClick={() => setShowLearn(true)}
+                        aria-expanded={showLearn}
+                        aria-controls="as-learn-panel"
+                    >
+                        <CircleHelp size={16} />
+                        How this works
+                    </button>
+                </div>
+            </header>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative">
-                            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="pl-9 pr-3 py-2.5 bg-card border border-border rounded-xl text-sm font-semibold text-foreground outline-none"
-                            >
-                                <option value="ALL">All Types</option>
-                                <option value="MONTHLY_CONTENT">Monthly</option>
-                                <option value="VIDEO_SHOOT">Video Shoot</option>
-                                <option value="CONTENT_REQUEST">Request</option>
-                            </select>
+            {showLearn && (
+                <div className="as-learn-overlay" onClick={() => setShowLearn(false)}>
+                    <div
+                        id="as-learn-panel"
+                        className="as-learn"
+                        role="dialog"
+                        aria-labelledby="as-learn-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="as-learn__head">
+                            <div>
+                                <h2 id="as-learn-title">How assignments work</h2>
+                                <p>This is the admin view of the board. Changing stage here moves the piece on the Content Board.</p>
+                            </div>
+                            <button type="button" className="as-icon-btn" onClick={() => setShowLearn(false)} aria-label="Close">
+                                <X size={16} />
+                            </button>
                         </div>
-
-                        <div className="relative">
-                            <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <select
-                                value={filterUser}
-                                onChange={(e) => setFilterUser(e.target.value)}
-                                className="pl-9 pr-3 py-2.5 bg-card border border-border rounded-xl text-sm font-semibold text-foreground outline-none"
-                            >
-                                <option value="ALL">All Users</option>
-                                {users.map((u) => (
-                                    <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+                        <p className="as-learn__label">On this page</p>
+                        <nav className="as-flow" aria-label="Assignment steps">
+                            {FLOW_STEPS.map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    className={`as-flow__step${s.id === "assign" ? " is-active" : ""}`}
+                                    onClick={() => handleFlowClick(s.id)}
+                                >
+                                    <div className="as-flow__top">
+                                        <span className="as-flow__num">{s.number}</span>
+                                        <span className="as-flow__name">{s.name}</span>
+                                    </div>
+                                    <p className="as-flow__meaning">{s.meaning}</p>
+                                </button>
+                            ))}
+                        </nav>
+                        <div className="as-destination">
+                            <p className="as-learn__label">Content Board pipeline</p>
+                            <div className="as-destination__track">
+                                {PIPELINE_STAGES.map((stage) => (
+                                    <div
+                                        key={stage.id}
+                                        className="as-dest is-here"
+                                        data-stage={stage.id}
+                                    >
+                                        <div className="as-dest__top">
+                                            <span className="as-dest__num">{stage.number}</span>
+                                            <span className="as-dest__name">{stage.name}</span>
+                                        </div>
+                                        <p className="as-dest__meaning">{stage.meaning}</p>
+                                    </div>
                                 ))}
-                            </select>
-                        </div>
-
-                        <div className="relative">
-                            <AlertTriangle size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <select
-                                value={filterHealth}
-                                onChange={(e) => setFilterHealth(e.target.value)}
-                                className="pl-9 pr-3 py-2.5 bg-card border border-border rounded-xl text-sm font-semibold text-foreground outline-none"
-                            >
-                                <option value="ALL">All Health</option>
-                                <option value="AT_RISK">At Risk</option>
-                                <option value="UNASSIGNED_CREATOR">No Creator</option>
-                                <option value="UNASSIGNED_QA">No QA</option>
-                                <option value="OVERDUE">Overdue</option>
-                            </select>
+                            </div>
                         </div>
                     </div>
                 </div>
+            )}
 
-                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold">
-                    <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700">Creator assigned: {creatorAssigned}</span>
-                    <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700">QA assigned: {qaAssigned}</span>
-                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700">No creator: {creatorMissing}</span>
-                    <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700">No QA: {qaMissing}</span>
-                    <span className="px-3 py-1 rounded-full bg-red-100 text-red-700">Overdue: {overdueCount}</span>
+            <div className="as-workspace">
+                <div className="as-stats" id="as-filter-stats">
+                    <button type="button" className="as-stat" onClick={() => setFilterHealth("ALL")}>
+                        Creator assigned <b>{creatorAssigned}</b>
+                    </button>
+                    <button type="button" className="as-stat" onClick={() => setFilterHealth("ALL")}>
+                        QA assigned <b>{qaAssigned}</b>
+                    </button>
+                    <button
+                        type="button"
+                        className={`as-stat is-warn${filterHealth === "UNASSIGNED_CREATOR" ? " is-on" : ""}`}
+                        onClick={() => toggleHealth("UNASSIGNED_CREATOR")}
+                    >
+                        No creator <b>{creatorMissing}</b>
+                    </button>
+                    <button
+                        type="button"
+                        className={`as-stat is-warn${filterHealth === "UNASSIGNED_QA" ? " is-on" : ""}`}
+                        onClick={() => toggleHealth("UNASSIGNED_QA")}
+                    >
+                        No QA <b>{qaMissing}</b>
+                    </button>
+                    <button
+                        type="button"
+                        className={`as-stat is-danger${filterHealth === "OVERDUE" ? " is-on" : ""}`}
+                        onClick={() => toggleHealth("OVERDUE")}
+                    >
+                        Overdue <b>{overdueCount}</b>
+                    </button>
                 </div>
 
-                <div className="mb-4 grid grid-cols-1 xl:grid-cols-2 gap-3">
-                    <div className="bg-card border border-border rounded-2xl p-4">
-                        <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Creator Workload</p>
-                        <div className="space-y-2 max-h-28 overflow-y-auto">
+                <div className="as-loads" id="as-load">
+                    <section className="as-load">
+                        <h2>Creator workload</h2>
+                        <div className="as-load__list">
                             {creatorStats.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No data.</p>
+                                <p className="as-empty">No data.</p>
                             ) : (
                                 creatorStats.map((s) => (
-                                    <div key={`creator-workload-${s.creator.id}`} className="flex items-center justify-between text-sm">
-                                        <span className="font-semibold text-foreground">{s.creator.username}</span>
-                                        <span className="text-muted-foreground">Active: <b className="text-foreground">{s.active_requests}</b></span>
+                                    <div key={`creator-workload-${s.creator.id}`} className="as-load__row">
+                                        <strong>{s.creator.username}</strong>
+                                        <span>Active <b>{s.active_requests}</b></span>
                                     </div>
                                 ))
                             )}
                         </div>
-                    </div>
-                    <div className="bg-card border border-border rounded-2xl p-4">
-                        <p className="text-xs font-bold text-muted-foreground uppercase mb-2">QA Workload</p>
-                        <div className="space-y-2 max-h-28 overflow-y-auto">
+                    </section>
+                    <section className="as-load">
+                        <h2>QA workload</h2>
+                        <div className="as-load__list">
                             {qaWorkload.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No QA users.</p>
+                                <p className="as-empty">No QA users.</p>
                             ) : (
                                 qaWorkload.map((s) => (
-                                    <div key={`qa-workload-${s.id}`} className="flex items-center justify-between text-sm">
-                                        <span className="font-semibold text-foreground">{s.username}</span>
-                                        <span className="text-muted-foreground">Active: <b className="text-foreground">{s.active}</b></span>
+                                    <div key={`qa-workload-${s.id}`} className="as-load__row">
+                                        <strong>{s.username}</strong>
+                                        <span>Active <b>{s.active}</b></span>
                                     </div>
                                 ))
                             )}
                         </div>
-                    </div>
+                    </section>
                 </div>
 
-                <div className="flex-1 overflow-auto rounded-2xl border border-border bg-card">
-                    <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-card border-b border-border">
+                <div className="as-table-wrap" id="as-assign">
+                    <table className="as-table">
+                        <thead>
                             <tr>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Task</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Client</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Content Creator</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">QA</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">Due Date</th>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-muted-foreground uppercase">SLA</th>
-                                <th className="text-center py-3 px-4 text-xs font-bold text-muted-foreground uppercase w-20">Actions</th>
+                                <th>Task</th>
+                                <th>Client</th>
+                                <th>Creator</th>
+                                <th>QA</th>
+                                <th>Stage</th>
+                                <th>Due</th>
+                                <th>SLA</th>
+                                <th className="as-actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="8" className="py-8 text-center text-muted-foreground">Loading assignments...</td></tr>
+                                <tr>
+                                    <td colSpan="8" className="as-table-empty">Loading assignments...</td>
+                                </tr>
                             ) : filtered.length === 0 ? (
-                                <tr><td colSpan="8" className="py-8 text-center text-muted-foreground">No assignments found.</td></tr>
+                                <tr>
+                                    <td colSpan="8" className="as-table-empty">No assignments found.</td>
+                                </tr>
                             ) : (
                                 filtered.map((req) => (
-                                    <tr key={req.id} className="border-b border-border/60 hover:bg-muted/40">
-                                        <td className="py-3 px-4 text-foreground font-medium">
+                                    <tr key={req.id}>
+                                        <td>
                                             <button
                                                 type="button"
+                                                className="as-task"
                                                 onClick={() => setSelectedRequest(req)}
-                                                className="max-w-[360px] truncate text-left hover:text-primary transition-colors"
                                                 title="View task details"
+                                                id={filtered[0]?.id === req.id ? "as-open" : undefined}
                                             >
                                                 {req.notes || req.request_type}
                                             </button>
                                         </td>
-                                        <td className="py-3 px-4 text-foreground">{req.client_details?.client_profile?.practice_name || req.client_details?.username || `Client #${req.client}`}</td>
-                                        <td className="py-3 px-4 text-foreground">
-                                            <div className="flex items-center gap-2">
+                                        <td>{clientName(req)}</td>
+                                        <td>
+                                            <div className="as-cell-select">
                                                 <select
                                                     value={req.assigned_to_details?.id || ""}
                                                     onChange={(e) => handleReassignCreator(req.id, e.target.value)}
-                                                    className="w-full min-w-[170px] px-2 py-1.5 rounded-lg border border-border bg-background text-xs outline-none"
                                                 >
                                                     <option value="">Unassigned</option>
                                                     {creators.map((creator) => (
                                                         <option key={`creator-opt-${creator.id}`} value={creator.id}>{creator.username}</option>
                                                     ))}
                                                 </select>
-                                                {savingKey === `creator-${req.id}` && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+                                                {savingKey === `creator-${req.id}` && <Loader2 size={14} className="as-spin" />}
                                             </div>
                                         </td>
-                                        <td className="py-3 px-4 text-foreground">
-                                            <div className="flex items-center gap-2">
+                                        <td>
+                                            <div className="as-cell-select">
                                                 <select
                                                     value={req.qa_assigned_to_details?.id || ""}
                                                     onChange={(e) => handleReassignQa(req.id, e.target.value)}
-                                                    className="w-full min-w-[150px] px-2 py-1.5 rounded-lg border border-border bg-background text-xs outline-none"
                                                 >
                                                     <option value="">Unassigned</option>
                                                     {qaUsers.map((qa) => (
                                                         <option key={`qa-opt-${qa.id}`} value={qa.id}>{qa.username}</option>
                                                     ))}
                                                 </select>
-                                                {savingKey === `qa-${req.id}` && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+                                                {savingKey === `qa-${req.id}` && <Loader2 size={14} className="as-spin" />}
                                             </div>
                                         </td>
-                                        <td className="py-3 px-4">
-                                            <div className="flex items-center gap-2">
+                                        <td>
+                                            <div className="as-cell-select">
                                                 <select
+                                                    className="as-status"
+                                                    data-stage={req.status}
                                                     value={req.status}
                                                     onChange={(e) => handleStatusChange(req.id, e.target.value)}
-                                                    className={`w-full min-w-[145px] px-2 py-1.5 rounded-lg border text-xs font-bold outline-none ${statusSelectClass(req.status)}`}
                                                 >
                                                     {STATUS_OPTIONS.map((status) => (
-                                                        <option key={`status-opt-${status}`} value={status}>{status}</option>
+                                                        <option key={`status-opt-${status}`} value={status}>
+                                                            {STATUS_LABELS[status] || status}
+                                                        </option>
                                                     ))}
                                                 </select>
-                                                {savingKey === `status-${req.id}` && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+                                                {savingKey === `status-${req.id}` && <Loader2 size={14} className="as-spin" />}
                                             </div>
                                         </td>
-                                        <td className="py-3 px-4 text-foreground font-medium">
-                                            {formatDate(getDueDate(req))}
-                                        </td>
-                                        <td className="py-3 px-4">
+                                        <td>{formatDate(getDueDate(req))}</td>
+                                        <td>
                                             {isOverdue(req) ? (
-                                                <span className="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                                                    Overdue ({getOverdueDays(req)}d)
-                                                </span>
+                                                <span className="as-sla is-late">Overdue ({getOverdueDays(req)}d)</span>
                                             ) : (
-                                                <span className="px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">On time</span>
+                                                <span className="as-sla">On time</span>
                                             )}
                                         </td>
-                                        <td className="py-3 px-4 text-center">
+                                        <td className="as-actions">
                                             <button
                                                 type="button"
+                                                className="as-icon-btn is-danger"
                                                 onClick={() => setConfirmDeleteId(req.id)}
-                                                className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                                                 title="Delete task"
+                                                aria-label="Delete task"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -461,108 +655,109 @@ export default function AssignmentsPage() {
             </div>
 
             {selectedRequest && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-5xl h-[85vh] bg-card border border-border rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/95">
-                            <h3 className="text-xl font-black text-foreground">Task Details</h3>
-                            <button
-                                onClick={() => setSelectedRequest(null)}
-                                className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
-                            >
-                                <X size={18} />
+                <div className="as-overlay" onClick={() => setSelectedRequest(null)}>
+                    <div
+                        className="as-detail"
+                        role="dialog"
+                        aria-labelledby="as-detail-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="as-detail__head">
+                            <div>
+                                <h2 id="as-detail-title">Task details</h2>
+                            </div>
+                            <button type="button" className="as-icon-btn" onClick={() => setSelectedRequest(null)} aria-label="Close">
+                                <X size={16} />
                             </button>
                         </div>
-
-                        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Task</p>
-                                    <p className="text-foreground font-semibold">{selectedRequest.notes || selectedRequest.request_type}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Status</p>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusBadge(selectedRequest.status)}`}>{selectedRequest.status}</span>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Client</p>
-                                    <p className="text-foreground font-semibold">
-                                        {selectedRequest.client_details?.client_profile?.practice_name || selectedRequest.client_details?.username || `Client #${selectedRequest.client}`}
-                                    </p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Request Type</p>
-                                    <p className="text-foreground font-semibold">{selectedRequest.request_type}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Content Creator</p>
-                                    <p className="text-foreground font-semibold">{selectedRequest.assigned_to_details?.username || "Unassigned"}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">QA</p>
-                                    <p className="text-foreground font-semibold">{selectedRequest.qa_assigned_to_details?.username || "Unassigned"}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Month</p>
-                                    <p className="text-foreground font-semibold">{selectedRequest.month || "-"}</p>
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Due Date</p>
-                                    <p className="text-foreground font-semibold">{formatDate(getDueDate(selectedRequest))}</p>
-                                    {isOverdue(selectedRequest) && (
-                                        <p className="text-xs font-bold text-red-700 mt-1">
-                                            {getOverdueDays(selectedRequest)} day(s) overdue
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Updated At</p>
-                                    <p className="text-foreground font-semibold">{formatDateTime(selectedRequest.updated_at)}</p>
-                                </div>
+                        <div className="as-detail__body">
+                            <div className="as-meta">
+                                <p>Task</p>
+                                <strong>{selectedRequest.notes || selectedRequest.request_type}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>Stage</p>
+                                <span className="as-stage" data-stage={selectedRequest.status}>
+                                    {STATUS_LABELS[selectedRequest.status] || selectedRequest.status}
+                                </span>
+                            </div>
+                            <div className="as-meta">
+                                <p>Client</p>
+                                <strong>{clientName(selectedRequest)}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>Request type</p>
+                                <strong>{selectedRequest.request_type}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>Creator</p>
+                                <strong>{selectedRequest.assigned_to_details?.username || "Unassigned"}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>QA</p>
+                                <strong>{selectedRequest.qa_assigned_to_details?.username || "Unassigned"}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>Month</p>
+                                <strong>{selectedRequest.month || "-"}</strong>
+                            </div>
+                            <div className="as-meta">
+                                <p>Due date</p>
+                                <strong>{formatDate(getDueDate(selectedRequest))}</strong>
+                                {isOverdue(selectedRequest) && (
+                                    <span className="as-sla is-late">
+                                        {getOverdueDays(selectedRequest)} day(s) overdue
+                                    </span>
+                                )}
+                            </div>
+                            <div className="as-meta">
+                                <p>Updated at</p>
+                                <strong>{formatDateTime(selectedRequest.updated_at)}</strong>
                             </div>
 
                             {selectedRequest.linked_image_details?.image_url && (
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Linked Image</p>
-                                    <div className="rounded-xl overflow-hidden border border-border bg-background">
-                                        <img
-                                            src={selectedRequest.linked_image_details.image_url}
-                                            alt={selectedRequest.linked_image_details.title || "Linked image"}
-                                            className="w-full max-h-[360px] object-contain"
-                                        />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-2 font-mono">{selectedRequest.linked_image_details.folio || "-"}</p>
+                                <div className="as-meta is-wide">
+                                    <p>Linked image</p>
+                                    <img
+                                        src={selectedRequest.linked_image_details.image_url}
+                                        alt={selectedRequest.linked_image_details.title || "Linked image"}
+                                    />
+                                    <code>{selectedRequest.linked_image_details.folio || "-"}</code>
                                 </div>
                             )}
 
                             {selectedRequest.content_text && (
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Content Text</p>
-                                    <p className="text-sm text-foreground whitespace-pre-wrap">{selectedRequest.content_text}</p>
+                                <div className="as-meta is-wide">
+                                    <p>Content text</p>
+                                    <pre>{selectedRequest.content_text}</pre>
                                 </div>
                             )}
 
                             {selectedRequest.ai_caption && (
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">AI Caption</p>
-                                    <p className="text-sm text-foreground whitespace-pre-wrap">{selectedRequest.ai_caption}</p>
+                                <div className="as-meta is-wide">
+                                    <p>AI caption</p>
+                                    <pre>{selectedRequest.ai_caption}</pre>
                                 </div>
                             )}
 
                             {selectedRequest.feedback && (
-                                <div className="p-4 rounded-2xl border border-border bg-red-50">
-                                    <p className="text-xs font-bold text-red-700 uppercase mb-2">QA Feedback</p>
-                                    <p className="text-sm text-red-700 whitespace-pre-wrap">{selectedRequest.feedback}</p>
+                                <div className="as-meta is-wide is-warn">
+                                    <p>QA feedback</p>
+                                    <pre>{selectedRequest.feedback}</pre>
                                 </div>
                             )}
 
                             {Array.isArray(selectedRequest.history) && selectedRequest.history.length > 0 && (
-                                <div className="p-4 rounded-2xl border border-border bg-secondary/20">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Recent History</p>
-                                    <div className="space-y-2">
+                                <div className="as-meta is-wide">
+                                    <p>Recent history</p>
+                                    <div className="as-history">
                                         {selectedRequest.history.slice(0, 5).map((h) => (
-                                            <div key={h.id} className="text-xs p-2 rounded-lg border border-border bg-background">
-                                                <p className="font-semibold text-foreground">{h.previous_status || "-"} {" -> "} {h.new_status}</p>
-                                                <p className="text-muted-foreground">{formatDateTime(h.timestamp)}{h.changed_by_details?.username ? ` by ${h.changed_by_details.username}` : ""}</p>
+                                            <div key={h.id}>
+                                                <strong>{STATUS_LABELS[h.previous_status] || h.previous_status || "-"} → {STATUS_LABELS[h.new_status] || h.new_status}</strong>
+                                                <small>
+                                                    {formatDateTime(h.timestamp)}
+                                                    {h.changed_by_details?.username ? ` by ${h.changed_by_details.username}` : ""}
+                                                </small>
                                             </div>
                                         ))}
                                     </div>
@@ -572,35 +767,25 @@ export default function AssignmentsPage() {
                     </div>
                 </div>
             )}
+
             {confirmDeleteId && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2">
-                            <AlertTriangle className="text-red-500" size={20} />
-                            Confirm Delete
-                        </h3>
-                        <p className="text-muted-foreground text-sm mb-6">
-                            Are you sure you want to delete this task? This action cannot be undone.
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setConfirmDeleteId(null)}
-                                className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl text-sm transition"
-                            >
+                <div className="as-overlay" onClick={() => setConfirmDeleteId(null)}>
+                    <div className="as-dialog" role="dialog" aria-labelledby="as-delete-title" onClick={(e) => e.stopPropagation()}>
+                        <h2 id="as-delete-title">Delete this task?</h2>
+                        <p>This cannot be undone.</p>
+                        <div className="as-dialog__actions">
+                            <button type="button" className="as-btn as-btn--ghost" onClick={() => setConfirmDeleteId(null)}>
                                 Cancel
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => handleDeleteRequest(confirmDeleteId)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-sm transition"
-                            >
+                            <button type="button" className="as-btn as-btn--danger" onClick={() => handleDeleteRequest(confirmDeleteId)}>
                                 Delete
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {toast && <Toast message={toast} onClose={() => setToast(null)} />}
         </div>
     );
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable, closestCorners } from "@dnd-kit/core";
 import { toast, Toaster } from "sonner";
+import ContentMediaPreview, { isPdfMedia, isVideoMedia } from "../../components/ContentMediaPreview";
 import "./content-board.css";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -24,6 +25,7 @@ const getCardThumbnail = (req) => {
     const items = req.content_items || [];
     if (items.length > 0) {
         const firstItem = items[0];
+        if (isPdfMedia(firstItem, firstItem.file_url)) return null;
         return firstItem.gallery_image_details?.image_url
             || normalizeMediaUrl(firstItem.gallery_image_details?.image_compressed)
             || normalizeMediaUrl(firstItem.gallery_image_details?.image)
@@ -75,6 +77,7 @@ const FORMAT_DETAILS = {
     image: { label: "Image", icon: ImageIcon },
     carousel: { label: "Carousel", icon: Layers },
     video: { label: "Video", icon: Video },
+    pdf: { label: "PDF", icon: FileText },
 };
 
 const REQUEST_TYPES = {
@@ -104,6 +107,7 @@ const CONTENT_TYPES = [
     { id: "image", label: "Image", icon: ImageIcon },
     { id: "carousel", label: "Carousel", icon: Layers },
     { id: "video", label: "Video", icon: Video },
+    { id: "pdf", label: "PDF", icon: FileText },
 ];
 
 const getRequestTypeDetails = (type) => REQUEST_TYPES[type] || { label: "Task", icon: FileText };
@@ -764,18 +768,14 @@ export default function ContentBoardPage() {
                                                 || normalizeMediaUrl(ci.gallery_image_details?.image_compressed)
                                                 || normalizeMediaUrl(ci.gallery_image_details?.image)
                                                 || normalizeMediaUrl(ci.file_url);
-                                            const isVideo = ci.media_type === "VIDEO" || (
-                                                typeof src === "string" && (
-                                                    src.toLowerCase().split("?")[0].endsWith(".mp4")
-                                                    || src.toLowerCase().split("?")[0].endsWith(".mov")
-                                                    || src.toLowerCase().split("?")[0].endsWith(".webm")
-                                                    || src.toLowerCase().includes("/videos/")
-                                                )
-                                            );
+                                            const isVideo = isVideoMedia(ci, src);
+                                            const isPdf = isPdfMedia(ci, src);
                                             return (
                                                 <div className="cb-media">
                                                     {src ? (
-                                                        isVideo ? <PreviewVideoPlayer src={src} /> : <img src={src} alt={ci.gallery_image_details?.title || "Media"} />
+                                                        isPdf ? (
+                                                            <ContentMediaPreview src={src} item={ci} alt={ci.file_name || "PDF"} />
+                                                        ) : isVideo ? <PreviewVideoPlayer src={src} /> : <img src={src} alt={ci.gallery_image_details?.title || "Media"} />
                                                     ) : (
                                                         <div className="cb-media__pending">
                                                             <ImageIcon size={28} />
