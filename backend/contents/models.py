@@ -215,3 +215,27 @@ class LetsTalkSubmission(models.Model):
     def __str__(self):
         return f"{self.name} ({self.email})"
 
+
+class PipelineSettings(models.Model):
+    require_qa_review = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Pipeline settings")
+        verbose_name_plural = _("Pipeline settings")
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def get(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Pipeline settings"
+

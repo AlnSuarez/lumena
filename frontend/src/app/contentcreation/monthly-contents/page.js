@@ -450,7 +450,7 @@ export default function MonthlyContentsPage() {
                 const msg = `Error updating request #${id}: ${response.status} ${response.statusText}${errBody ? ' — ' + errBody : ''}`;
                 console.error(msg);
                 alert(`Failed to update: ${response.status}${errBody ? '\n\n' + errBody.slice(0, 300) : ''}`);
-                return;
+                return false;
             }
 
             // If we updated the image, we should update the local state to reflect it immediately
@@ -471,9 +471,11 @@ export default function MonthlyContentsPage() {
                 }));
             }
 
+            return true;
         } catch (error) {
             console.error("Error updating status:", error);
             alert(`Network error updating request #${id}: ${error.message}`);
+            return false;
         }
     };
 
@@ -1221,13 +1223,26 @@ export default function MonthlyContentsPage() {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         const dataToUpdate = {
             content_text: contentText,
             ai_caption: aiCaption
         };
+        const hasAnyMedia = (activeItem?.originalData?.content_items?.length || 0) > 0
+            || Boolean(activeItem?.originalData?.linked_image);
+        const remainingHere = steps[currentStepIndex] ? counts[steps[currentStepIndex].id] : 0;
+        const sendingNow = isAdhoc || (currentStepIndex >= steps.length - 1 && remainingHere <= 1);
+
+        if (sendingNow && !hasAnyMedia) {
+            alert("Add media before sending this to review.");
+            return;
+        }
 
         if (isAdhoc) {
+            const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
+            const ok = await updateRequestStatus(activeItem.id, nextStatus, dataToUpdate);
+            if (!ok) return;
+
             const updatedItems = items.filter(item => item.id !== activeItem.id);
             const updatedFiltered = updatedItems.filter(item => {
                 if (filterClient !== 'ALL' && String(item.originalData?.client_details?.id) !== String(filterClient)) return false;
@@ -1249,8 +1264,6 @@ export default function MonthlyContentsPage() {
             }
             setItems(updatedItems);
             setActiveItemIndex(newIndex);
-            const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
-            updateRequestStatus(activeItem.id, nextStatus, dataToUpdate);
             if (updatedItems.length === 0) {
                 alert("All pending items reviewed!");
             }
@@ -1262,36 +1275,45 @@ export default function MonthlyContentsPage() {
             ? { ...counts, [currentStepKey]: counts[currentStepKey] - 1 }
             : { ...counts, [currentStepKey]: 0 };
 
-        setCounts(newCounts);
-
         const updatedNotes = updateCountsInNotes(activeItem.originalData?.notes, newCounts);
         const saveData = { ...dataToUpdate, notes: updatedNotes };
 
-        // Update local state immediately
-        setItems(prev => prev.map(item =>
-            item.id === activeItem.id
-                ? { ...item, originalData: { ...item.originalData, notes: updatedNotes } }
-                : item
-        ));
-
         if (counts[currentStepKey] > 1) {
-            updateRequestStatus(activeItem.id, activeItem.status, saveData);
+            const ok = await updateRequestStatus(activeItem.id, activeItem.status, saveData);
+            if (!ok) return;
+            setCounts(newCounts);
+            setItems(prev => prev.map(item =>
+                item.id === activeItem.id
+                    ? { ...item, originalData: { ...item.originalData, notes: updatedNotes } }
+                    : item
+            ));
             setContentText("");
             setAiCaption("");
         } else {
             if (currentStepIndex < steps.length - 1) {
-                updateRequestStatus(activeItem.id, 'IN_PROGRESS', saveData);
+                const ok = await updateRequestStatus(activeItem.id, 'IN_PROGRESS', saveData);
+                if (!ok) return;
+                setCounts(newCounts);
+                setItems(prev => prev.map(item =>
+                    item.id === activeItem.id
+                        ? { ...item, originalData: { ...item.originalData, notes: updatedNotes } }
+                        : item
+                ));
                 setCurrentStepIndex(prev => prev + 1);
                 setContentText("");
                 setAiCaption("");
             } else {
                 const nextStatus = requireQAReview ? 'QA' : 'CLIENT_REVIEW';
-                updateRequestStatus(activeItem.id, nextStatus, saveData);
+                const ok = await updateRequestStatus(activeItem.id, nextStatus, saveData);
+                if (!ok) return;
 
                 const updatedItems = items.filter(item => item.id !== activeItem.id);
                 const updatedFiltered = updatedItems.filter(item => {
                     if (filterClient !== 'ALL' && String(item.originalData?.client_details?.id) !== String(filterClient)) return false;
-                    if (filterContentType !== 'ALL') return false;
+                    if (filterContentType !== 'ALL') {
+                        const ct = item.originalData?.notes?.match(/Content Type: (\w+)/)?.[1]?.toLowerCase();
+                        if (ct !== filterContentType.toLowerCase()) return false;
+                    }
                     if (filterStatus !== 'ALL') {
                         if (filterStatus === 'new' && item.status !== 'TO_DO') return false;
                         if (filterStatus === 'in_progress' && item.status !== 'IN_PROGRESS') return false;
@@ -1381,6 +1403,7 @@ export default function MonthlyContentsPage() {
     const isLastType = currentStepIndex === steps.length - 1;
     const nextStep = steps[currentStepIndex + 1];
     const singular = currentStep?.label?.replace(/s$/, "") || "piece";
+    const isFinalSend = isAdhoc || (remaining <= 1 && isLastType);
     let sendLabel = `Send to ${sendDestination}`;
     if (!isAdhoc && currentStep) {
         if (remaining > 1) sendLabel = `Save this ${singular.toLowerCase()} — ${remaining - 1} left`;
@@ -2238,6 +2261,7 @@ export default function MonthlyContentsPage() {
                                 type="button"
                                 className={`mc-btn mc-btn--primary mc-send${canSend ? " is-ready" : ""}`}
                                 onClick={handleNext}
+                                disabled={isFinalSend && !canSend}
                             >
                                 <Check size={16} />
                                 {sendLabel}

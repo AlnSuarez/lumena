@@ -11,10 +11,10 @@ import {
     ChevronDown,
 } from "lucide-react";
 import "../assignments.css";
+import { useTheme } from "../../../context/ThemeContext";
+import { allowedStatusTargets, readApiError } from "../../../lib/pipeline";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
-
-const STATUS_OPTIONS = ["TO_DO", "IN_PROGRESS", "QA", "IN_REVISION", "CLIENT_REVIEW", "APPROVED", "DONE"];
 
 const STATUS_LABELS = {
     TO_DO: "To Do",
@@ -76,6 +76,7 @@ function Toast({ message, onClose }) {
 }
 
 export default function AssignmentsPage() {
+    const { requireQAReview } = useTheme();
     const [requests, setRequests] = useState([]);
     const [users, setUsers] = useState([]);
     const [creatorStats, setCreatorStats] = useState([]);
@@ -86,6 +87,7 @@ export default function AssignmentsPage() {
     const [showFilter, setShowFilter] = useState(false);
     const [showLearn, setShowLearn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState("");
+    const [currentUserRole, setCurrentUserRole] = useState("GUEST");
     const [savingKey, setSavingKey] = useState("");
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -106,6 +108,7 @@ export default function AssignmentsPage() {
             const role = localStorage.getItem("userRole") || "GUEST";
             const userId = localStorage.getItem("userId") || "";
             setCurrentUserId(userId);
+            setCurrentUserRole(role);
 
             setLoading(true);
             try {
@@ -272,7 +275,7 @@ export default function AssignmentsPage() {
                 body: JSON.stringify({ status }),
             });
             if (response.ok) await refreshOnlyRequests();
-            else setToast("Failed to update status.");
+            else setToast(await readApiError(response, "Failed to update status."));
         } catch (error) {
             console.error("Error updating status:", error);
             setToast("Network error while updating status.");
@@ -618,7 +621,10 @@ export default function AssignmentsPage() {
                                                     value={req.status}
                                                     onChange={(e) => handleStatusChange(req.id, e.target.value)}
                                                 >
-                                                    {STATUS_OPTIONS.map((status) => (
+                                                    {Array.from(new Set([
+                                                        req.status,
+                                                        ...allowedStatusTargets(req.status, currentUserRole, requireQAReview),
+                                                    ])).map((status) => (
                                                         <option key={`status-opt-${status}`} value={status}>
                                                             {STATUS_LABELS[status] || status}
                                                         </option>

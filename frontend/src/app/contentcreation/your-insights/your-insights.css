@@ -1,0 +1,219 @@
+/* Your Insights — page extras on Content Board tokens */
+
+.your-insights .cb-chip {
+  align-items: flex-start;
+}
+
+.your-insights .cb-chip span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+.your-insights .cb-chip small {
+  font-size: 0.62rem;
+  font-weight: 550;
+  letter-spacing: 0;
+  color: var(--cb-muted);
+}
+
+.your-insights .cb-chip strong {
+  line-height: 1.1;
+}
+
+.yi-change {
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.yi-change.is-up { color: var(--stage-done); }
+.yi-change.is-down { color: var(--cb-danger); }
+.yi-change.is-flat { color: var(--cb-muted); }
+
+.yi-time {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-card);
+  box-shadow: var(--cb-shadow);
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--cb-muted);
+}
+
+.yi-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+
+.yi-section h2 {
+  margin: 0 0 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cb-muted);
+}
+
+.yi-list {
+  overflow: hidden;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  background: color-mix(in oklab, var(--cb-card) 86%, var(--cb-bg));
+  box-shadow: var(--cb-shadow);
+}
+
+.yi-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.8rem 0.95rem;
+  border-top: 1px solid var(--cb-border);
+}
+
+.yi-row:first-child {
+  border-top: 0;
+}
+
+.yi-row svg {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  color: var(--stage-done);
+}
+
+.yi-row p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.yi-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.yi-card {
+  padding: 1rem 1.05rem 1.1rem;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  background: color-mix(in oklab, var(--cb-card) 86%, var(--cb-bg));
+  box-shadow: var(--cb-shadow);
+}
+
+.yi-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.yi-card__lead {
+  margin: 0;
+  padding: 0.85rem 0.9rem;
+  border-radius: var(--cb-radius-sm);
+  background: color-mix(in oklab, var(--cb-muted-bg) 70%, var(--cb-card));
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.yi-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+}
+
+.yi-focus li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  list-style: none;
+}
+
+.yi-focus svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--cb-primary);
+}
+
+.yi-focus p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.yi-ask {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  flex-shrink: 0;
+}
+
+.yi-ask .cb-icon-btn {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--cb-radius-sm);
+  color: var(--cb-muted);
+}
+
+.yi-ask .cb-icon-btn:hover {
+  color: var(--cb-fg);
+  background: color-mix(in oklab, var(--cb-muted-bg) 80%, transparent);
+}
+
+.yi-ask input {
+  flex: 1;
+  min-width: 0;
+  height: 2.6rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius-sm);
+  background: var(--cb-card);
+  color: var(--cb-fg);
+  font-size: 0.84rem;
+  outline: none;
+  box-shadow: var(--cb-shadow);
+}
+
+.yi-ask input:focus {
+  border-color: color-mix(in oklab, var(--cb-primary) 50%, var(--cb-border));
+}
+
+@media (max-width: 860px) {
+  .your-insights .cb-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .yi-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .your-insights .cb-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .yi-ask {
+    flex-wrap: wrap;
+  }
+
+  .yi-ask input {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}

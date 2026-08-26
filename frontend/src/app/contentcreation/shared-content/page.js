@@ -1,157 +1,260 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FileText, Download, ExternalLink, File, FileImage, Video, FileSpreadsheet, FileType } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+    Download,
+    ExternalLink,
+    File,
+    FileImage,
+    FileSpreadsheet,
+    FileText,
+    FileType,
+    Folder,
+    RefreshCw,
+    Video,
+} from "lucide-react";
+import { toast, Toaster } from "sonner";
+import "../content-board.css";
+import "./shared-content.css";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api`;
+
+const KINDS = [
+    { id: "ALL", label: "All", meaning: "Everything shared" },
+    { id: "image", label: "Images", meaning: "Photos and stills" },
+    { id: "video", label: "Videos", meaning: "Clips to review" },
+    { id: "file", label: "Documents", meaning: "PDFs and files" },
+];
+
+const FILE_LABELS = {
+    pdf: "PDF",
+    doc: "DOC",
+    docx: "DOCX",
+    xls: "XLS",
+    xlsx: "XLSX",
+    csv: "CSV",
+    ppt: "PPT",
+    pptx: "PPTX",
+    txt: "TXT",
+    zip: "ZIP",
+    rar: "RAR",
+    mp3: "MP3",
+    wav: "WAV",
+    mp4: "MP4",
+    mov: "MOV",
+    jpg: "JPG",
+    jpeg: "JPEG",
+    png: "PNG",
+    gif: "GIF",
+    webp: "WEBP",
+};
 
 function formatSize(bytes) {
     if (!bytes) return "";
     const units = ["B", "KB", "MB", "GB"];
     let i = 0;
     let size = bytes;
-    while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+    while (size >= 1024 && i < units.length - 1) {
+        size /= 1024;
+        i += 1;
+    }
     return `${size.toFixed(1)} ${units[i]}`;
 }
 
-function getFileIcon(fileType, isImage, isVideo, isPdf) {
-    if (isImage) return <FileImage size={32} className="text-blue-500" />;
-    if (isVideo) return <Video size={32} className="text-purple-500" />;
-    if (isPdf) return <FileType size={32} className="text-red-500" />;
-    if (fileType && ["doc", "docx"].includes(fileType)) return <FileText size={32} className="text-blue-600" />;
-    if (fileType && ["xls", "xlsx", "csv"].includes(fileType)) return <FileSpreadsheet size={32} className="text-emerald-600" />;
-    return <File size={32} className="text-muted-foreground" />;
+function fileLabel(fileType) {
+    return FILE_LABELS[fileType] || fileType?.toUpperCase() || "FILE";
 }
 
-function getFileLabel(fileType) {
-    const labels = { pdf: "PDF", doc: "DOC", docx: "DOCX", xls: "XLS", xlsx: "XLSX", csv: "CSV", ppt: "PPT", pptx: "PPTX", txt: "TXT", zip: "ZIP", rar: "RAR", mp3: "MP3", wav: "WAV", mp4: "MP4", mov: "MOV", jpg: "JPG", jpeg: "JPEG", png: "PNG", gif: "GIF" };
-    return labels[fileType] || fileType?.toUpperCase() || "FILE";
+function classify(doc) {
+    const isDoc = doc._type === "document";
+    if (isDoc && doc.is_video) return "video";
+    if (isDoc && doc.is_image) return "image";
+    if (!isDoc) return "image";
+    return "file";
+}
+
+function fileUrl(doc) {
+    return doc._type === "document"
+        ? doc.file_url
+        : (doc.image_url_original || doc.image_url);
+}
+
+function thumbUrl(doc) {
+    return doc._type === "document" ? doc.file_url : doc.image_url;
+}
+
+function FileGlyph({ kind, fileType }) {
+    if (kind === "image") return <FileImage size={28} />;
+    if (kind === "video") return <Video size={28} />;
+    if (fileType === "pdf") return <FileType size={28} />;
+    if (["doc", "docx"].includes(fileType)) return <FileText size={28} />;
+    if (["xls", "xlsx", "csv"].includes(fileType)) return <FileSpreadsheet size={28} />;
+    return <File size={28} />;
+}
+
+function fileTone(fileType) {
+    if (fileType === "pdf") return "pdf";
+    if (["doc", "docx"].includes(fileType)) return "doc";
+    if (["xls", "xlsx", "csv"].includes(fileType)) return "sheet";
+    return "";
 }
 
 export default function SharedContentPage() {
-    const [sharedDocuments, setSharedDocuments] = useState([]);
-    const [loadingDocs, setLoadingDocs] = useState(true);
+    const [documents, setDocuments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [loadError, setLoadError] = useState(false);
+    const [kindFilter, setKindFilter] = useState("ALL");
+
+    const loadDocuments = async ({ silent = false } = {}) => {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+
+        if (silent) setRefreshing(true);
+        else setLoading(true);
+        setLoadError(false);
+
+        try {
+            const response = await fetch(
+                `${API_BASE}/gallery/clients/${userId}/shared-content/images/`
+            );
+            if (!response.ok) {
+                toast.error("Could not load strategy files.");
+                setDocuments([]);
+                setLoadError(true);
+                return;
+            }
+            setDocuments(await response.json());
+        } catch (error) {
+            console.error("Error loading shared documents:", error);
+            toast.error("Network error while loading files.");
+            setDocuments([]);
+            setLoadError(true);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchSharedDocuments = async () => {
-            const userId = localStorage.getItem("userId");
-            if (!userId) { setLoadingDocs(false); return; }
-            try {
-                const response = await fetch(`${API_BASE}/gallery/clients/${userId}/shared-content/images/`);
-                if (response.ok) {
-                    const docs = await response.json();
-                    setSharedDocuments(docs);
-                }
-            } catch (error) {
-                console.error("Error loading shared documents:", error);
-            } finally {
-                setLoadingDocs(false);
-            }
-        };
-
-        fetchSharedDocuments();
+        loadDocuments();
     }, []);
 
+    const counts = useMemo(() => ({
+        ALL: documents.length,
+        image: documents.filter((doc) => classify(doc) === "image").length,
+        video: documents.filter((doc) => classify(doc) === "video").length,
+        file: documents.filter((doc) => classify(doc) === "file").length,
+    }), [documents]);
+
+    const filtered = kindFilter === "ALL"
+        ? documents
+        : documents.filter((doc) => classify(doc) === kindFilter);
+
     return (
-        <div className="w-full flex flex-col px-0 py-2 h-full">
-            <div className="bg-secondary rounded-3xl p-8 flex flex-col h-[85vh] min-h-0 mx-0">
-                <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-4xl font-black text-foreground tracking-tight">Your Strategy</h1>
-                        <p className="text-muted-foreground mt-2 text-lg">Documents and files shared by your team.</p>
-                    </div>
+        <div className="content-board shared-content">
+            <Toaster position="bottom-right" richColors />
+
+            <div className="cb-header">
+                <div className="cb-header__titles">
+                    <h1>Strategy</h1>
+                    <p>Documents and files shared by your team.</p>
                 </div>
-
-                <div className="h-px bg-border mb-6" />
-
-                <div className="flex-1 overflow-y-auto min-h-0">
-                    {loadingDocs ? (
-                        <div className="flex items-center justify-center py-12 text-muted-foreground">Loading documents...</div>
-                    ) : sharedDocuments.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <FileText size={64} className="text-muted-foreground/30 mb-4 animate-pulse" />
-                            <p className="text-foreground text-xl font-semibold">No strategy documents yet</p>
-                            <p className="text-muted-foreground/60 mt-2 max-w-sm">Strategy documents and assets shared by our team with you will appear here.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pr-1">
-                            {sharedDocuments.map((doc) => {
-                                const isDoc = doc._type === 'document';
-                                const isImage = isDoc ? doc.is_image : true;
-                                const isVideo = isDoc ? doc.is_video : false;
-                                const isPdf = isDoc ? doc.is_pdf : false;
-                                const fileUrl = isDoc ? doc.file_url : (doc.image_url_original || doc.image_url);
-                                const thumbUrl = isDoc ? doc.file_url : doc.image_url;
-
-                                return (
-                                    <div
-                                        key={`${isDoc ? 'd' : 'i'}-${doc.id}`}
-                                        className="group rounded-2xl border border-border bg-card overflow-hidden hover:shadow-xl hover:border-primary/40 transition-all duration-300 flex flex-col"
-                                    >
-                                        <div className="aspect-[4/3] bg-muted relative overflow-hidden shrink-0">
-                                            {isImage ? (
-                                                <img
-                                                    src={thumbUrl}
-                                                    alt={doc.title || "Shared"}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                />
-                                            ) : isVideo ? (
-                                                <video
-                                                    src={fileUrl}
-                                                    className="w-full h-full object-cover"
-                                                    controls
-                                                    preload="metadata"
-                                                />
-                                            ) : isPdf ? (
-                                                <iframe
-                                                    src={fileUrl}
-                                                    className="w-full h-full border-0"
-                                                    title={doc.title || "PDF"}
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-background/80">
-                                                    {getFileIcon(doc.file_type, false, false, false)}
-                                                    <span className="text-xs font-bold text-muted-foreground">{getFileLabel(doc.file_type)}</span>
-                                                </div>
-                                            )}
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-300" />
-                                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                <a
-                                                    href={fileUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="p-2 bg-black/60 text-white rounded-full hover:bg-primary backdrop-blur-md transition-all shadow-lg"
-                                                    title="Open"
-                                                >
-                                                    <ExternalLink size={16} />
-                                                </a>
-                                                <a
-                                                    href={fileUrl}
-                                                    download
-                                                    className="p-2 bg-black/60 text-white rounded-full hover:bg-primary backdrop-blur-md transition-all shadow-lg"
-                                                    title="Download"
-                                                >
-                                                    <Download size={16} />
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div className="p-4 flex flex-col flex-grow justify-between gap-2">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-bold text-foreground truncate" title={doc.title}>
-                                                    {doc.title || "Untitled"}
-                                                </p>
-                                                <p className="text-xs font-mono text-muted-foreground mt-1">
-                                                    {getFileLabel(doc.file_type || "img")} {doc.file_size ? `· ${formatSize(doc.file_size)}` : ""}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                <div className="cb-header__actions">
+                    <button
+                        type="button"
+                        className="cb-btn cb-btn--ghost"
+                        onClick={() => loadDocuments({ silent: true })}
+                        disabled={loading || refreshing}
+                    >
+                        <RefreshCw size={15} />
+                        {refreshing || loading ? "Refreshing…" : "Refresh"}
+                    </button>
                 </div>
             </div>
+
+            <div className="cb-summary">
+                {KINDS.map((kind) => (
+                    <button
+                        key={kind.id}
+                        type="button"
+                        className={`cb-chip${kindFilter === kind.id ? " is-active" : ""}`}
+                        onClick={() => setKindFilter(kind.id)}
+                    >
+                        <span>{kind.label}<small>{kind.meaning}</small></span>
+                        <strong>{counts[kind.id]}</strong>
+                    </button>
+                ))}
+            </div>
+
+            {loading ? (
+                <div className="cb-empty"><strong>Loading files…</strong></div>
+            ) : loadError ? (
+                <div className="cb-empty">
+                    <div className="cb-empty__icon"><Folder size={18} /></div>
+                    <strong>Could not load files</strong>
+                    <p>Try again in a moment. Your session stays signed in.</p>
+                    <button type="button" className="cb-btn cb-btn--ghost" onClick={() => loadDocuments()}>
+                        Retry
+                    </button>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="cb-empty">
+                    <div className="cb-empty__icon"><Folder size={18} /></div>
+                    <strong>{documents.length === 0 ? "No strategy documents yet" : "Nothing in this filter"}</strong>
+                    <p>
+                        {documents.length === 0
+                            ? "Files shared by your team will appear here."
+                            : "Try another type."}
+                    </p>
+                </div>
+            ) : (
+                <div className="sc-grid">
+                    {filtered.map((doc) => {
+                        const kind = classify(doc);
+                        const href = fileUrl(doc);
+                        const preview = thumbUrl(doc);
+                        const type = doc.file_type || (kind === "image" ? "img" : "");
+                        const tone = fileTone(type);
+                        return (
+                            <article key={`${doc._type || "item"}-${doc.id}`} className="sc-tile">
+                                <div className="sc-preview">
+                                    {kind === "image" && preview ? (
+                                        <img src={preview} alt={doc.title || "Shared file"} />
+                                    ) : kind === "video" && href ? (
+                                        <video src={href} muted preload="metadata" />
+                                    ) : (
+                                        <div className={`sc-file${tone ? ` sc-file--${tone}` : ""}`}>
+                                            <FileGlyph kind={kind} fileType={type} />
+                                            <span>{fileLabel(type)}</span>
+                                        </div>
+                                    )}
+                                    {href && (
+                                        <div className="sc-actions">
+                                            <a href={href} target="_blank" rel="noopener noreferrer" title="Open" aria-label="Open file">
+                                                <ExternalLink size={14} />
+                                            </a>
+                                            <a href={href} download title="Download" aria-label="Download file">
+                                                <Download size={14} />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="sc-meta">
+                                    <p title={doc.title}>{doc.title || "Untitled"}</p>
+                                    <small>
+                                        {fileLabel(type)}
+                                        {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
+                                    </small>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,0 +1,165 @@
+/* Strategy (shared content) — page extras on Content Board tokens */
+
+.shared-content .cb-chip {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  align-items: flex-start;
+}
+
+.shared-content .cb-chip span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.shared-content .cb-chip:hover,
+.shared-content .cb-chip:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklab, var(--cb-primary) 50%, var(--cb-border));
+}
+
+.shared-content .cb-chip.is-active {
+  border-color: color-mix(in oklab, var(--cb-primary) 55%, var(--cb-border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cb-primary) 12%, transparent);
+}
+
+.shared-content .cb-chip small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 550;
+  color: var(--cb-muted);
+  letter-spacing: 0;
+}
+
+.shared-content .cb-empty p {
+  max-width: 20rem;
+}
+
+.shared-content .cb-empty .cb-btn {
+  margin-top: 0.85rem;
+}
+
+.sc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+  padding-bottom: 0.4rem;
+}
+
+.sc-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  background: color-mix(in oklab, var(--cb-card) 88%, var(--cb-bg));
+  box-shadow: var(--cb-shadow);
+}
+
+.sc-tile:hover,
+.sc-tile:focus-within {
+  border-color: color-mix(in oklab, var(--cb-primary) 50%, var(--cb-border));
+}
+
+.sc-preview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--cb-muted-bg) 55%, var(--cb-card));
+}
+
+.sc-preview img,
+.sc-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sc-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.4rem;
+  color: var(--cb-muted);
+}
+
+.sc-file span {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cb-fg);
+}
+
+.sc-file--pdf { color: #dc2626; }
+.sc-file--doc { color: #2563eb; }
+.sc-file--sheet { color: #059669; }
+
+.sc-actions {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  display: flex;
+  gap: 0.3rem;
+  opacity: 0;
+}
+
+.sc-tile:hover .sc-actions,
+.sc-tile:focus-within .sc-actions {
+  opacity: 1;
+}
+
+.sc-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #000 55%, transparent);
+  color: #fff;
+}
+
+.sc-actions a:hover,
+.sc-actions a:focus-visible {
+  outline: none;
+  background: var(--cb-primary);
+}
+
+.sc-meta {
+  padding: 0.7rem 0.8rem 0.8rem;
+  min-width: 0;
+}
+
+.sc-meta p {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-meta small {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--cb-muted);
+}
+
+@media (hover: none) {
+  .sc-actions {
+    opacity: 1;
+  }
+}

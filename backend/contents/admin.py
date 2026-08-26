@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MonthlyRequest, ContentItem, LetsTalkSubmission
+from .models import MonthlyRequest, ContentItem, LetsTalkSubmission, PipelineSettings
 
 
 class ContentItemInline(admin.TabularInline):
@@ -16,6 +16,11 @@ class MonthlyRequestAdmin(admin.ModelAdmin):
     list_filter = ('status', 'month', 'client', 'assigned_to')
     search_fields = ('client__username', 'client__email', 'notes')
     ordering = ('-month',)
+
+
+@admin.register(PipelineSettings)
+class PipelineSettingsAdmin(admin.ModelAdmin):
+    list_display = ('require_qa_review', 'updated_at')
 
 
 @admin.register(LetsTalkSubmission)

@@ -136,7 +136,10 @@ export default function QAPage() {
     };
 
     const handleDeny = () => {
-        // "si no regresará a monthly content pero con un estatus de revisión"
+        if (!feedback.trim()) {
+            alert("Enter feedback before sending this back to revision.");
+            return;
+        }
         handleUpdateStatus('IN_REVISION', 'Denied');
     };
 
@@ -147,7 +150,7 @@ export default function QAPage() {
                 <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 flex-shrink-0">
                     <div>
                         <h1 className="text-4xl font-black text-foreground tracking-tight">QA Review</h1>
-                        <p className="text-muted-foreground mt-2 text-lg font-medium">Review content before sending to revision</p>
+                        <p className="text-muted-foreground mt-2 text-lg font-medium">Review content before sending it to the client</p>
                     </div>
 
                     {/* Integrated Client Selector */}
@@ -465,7 +468,8 @@ export default function QAPage() {
                                                 <div className="flex gap-4">
                                                     <button
                                                         onClick={handleDeny}
-                                                        className="flex-1 py-4 bg-background hover:bg-destructive/5 text-destructive border border-border hover:border-destructive/20 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2"
+                                                        disabled={!feedback.trim()}
+                                                        className="flex-1 py-4 bg-background hover:bg-destructive/5 text-destructive border border-border hover:border-destructive/20 font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <X size={20} />
                                                         <span>Denegar</span>

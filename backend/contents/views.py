@@ -14,13 +14,14 @@ import socket
 import uuid
 from urllib import request as urlrequest
 from urllib.error import URLError, HTTPError
-from .models import MonthlyRequest, LetsTalkSubmission, ContentItem
+from .models import MonthlyRequest, LetsTalkSubmission, ContentItem, PipelineSettings
 from .serializers import (
     MonthlyRequestSerializer,
     MonthlyRequestCreateSerializer,
     LetsTalkSubmissionCreateSerializer,
     LetsTalkSubmissionAdminSerializer,
 )
+from .pipeline import validate_status_transition
 from .utils import suggest_content_creator, assign_to_least_busy_qa
 from users.models import User
 from core.permissions import actor, is_superuser_role, is_staff_role
@@ -285,6 +286,11 @@ class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        new_status = request.data.get('status', instance.status)
+        error = validate_status_transition(instance, new_status, actor(request), request.data)
+        if error:
+            return Response({"error": error, "detail": error}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -294,6 +300,25 @@ class MonthlyRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         read_serializer = MonthlyRequestSerializer(instance, context=self.get_serializer_context())
         return Response(read_serializer.data)
+
+
+@api_view(['GET', 'PATCH'])
+def pipeline_settings(request):
+    settings_obj = PipelineSettings.get()
+    if request.method == 'GET':
+        return Response({"require_qa_review": settings_obj.require_qa_review})
+
+    if not is_superuser_role(actor(request)):
+        return Response(
+            {"error": "Only administrators can change pipeline settings."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if "require_qa_review" in request.data:
+        settings_obj.require_qa_review = bool(request.data.get("require_qa_review"))
+        settings_obj.save(update_fields=["require_qa_review", "updated_at"])
+
+    return Response({"require_qa_review": settings_obj.require_qa_review})
 
 
 @api_view(['POST'])

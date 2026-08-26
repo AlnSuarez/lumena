@@ -45,7 +45,7 @@ class MonthlyRequestCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MonthlyRequest
-        fields = ['client', 'assigned_to', 'request_type', 'month', 'status', 'notes', 'content_text', 'linked_image', 'feedback', 'client_feedback', 'content_items']
+        fields = ['client', 'assigned_to', 'request_type', 'month', 'status', 'notes', 'content_text', 'ai_caption', 'linked_image', 'feedback', 'client_feedback', 'content_items']
 
     def create(self, validated_data):
         content_items_data = validated_data.pop('content_items', [])
@@ -81,9 +81,9 @@ class MonthlyRequestCreateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        if content_items_data is not None:
+        if content_items_data:
             instance.content_items.all().delete()
-            for i, item_data in enumerate(content_items_data):
+            for item_data in content_items_data:
                 ContentItem.objects.create(request=instance, **item_data)
 
         return instance

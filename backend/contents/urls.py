@@ -8,6 +8,7 @@ urlpatterns = [
     path('monthly-requests/<int:pk>/confirm-assignment/', views.confirm_assignment, name='confirm_assignment'),
     path('monthly-requests/<int:pk>/reassign/', views.reassign_creator, name='reassign_creator'),
     path('monthly-requests/<int:pk>/reassign-qa/', views.reassign_qa, name='reassign_qa'),
+    path('pipeline-settings/', views.pipeline_settings, name='pipeline-settings'),
     path('creator-workload-stats/', views.creator_workload_stats, name='creator_workload_stats'),
     path('upload-attachment/', views.upload_attachment, name='upload_attachment'),
     path('upload-content-video/', views.upload_content_video, name='upload_content_video'),

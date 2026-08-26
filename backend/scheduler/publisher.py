@@ -238,6 +238,8 @@ def sync_post_status(post):
                     post.status = 'PUBLISHED'
                     post.error_message = None
                     post.save(update_fields=['status', 'error_message'])
+                    from contents.pipeline import mark_request_done_if_published
+                    mark_request_done_if_published(post.content)
     except Exception as e:
         logger.error(f"[Postproxy] Failed to sync post status for {post.id}: {e}")
 

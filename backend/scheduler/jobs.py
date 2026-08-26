@@ -36,6 +36,8 @@ def publish_due_posts():
                 post.published_at = now
                 post.error_message = None
                 post.save(update_fields=['status', 'published_at', 'error_message'])
+                from contents.pipeline import mark_request_done_if_published
+                mark_request_done_if_published(post.content)
                 logger.info(f"[publish_due_posts] Post {post.id} published successfully")
             else:
                 post.status = 'FAILED'

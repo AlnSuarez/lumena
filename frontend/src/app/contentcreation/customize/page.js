@@ -81,7 +81,7 @@ export default function CustomizePage() {
             <header className="sp-header">
                 <div className="sp-header__titles">
                     <h1>Site Personalization</h1>
-                    <p>Tune how the workspace looks on this browser. Changes save as you go.</p>
+                    <p>Tune how the workspace looks on this browser. The QA toggle saves for the whole team.</p>
                 </div>
                 <div className="sp-header__actions">
                     <span className="sp-chip">
@@ -91,7 +91,7 @@ export default function CustomizePage() {
                     {isSuperuser && (
                         <span className="sp-chip">
                             <span className={`sp-chip__dot${requireQAReview ? " is-qa" : " is-client"}`} />
-                            Monthly content goes to {requireQAReview ? "QA" : "Client Review"}
+                            Monthly content goes to {requireQAReview ? "QA" : "Client Review"} for everyone
                         </span>
                     )}
                     <button

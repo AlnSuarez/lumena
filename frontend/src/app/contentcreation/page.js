@@ -11,6 +11,13 @@ import {
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable, closestCorners } from "@dnd-kit/core";
 import { toast, Toaster } from "sonner";
 import ContentMediaPreview, { isPdfMedia, isVideoMedia } from "../../components/ContentMediaPreview";
+import { useTheme } from "../../context/ThemeContext";
+import {
+    allowedStatusTargets,
+    nextHappyStatus,
+    prevHappyStatus,
+    readApiError,
+} from "../../lib/pipeline";
 import "./content-board.css";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -206,6 +213,7 @@ function BoardSkeleton() {
 }
 
 export default function ContentBoardPage() {
+    const { requireQAReview } = useTheme();
     const [requests, setRequests] = useState([]);
     const [users, setUsers] = useState([]);
     const [contentCreators, setContentCreators] = useState([]);
@@ -386,11 +394,19 @@ export default function ContentBoardPage() {
 
     const handleMoveWorkflow = async (direction) => {
         if (!selectedRequest) return;
-        const currentIdx = BOARD_COLUMNS.findIndex((c) => c.id === selectedRequest.status);
-        if (currentIdx === -1) return;
-        const newIdx = currentIdx + direction;
-        if (newIdx < 0 || newIdx >= BOARD_COLUMNS.length) return;
-        const newStatus = BOARD_COLUMNS[newIdx].id;
+        const newStatus = direction > 0
+            ? nextHappyStatus(selectedRequest.status, requireQAReview)
+            : prevHappyStatus(selectedRequest.status, requireQAReview);
+        if (!newStatus) return;
+
+        const allowed = allowedStatusTargets(selectedRequest.status, currentUserRole, requireQAReview);
+        if (!allowed.includes(newStatus)) {
+            toast.error("You cannot move this task that way.");
+            return;
+        }
+
+        const fromTitle = BOARD_COLUMNS.find((c) => c.id === selectedRequest.status)?.title || selectedRequest.status;
+        const toTitle = BOARD_COLUMNS.find((c) => c.id === newStatus)?.title || newStatus;
 
         try {
             const userId = localStorage.getItem("userId");
@@ -407,9 +423,11 @@ export default function ContentBoardPage() {
                 const updated = await response.json();
                 setSelectedRequest((prev) => ({ ...prev, status: updated.status, history: updated.history }));
                 fetchData();
-                toast.success(`Moved to ${BOARD_COLUMNS[newIdx].title}`, {
-                    description: `${BOARD_COLUMNS[currentIdx].title} → ${BOARD_COLUMNS[newIdx].title}`,
+                toast.success(`Moved to ${toTitle}`, {
+                    description: `${fromTitle} → ${toTitle}`,
                 });
+            } else {
+                toast.error(await readApiError(response, "Could not move this task."));
             }
         } catch (error) {
             console.error("Error moving workflow step:", error);
@@ -433,6 +451,12 @@ export default function ContentBoardPage() {
         const request = requests.find((r) => r.id === requestId);
         if (!request || request.status === targetColumnId) return;
 
+        const allowed = allowedStatusTargets(request.status, currentUserRole, requireQAReview);
+        if (!allowed.includes(targetColumnId)) {
+            toast.error("That move is not allowed on the pipeline.");
+            return;
+        }
+
         try {
             const userId = localStorage.getItem("userId");
             const url = new URL(`${API_BASE}/api/contents/monthly-requests/${requestId}/`);
@@ -455,12 +479,14 @@ export default function ContentBoardPage() {
                 toast.success(`Moved to ${toCol?.title || targetColumnId}`, {
                     description: `${fromCol?.title || request.status} → ${toCol?.title || targetColumnId}`,
                 });
+            } else {
+                toast.error(await readApiError(response, "Could not move this task."));
             }
         } catch (error) {
             console.error("Error moving card:", error);
             toast.error("Could not move this task.");
         }
-    }, [requests, selectedRequest]);
+    }, [requests, selectedRequest, currentUserRole, requireQAReview]);
 
     const handleDeleteRequest = async () => {
         if (!selectedRequest) return;
@@ -491,6 +517,19 @@ export default function ContentBoardPage() {
     const selectedIdx = selectedRequest
         ? BOARD_COLUMNS.findIndex((c) => c.id === selectedRequest.status)
         : -1;
+    const workflowAllowed = selectedRequest
+        ? allowedStatusTargets(selectedRequest.status, currentUserRole, requireQAReview)
+        : [];
+    const nextStatus = selectedRequest
+        ? nextHappyStatus(selectedRequest.status, requireQAReview)
+        : null;
+    const previousStatus = selectedRequest
+        ? prevHappyStatus(selectedRequest.status, requireQAReview)
+        : null;
+    const canAdvance = Boolean(nextStatus && workflowAllowed.includes(nextStatus));
+    const canMoveBack = Boolean(previousStatus && workflowAllowed.includes(previousStatus));
+    const nextTitle = BOARD_COLUMNS.find((c) => c.id === nextStatus)?.title || nextStatus;
+    const previousTitle = BOARD_COLUMNS.find((c) => c.id === previousStatus)?.title || previousStatus;
     const selectedNotes = selectedRequest ? parseNotes(selectedRequest.notes) : null;
     const assignedCreator = contentCreators.find((u) => String(u.id) === String(createAssignedUser));
 
@@ -722,22 +761,22 @@ export default function ContentBoardPage() {
                                 ))}
                             </div>
                             <div className="cb-detail__moves">
-                                {selectedIdx > 0 && (
+                                {canMoveBack && (
                                     <button
                                         type="button"
                                         className="cb-btn cb-btn--ghost"
                                         onClick={() => handleMoveWorkflow(-1)}
                                     >
-                                        Move back to {BOARD_COLUMNS[selectedIdx - 1].title}
+                                        Move back to {previousTitle}
                                     </button>
                                 )}
-                                {selectedIdx >= 0 && selectedIdx < BOARD_COLUMNS.length - 1 && (
+                                {canAdvance && (
                                     <button
                                         type="button"
                                         className="cb-btn cb-btn--primary"
                                         onClick={() => handleMoveWorkflow(1)}
                                     >
-                                        Advance to {BOARD_COLUMNS[selectedIdx + 1].title}
+                                        Advance to {nextTitle}
                                     </button>
                                 )}
                             </div>

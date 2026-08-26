@@ -72,6 +72,20 @@ class SchedulePostView(generics.CreateAPIView):
             if not can_access_client(user, client.id):
                 return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
+            going_live = bool(publish_now) or status_val in (
+                ScheduledPost.Status.SCHEDULED,
+                ScheduledPost.Status.PUBLISHING,
+                ScheduledPost.Status.PUBLISHED,
+            )
+            if going_live and content.status not in (
+                MonthlyRequest.Status.APPROVED,
+                MonthlyRequest.Status.DONE,
+            ):
+                return Response(
+                    {"error": "Content must be Approved before it can be scheduled or published."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             if not platforms:
                 return Response(
                     {"error": "At least one platform is required."},
@@ -142,6 +156,9 @@ class SchedulePostView(generics.CreateAPIView):
                         scheduled_post.postproxy_id = str(postproxy_id)
                         
                     scheduled_post.save()
+                    if scheduled_post.status == ScheduledPost.Status.PUBLISHED:
+                        from contents.pipeline import mark_request_done_if_published
+                        mark_request_done_if_published(content)
                 else:
                     scheduled_post.status = ScheduledPost.Status.FAILED
                     scheduled_post.error_message = res_publish.get("error", "Failed to schedule/publish")
@@ -214,12 +231,26 @@ class ScheduledPostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         from .publisher import validate_pdf_publish
         if updated_post.status in ['SCHEDULED', 'PUBLISHING', 'PUBLISHED']:
-            pdf_error = validate_pdf_publish(updated_post.content, updated_post.platforms)
+            content = updated_post.content
+            if content and content.status not in (
+                MonthlyRequest.Status.APPROVED,
+                MonthlyRequest.Status.DONE,
+            ):
+                updated_post.status = 'FAILED'
+                updated_post.error_message = "Content must be Approved before it can be scheduled or published."
+                updated_post.save(update_fields=['status', 'error_message'])
+                return
+
+            pdf_error = validate_pdf_publish(content, updated_post.platforms)
             if pdf_error:
                 updated_post.status = 'FAILED'
                 updated_post.error_message = pdf_error
                 updated_post.save(update_fields=['status', 'error_message'])
                 return
+
+        if updated_post.status == ScheduledPost.Status.PUBLISHED:
+            from contents.pipeline import mark_request_done_if_published
+            mark_request_done_if_published(updated_post.content)
 
         # Handle rescheduling/cancellation on Postproxy
         if updated_post.status != 'SCHEDULED' and old_status == 'SCHEDULED' and old_postproxy_id:
