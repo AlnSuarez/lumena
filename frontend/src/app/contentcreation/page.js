@@ -2,43 +2,46 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-    Layout, CheckCircle2, Clock, AlertCircle, FileText, Video,
-    MessageSquare, Filter, MoreHorizontal, User as UserIcon, X, Sparkles, Activity, ArrowRight,
-    Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check, Users,
-    ChevronLeft, ChevronRight, Play, Pause, Trash2, GripVertical
+    Layout, CheckCircle2, Clock, FileText, Video,
+    MessageSquare, Filter, User as UserIcon, X, Sparkles, Activity,
+    Plus, Calendar, Type, Image as ImageIcon, Layers, Search, Check,
+    ChevronLeft, ChevronRight, Play, Pause, Trash2, GripVertical,
+    CircleDot, PenLine, ShieldCheck, Eye, BadgeCheck, UserPlus
 } from "lucide-react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable, closestCorners } from "@dnd-kit/core";
 import { toast, Toaster } from "sonner";
+import "./content-board.css";
 
-// --- Helpers ---
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 const normalizeMediaUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${API_BASE}${url}`;
 };
 
 const getCardThumbnail = (req) => {
     const items = req.content_items || [];
-    let src = null;
     if (items.length > 0) {
         const firstItem = items[0];
-        src = firstItem.gallery_image_details?.image_url
+        return firstItem.gallery_image_details?.image_url
             || normalizeMediaUrl(firstItem.gallery_image_details?.image_compressed)
             || normalizeMediaUrl(firstItem.gallery_image_details?.image)
             || normalizeMediaUrl(firstItem.file_url);
-    } else if (req.linked_image_details) {
-        src = req.linked_image_details.image_url
+    }
+    if (req.linked_image_details) {
+        return req.linked_image_details.image_url
             || normalizeMediaUrl(req.linked_image_details.image_compressed)
             || normalizeMediaUrl(req.linked_image_details.image);
     }
-    return src;
+    return null;
 };
 
 const parseNotes = (notes) => {
-    if (!notes) return { instructions: '', contentType: null, postDate: null };
-    const metaIdx = notes.indexOf('[Meta]');
+    if (!notes) return { instructions: "", contentType: null, postDate: null };
+    const metaIdx = notes.indexOf("[Meta]");
     const instructions = metaIdx > -1 ? notes.slice(0, metaIdx).trim() : notes.trim();
-    const metaSection = metaIdx > -1 ? notes.slice(metaIdx) : '';
+    const metaSection = metaIdx > -1 ? notes.slice(metaIdx) : "";
     const contentTypeMatch = metaSection.match(/Content Type: (\S+)/);
     const postDateMatch = metaSection.match(/Post Date: (\S+)/);
     return {
@@ -48,11 +51,78 @@ const parseNotes = (notes) => {
     };
 };
 
+const formatDisplayDate = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const getClientName = (req) => (
+    req?.client_details?.client_profile?.practice_name
+    || req?.client_details?.username
+    || "Untitled client"
+);
+
+const getPersonName = (user) => {
+    if (!user) return null;
+    if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
+    return user.username || null;
+};
+
+const FORMAT_DETAILS = {
+    story: { label: "Story", icon: Type },
+    image: { label: "Image", icon: ImageIcon },
+    carousel: { label: "Carousel", icon: Layers },
+    video: { label: "Video", icon: Video },
+};
+
+const REQUEST_TYPES = {
+    MONTHLY_CONTENT: { label: "Monthly", icon: Layout },
+    VIDEO_SHOOT: { label: "Video shoot", icon: Video },
+    CONTENT_REQUEST: { label: "Request", icon: FileText },
+};
+
+const BOARD_COLUMNS = [
+    { id: "TO_DO", title: "To Do", number: 1, group: "Production", meaning: "Ready to start", emptyHint: "New tasks land here.", icon: CircleDot },
+    { id: "IN_PROGRESS", title: "In Progress", number: 2, group: "Production", meaning: "Being created", emptyHint: "Work in progress appears here.", icon: PenLine },
+    { id: "QA", title: "QA", number: 3, group: "Review", meaning: "Internal review", emptyHint: "Pieces ready for internal review.", icon: ShieldCheck },
+    { id: "IN_REVISION", title: "In Revision", number: 4, group: "Review", meaning: "Changes requested", emptyHint: "Items sent back for changes.", icon: MessageSquare },
+    { id: "CLIENT_REVIEW", title: "Client Review", number: 5, group: "Review", meaning: "Waiting on client", emptyHint: "Waiting for client feedback.", icon: Eye },
+    { id: "APPROVED", title: "Approved", number: 6, group: "Complete", meaning: "Ready to schedule", emptyHint: "Approved and ready to schedule.", icon: BadgeCheck },
+    { id: "DONE", title: "Done", number: 7, group: "Complete", meaning: "Published", emptyHint: "Published pieces live here.", icon: CheckCircle2 },
+];
+
+const PIPELINE_GROUPS = [
+    { id: "production", label: "Production", stageIds: ["TO_DO", "IN_PROGRESS"] },
+    { id: "review", label: "Review", stageIds: ["QA", "IN_REVISION", "CLIENT_REVIEW"] },
+    { id: "complete", label: "Complete", stageIds: ["APPROVED", "DONE"] },
+];
+
+const CONTENT_TYPES = [
+    { id: "story", label: "Story", icon: Type },
+    { id: "image", label: "Image", icon: ImageIcon },
+    { id: "carousel", label: "Carousel", icon: Layers },
+    { id: "video", label: "Video", icon: Video },
+];
+
+const getRequestTypeDetails = (type) => REQUEST_TYPES[type] || { label: "Task", icon: FileText };
+
+const isPendingSuggestion = (req) => Boolean(req?.notes && req.notes.includes("Suggested assignment"));
+
+const scrollToColumn = (columnId) => {
+    document.getElementById(`board-col-${columnId}`)?.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+    });
+};
+
 function PreviewVideoPlayer({ src }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const handleToggle = (e) => {
         e.stopPropagation();
-        const video = e.currentTarget.closest('.preview-video-container')?.querySelector('video');
+        const video = e.currentTarget.closest(".cb-video")?.querySelector("video");
         if (!video) return;
         if (video.paused) {
             video.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -62,21 +132,17 @@ function PreviewVideoPlayer({ src }) {
         }
     };
     return (
-        <div className="preview-video-container relative w-full h-full bg-black flex items-center justify-center group/video">
+        <div className={`cb-video${isPlaying ? " is-playing" : ""}`}>
             <video
                 src={src}
-                className="w-full h-full object-contain"
                 loop
                 playsInline
                 onClick={handleToggle}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
             />
-            <button
-                onClick={handleToggle}
-                className={`absolute inset-0 m-auto w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm flex items-center justify-center text-white transition-all shadow-xl z-10 duration-200 ${isPlaying ? 'opacity-0 group-hover/video:opacity-100' : 'opacity-100'}`}
-            >
-                {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
+            <button type="button" onClick={handleToggle} className="cb-video__play" aria-label={isPlaying ? "Pause" : "Play"}>
+                {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" />}
             </button>
         </div>
     );
@@ -89,11 +155,11 @@ function DraggableCard({ req, children }) {
     });
 
     const style = transform
-        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : 'auto' }
+        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : "auto" }
         : undefined;
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none">
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cb-drag">
             {children}
         </div>
     );
@@ -106,11 +172,31 @@ function DroppableColumn({ columnId, children }) {
     });
 
     return (
-        <div
-            ref={setNodeRef}
-            className={`flex-1 rounded-2xl flex flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent min-h-0 transition-colors duration-200 ${isOver ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}`}
-        >
+        <div ref={setNodeRef} className={`cb-dropzone${isOver ? " is-over" : ""}`}>
             {children}
+        </div>
+    );
+}
+
+function BoardSkeleton() {
+    return (
+        <div className="cb-board-wrap">
+            <div className="cb-board">
+                {BOARD_COLUMNS.map((col) => (
+                    <div key={col.id} className="cb-column" data-stage={col.id}>
+                        <div className="cb-column__head">
+                            <div>
+                                <div className="cb-skel cb-skel--title" />
+                                <div className="cb-skel cb-skel--line" />
+                            </div>
+                        </div>
+                        <div className="cb-dropzone">
+                            <div className="cb-skel cb-skel--card" />
+                            <div className="cb-skel cb-skel--card" />
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
@@ -122,150 +208,54 @@ export default function ContentBoardPage() {
     const [clients, setClients] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
-    const [assignmentMenu, setAssignmentMenu] = useState(null);
     const [previewCarouselIdx, setPreviewCarouselIdx] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [activeDragId, setActiveDragId] = useState(null);
 
-    // Filters
     const [filterType, setFilterType] = useState("ALL");
     const [filterUser, setFilterUser] = useState("ALL");
     const [currentUserRole, setCurrentUserRole] = useState("GUEST");
     const [currentUserId, setCurrentUserId] = useState("");
 
-    // Create Task Modal States
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [createContentType, setCreateContentType] = useState('story');
-    const [createAssignedUser, setCreateAssignedUser] = useState('');
-    const [createInstructions, setCreateInstructions] = useState('');
-    const [createSelectedClient, setCreateSelectedClient] = useState('');
-    const [createDueDate, setCreateDueDate] = useState('');
-    const [createPostDate, setCreatePostDate] = useState('');
-    
-    // Gallery search inside Create Modal
+    const [createContentType, setCreateContentType] = useState("story");
+    const [createAssignedUser, setCreateAssignedUser] = useState("");
+    const [createInstructions, setCreateInstructions] = useState("");
+    const [createSelectedClient, setCreateSelectedClient] = useState("");
+    const [createDueDate, setCreateDueDate] = useState("");
+    const [createPostDate, setCreatePostDate] = useState("");
+
     const [showCreateFolioSearch, setShowCreateFolioSearch] = useState(false);
-    const [createFolioSearch, setCreateFolioSearch] = useState('');
+    const [createFolioSearch, setCreateFolioSearch] = useState("");
     const [createSearchedImage, setCreateSearchedImage] = useState(null);
     const [createFolioSearchLoading, setCreateFolioSearchLoading] = useState(false);
     const [createFolioSearchError, setCreateFolioSearchError] = useState(null);
 
-    const contentTypes = [
-        { id: 'story', label: 'Story', icon: Type, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-        { id: 'image', label: 'Image', icon: ImageIcon, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-        { id: 'carousel', label: 'Carousel', icon: Layers, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-        { id: 'video', label: 'Video', icon: Video, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-    ];
-
-    const handleCreateRequest = async () => {
-        if (!createAssignedUser) {
-            alert("Please assign the request to a team member.");
-            return;
-        }
-
-        if (!createSelectedClient) {
-            alert("Please select a client.");
-            return;
-        }
-
-        const payload = {
-            client: createSelectedClient,
-            assigned_to: createAssignedUser,
-            request_type: 'CONTENT_REQUEST',
-            month: createDueDate || new Date().toISOString().split('T')[0],
-            linked_image: createSearchedImage ? createSearchedImage.id : null,
-            notes: `${createInstructions}\n\n[Meta]\nContent Type: ${createContentType}\nPost Date: ${createPostDate}${createSearchedImage ? `\nGallery Image: ${createSearchedImage.folio} - ${createSearchedImage.title}\nImage URL: ${createSearchedImage.image_url}` : ''}`,
-            status: 'TO_DO'
-        };
-
+    const fetchData = async (role = currentUserRole, userId = currentUserId) => {
+        setIsLoading(true);
         try {
-            const userId = localStorage.getItem('userId');
-            const createUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
-            if (userId) createUrl.searchParams.append('user_id', userId);
+            const reqUrl = new URL(`${API_BASE}/api/contents/monthly-requests/`);
+            if (role) reqUrl.searchParams.append("role", role);
+            if (userId) reqUrl.searchParams.append("user_id", userId);
 
-            const response = await fetch(createUrl.toString(), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
+            const [reqResponse, userResponse, creatorsResponse, clientsResponse] = await Promise.all([
+                fetch(reqUrl.toString()),
+                fetch(`${API_BASE}/api/users/manage/`),
+                fetch(`${API_BASE}/api/users/content-creators/`),
+                fetch(`${API_BASE}/api/users/clients/`),
+            ]);
 
-            if (response.ok) {
-                alert("Request created successfully! It has been assigned.");
-                setShowCreateModal(false);
-                // Reset form
-                setCreateInstructions('');
-                setCreateAssignedUser('');
-                setCreateSelectedClient('');
-                setCreateDueDate('');
-                setCreatePostDate('');
-                setCreateSearchedImage(null);
-                setCreateFolioSearch('');
-                setCreateFolioSearchError(null);
-                // Refresh board data
-                fetchData();
-            } else {
-                const err = await response.json();
-                console.error("Error creating request:", err);
-                alert("Failed to create request. Check console.");
-            }
+            if (reqResponse.ok) setRequests(await reqResponse.json());
+            if (userResponse.ok) setUsers(await userResponse.json());
+            if (creatorsResponse.ok) setContentCreators(await creatorsResponse.json());
+            if (clientsResponse.ok) setClients(await clientsResponse.json());
         } catch (error) {
-            console.error("Network error:", error);
-            alert("Network error.");
-        }
-    };
-
-    const handleSearchByFolio = async () => {
-        if (!createFolioSearch.trim()) {
-            setCreateFolioSearchError('Please enter a folio number');
-            return;
-        }
-
-        setCreateFolioSearchLoading(true);
-        setCreateFolioSearchError(null);
-        setCreateSearchedImage(null);
-
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/gallery/images/search/?folio=${createFolioSearch.trim()}`, {
-                credentials: 'include',
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setCreateSearchedImage(data);
-                setCreateFolioSearchError(null);
-            } else {
-                const errorData = await response.json();
-                setCreateFolioSearchError(errorData.error || 'Image not found');
-                setCreateSearchedImage(null);
-            }
-        } catch (error) {
-            console.error('Error searching image:', error);
-            setCreateFolioSearchError('Failed to search image');
-            setCreateSearchedImage(null);
+            console.error("Error fetching board data:", error);
         } finally {
-            setCreateFolioSearchLoading(false);
+            setIsLoading(false);
         }
     };
-
-    const handleClearGalleryImage = () => {
-        setCreateSearchedImage(null);
-        setCreateFolioSearch('');
-        setCreateFolioSearchError(null);
-    };
-
-
-    // Board Columns Configuration
-    const columns = [
-        { id: 'TO_DO', title: 'To Do', color: 'bg-slate-500', icon: AlertCircle },
-        { id: 'IN_PROGRESS', title: 'In Progress', color: 'bg-yellow-500', icon: Clock },
-        { id: 'QA', title: 'QA', color: 'bg-purple-500', icon: CheckCircle2 },
-        { id: 'IN_REVISION', title: 'In Revision', color: 'bg-orange-500', icon: MessageSquare },
-        { id: 'CLIENT_REVIEW', title: 'Client Review', color: 'bg-blue-500', icon: Activity },
-        { id: 'APPROVED', title: 'Approved', color: 'bg-emerald-400', icon: CheckCircle2 },
-        { id: 'DONE', title: 'Done', color: 'bg-emerald-500', icon: CheckCircle2 },
-    ];
 
     useEffect(() => {
         const role = localStorage.getItem("userRole") || "GUEST";
@@ -275,217 +265,196 @@ export default function ContentBoardPage() {
         fetchData(role, id);
     }, []);
 
-    const fetchData = async (role = currentUserRole, userId = currentUserId) => {
-        setIsLoading(true);
+    const handleCreateRequest = async () => {
+        if (!createAssignedUser) {
+            toast.error("Please assign this task to a team member.");
+            return;
+        }
+        if (!createSelectedClient) {
+            toast.error("Please select a client.");
+            return;
+        }
+
+        const payload = {
+            client: createSelectedClient,
+            assigned_to: createAssignedUser,
+            request_type: "CONTENT_REQUEST",
+            month: createDueDate || new Date().toISOString().split("T")[0],
+            linked_image: createSearchedImage ? createSearchedImage.id : null,
+            notes: `${createInstructions}\n\n[Meta]\nContent Type: ${createContentType}\nPost Date: ${createPostDate}${createSearchedImage ? `\nGallery Image: ${createSearchedImage.folio} - ${createSearchedImage.title}\nImage URL: ${createSearchedImage.image_url}` : ""}`,
+            status: "TO_DO",
+        };
+
         try {
-            const reqUrl = new URL((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/contents/monthly-requests/');
-            if (role) reqUrl.searchParams.append('role', role);
-            if (userId) reqUrl.searchParams.append('user_id', userId);
+            const userId = localStorage.getItem("userId");
+            const createUrl = new URL(`${API_BASE}/api/contents/monthly-requests/`);
+            if (userId) createUrl.searchParams.append("user_id", userId);
 
-            const [reqResponse, userResponse, creatorsResponse, clientsResponse] = await Promise.all([
-                fetch(reqUrl.toString()),
-                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/manage/'), // Fetch all users for filter
-                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/content-creators/'), // Fetch content creators
-                fetch((process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + '/api/users/clients/') // Fetch clients
-            ]);
+            const response = await fetch(createUrl.toString(), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
 
-            if (reqResponse.ok) {
-                const data = await reqResponse.json();
-                setRequests(data);
-            }
-            if (userResponse.ok) {
-                const userData = await userResponse.json();
-                setUsers(userData);
-            }
-            if (creatorsResponse.ok) {
-                const creatorsData = await creatorsResponse.json();
-                setContentCreators(creatorsData);
-            }
-            if (clientsResponse.ok) {
-                const clientsData = await clientsResponse.json();
-                setClients(clientsData);
+            if (response.ok) {
+                toast.success("Task created and assigned.");
+                setShowCreateModal(false);
+                setCreateInstructions("");
+                setCreateAssignedUser("");
+                setCreateSelectedClient("");
+                setCreateDueDate("");
+                setCreatePostDate("");
+                setCreateSearchedImage(null);
+                setCreateFolioSearch("");
+                setCreateFolioSearchError(null);
+                fetchData();
+            } else {
+                const err = await response.json().catch(() => ({}));
+                console.error("Error creating request:", err);
+                toast.error("Could not create this task. Please try again.");
             }
         } catch (error) {
-            console.error("Error fetching board data:", error);
-        } finally {
-            setIsLoading(false);
+            console.error("Network error:", error);
+            toast.error("Network error. Please try again.");
         }
     };
 
-    // Derived Data
-    const filteredRequests = requests.filter(req => {
-        const matchesType = filterType === 'ALL' || req.request_type === filterType;
-        const matchesUser = filterUser === 'ALL' ||
-            (req.client_details?.id && String(req.client_details.id) === filterUser) ||
-            (req.assigned_to_details?.id && String(req.assigned_to_details.id) === filterUser) ||
-            (req.qa_assigned_to_details?.id && String(req.qa_assigned_to_details.id) === filterUser);
+    const handleSearchByFolio = async () => {
+        if (!createFolioSearch.trim()) {
+            setCreateFolioSearchError("Please enter a folio number");
+            return;
+        }
 
+        setCreateFolioSearchLoading(true);
+        setCreateFolioSearchError(null);
+        setCreateSearchedImage(null);
+
+        try {
+            const response = await fetch(`${API_BASE}/api/gallery/images/search/?folio=${createFolioSearch.trim()}`, {
+                credentials: "include",
+            });
+
+            if (response.ok) {
+                setCreateSearchedImage(await response.json());
+                setCreateFolioSearchError(null);
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                setCreateFolioSearchError(errorData.error || "Image not found");
+                setCreateSearchedImage(null);
+            }
+        } catch (error) {
+            console.error("Error searching image:", error);
+            setCreateFolioSearchError("Failed to search image");
+            setCreateSearchedImage(null);
+        } finally {
+            setCreateFolioSearchLoading(false);
+        }
+    };
+
+    const handleClearGalleryImage = () => {
+        setCreateSearchedImage(null);
+        setCreateFolioSearch("");
+        setCreateFolioSearchError(null);
+    };
+
+    const filteredRequests = requests.filter((req) => {
+        const matchesType = filterType === "ALL" || req.request_type === filterType;
+        const matchesUser = filterUser === "ALL"
+            || (req.client_details?.id && String(req.client_details.id) === filterUser)
+            || (req.assigned_to_details?.id && String(req.assigned_to_details.id) === filterUser)
+            || (req.qa_assigned_to_details?.id && String(req.qa_assigned_to_details.id) === filterUser);
         return matchesType && matchesUser;
     });
 
-    const getColumnRequests = (status) => filteredRequests.filter(req => req.status === status);
+    const getColumnRequests = (status) => filteredRequests.filter((req) => req.status === status);
 
-    const getRequestTypeDetails = (type) => {
-        switch (type) {
-            case 'MONTHLY_CONTENT': return {
-                label: 'Monthly',
-                color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-                badgeColor: 'bg-blue-500 text-white',
-                borderColor: 'border-blue-500',
-                icon: Layout
-            };
-            case 'VIDEO_SHOOT': return {
-                label: 'Video Shoot',
-                color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-                badgeColor: 'bg-purple-500 text-white',
-                borderColor: 'border-purple-500',
-                icon: Video
-            };
-            case 'CONTENT_REQUEST': return {
-                label: 'Request',
-                color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-                badgeColor: 'bg-orange-500 text-white',
-                borderColor: 'border-orange-500',
-                icon: FileText
-            };
-            default: return {
-                label: 'Task',
-                color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-                badgeColor: 'bg-slate-500 text-white',
-                borderColor: 'border-slate-500',
-                icon: FileText
-            };
-        }
-    };
+    const countsByStatus = BOARD_COLUMNS.reduce((acc, col) => {
+        acc[col.id] = getColumnRequests(col.id).length;
+        return acc;
+    }, {});
 
-    // Check if a request has a pending suggestion
-    const isPendingSuggestion = (req) => {
-        return req.notes && req.notes.includes("Suggested assignment");
-    };
-
-    // Confirm the suggested assignment
-    const handleConfirmAssignment = async (requestId) => {
-        try {
-            const userId = localStorage.getItem('userId');
-            const confirmUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/confirm-assignment/`);
-            if (userId) confirmUrl.searchParams.append('user_id', userId);
-
-            const response = await fetch(
-                confirmUrl.toString(),
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                }
-            );
-            if (response.ok) {
-                fetchData(); // Refresh board
-            }
-        } catch (error) {
-            console.error("Error confirming assignment:", error);
-        }
-    };
-
-    // Reassign to a different creator
-    const handleReassign = async (requestId, creatorId) => {
-        try {
-            const userId = localStorage.getItem('userId');
-            const reassignUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contents/monthly-requests/${requestId}/reassign/`);
-            if (userId) reassignUrl.searchParams.append('user_id', userId);
-
-            const response = await fetch(
-                reassignUrl.toString(),
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ creator_id: creatorId })
-                }
-            );
-            if (response.ok) {
-                fetchData();
-                setAssignmentMenu(null);
-            }
-        } catch (error) {
-            console.error("Error reassigning:", error);
-        }
+    const summary = {
+        total: filteredRequests.length,
+        production: (countsByStatus.TO_DO || 0) + (countsByStatus.IN_PROGRESS || 0),
+        review: (countsByStatus.QA || 0) + (countsByStatus.IN_REVISION || 0) + (countsByStatus.CLIENT_REVIEW || 0),
+        ready: countsByStatus.APPROVED || 0,
     };
 
     const handleMoveWorkflow = async (direction) => {
         if (!selectedRequest) return;
-        const currentIdx = columns.findIndex(c => c.id === selectedRequest.status);
+        const currentIdx = BOARD_COLUMNS.findIndex((c) => c.id === selectedRequest.status);
         if (currentIdx === -1) return;
         const newIdx = currentIdx + direction;
-        if (newIdx < 0 || newIdx >= columns.length) return;
-        const newStatus = columns[newIdx].id;
+        if (newIdx < 0 || newIdx >= BOARD_COLUMNS.length) return;
+        const newStatus = BOARD_COLUMNS[newIdx].id;
 
         try {
-            const userId = localStorage.getItem('userId');
-            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${selectedRequest.id}/`);
-            if (userId) url.searchParams.append('user_id', userId);
+            const userId = localStorage.getItem("userId");
+            const url = new URL(`${API_BASE}/api/contents/monthly-requests/${selectedRequest.id}/`);
+            if (userId) url.searchParams.append("user_id", userId);
 
             const response = await fetch(url.toString(), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus }),
             });
 
             if (response.ok) {
                 const updated = await response.json();
-                setSelectedRequest(prev => ({ ...prev, status: updated.status, history: updated.history }));
+                setSelectedRequest((prev) => ({ ...prev, status: updated.status, history: updated.history }));
                 fetchData();
-                toast.success(`Moved to ${columns[newIdx].title}`, {
-                    description: `${columns[currentIdx].title} → ${columns[newIdx].title}`,
+                toast.success(`Moved to ${BOARD_COLUMNS[newIdx].title}`, {
+                    description: `${BOARD_COLUMNS[currentIdx].title} → ${BOARD_COLUMNS[newIdx].title}`,
                 });
             }
         } catch (error) {
-            console.error('Error moving workflow step:', error);
+            console.error("Error moving workflow step:", error);
+            toast.error("Could not move this task.");
         }
     };
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: { distance: 8 },
-        }),
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     );
 
     const handleDragEnd = useCallback(async (event) => {
         const { active, over } = event;
         setActiveDragId(null);
-
         if (!over) return;
 
-        const requestId = parseInt(active.id.toString().replace('request-', ''));
-        const targetColumnId = over.id.toString().replace('column-', '');
-
+        const requestId = parseInt(active.id.toString().replace("request-", ""), 10);
+        const targetColumnId = over.id.toString().replace("column-", "");
         if (!requestId || !targetColumnId) return;
 
-        const request = requests.find(r => r.id === requestId);
+        const request = requests.find((r) => r.id === requestId);
         if (!request || request.status === targetColumnId) return;
 
         try {
-            const userId = localStorage.getItem('userId');
-            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${requestId}/`);
-            if (userId) url.searchParams.append('user_id', userId);
+            const userId = localStorage.getItem("userId");
+            const url = new URL(`${API_BASE}/api/contents/monthly-requests/${requestId}/`);
+            if (userId) url.searchParams.append("user_id", userId);
 
             const response = await fetch(url.toString(), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: targetColumnId }),
             });
 
             if (response.ok) {
                 const updated = await response.json();
                 if (selectedRequest && selectedRequest.id === requestId) {
-                    setSelectedRequest(prev => ({ ...prev, status: updated.status, history: updated.history }));
+                    setSelectedRequest((prev) => ({ ...prev, status: updated.status, history: updated.history }));
                 }
                 fetchData();
-                const fromCol = columns.find(c => c.id === request.status);
-                const toCol = columns.find(c => c.id === targetColumnId);
+                const fromCol = BOARD_COLUMNS.find((c) => c.id === request.status);
+                const toCol = BOARD_COLUMNS.find((c) => c.id === targetColumnId);
                 toast.success(`Moved to ${toCol?.title || targetColumnId}`, {
                     description: `${fromCol?.title || request.status} → ${toCol?.title || targetColumnId}`,
                 });
             }
         } catch (error) {
-            console.error('Error moving card:', error);
+            console.error("Error moving card:", error);
+            toast.error("Could not move this task.");
         }
     }, [requests, selectedRequest]);
 
@@ -493,922 +462,699 @@ export default function ContentBoardPage() {
         if (!selectedRequest) return;
         setIsDeleting(true);
         try {
-            const userId = localStorage.getItem('userId');
-            const deleteUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/contents/monthly-requests/${selectedRequest.id}/`);
-            if (userId) deleteUrl.searchParams.append('user_id', userId);
+            const userId = localStorage.getItem("userId");
+            const deleteUrl = new URL(`${API_BASE}/api/contents/monthly-requests/${selectedRequest.id}/`);
+            if (userId) deleteUrl.searchParams.append("user_id", userId);
 
-            const response = await fetch(deleteUrl.toString(), {
-                method: 'DELETE',
-            });
+            const response = await fetch(deleteUrl.toString(), { method: "DELETE" });
 
             if (response.ok || response.status === 204) {
                 setShowDeleteConfirm(false);
                 setSelectedRequest(null);
+                toast.success("Post deleted.");
                 fetchData();
             } else {
-                alert('Error al eliminar. Intenta de nuevo.');
+                toast.error("Could not delete this post. Please try again.");
             }
         } catch (error) {
-            console.error('Error deleting request:', error);
-            alert('Error de red al intentar eliminar.');
+            console.error("Error deleting request:", error);
+            toast.error("Network error while deleting. Please try again.");
         } finally {
             setIsDeleting(false);
         }
     };
 
+    const selectedIdx = selectedRequest
+        ? BOARD_COLUMNS.findIndex((c) => c.id === selectedRequest.status)
+        : -1;
+    const selectedNotes = selectedRequest ? parseNotes(selectedRequest.notes) : null;
+    const assignedCreator = contentCreators.find((u) => String(u.id) === String(createAssignedUser));
+
     return (
-        <div className="min-h-screen bg-secondary/30 p-4 md:p-8 animate-in fade-in duration-500">
+        <div className="content-board">
             <Toaster position="bottom-right" richColors />
-            <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 mx-auto">
-                {/* Header & Filters */}
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 flex-shrink-0 z-20">
-                    <div className="pl-1 border-l-4 border-primary">
-                        <h1 className="text-4xl font-black text-foreground tracking-tight">Content Pipeline</h1>
-                        <p className="mt-2 text-muted-foreground text-lg">Visualize and manage your content workflow.</p>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-
-
-                        {/* Type Filter */}
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Filter size={16} className="text-muted-foreground" />
-                            </div>
-                            <select
-                                value={filterType}
-                                onChange={(e) => setFilterType(e.target.value)}
-                                className="pl-10 pr-8 py-3 bg-card border border-border rounded-xl text-sm font-bold text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm cursor-pointer appearance-none hover:bg-accent/50 transition-all min-w-[180px]"
-                            >
-                                <option value="ALL">All Content Types</option>
-                                <option value="MONTHLY_CONTENT">Monthly Contents</option>
-                                <option value="VIDEO_SHOOT">Video Shoots</option>
-                                <option value="CONTENT_REQUEST">Content Requests</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                        </div>
-
-                        {/* User Filter */}
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <UserIcon size={16} className="text-muted-foreground" />
-                            </div>
-                            <select
-                                value={filterUser}
-                                onChange={(e) => setFilterUser(e.target.value)}
-                                className="pl-10 pr-8 py-3 bg-card border border-border rounded-xl text-sm font-bold text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm cursor-pointer appearance-none hover:bg-accent/50 transition-all min-w-[180px]"
-                            >
-                                <option value="ALL">All Users</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
-                                ))}
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                        </div>
- 
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95"
-                        >
-                            <span>+ New Task</span>
-                        </button>
-                    </div>
+            <div className="cb-header">
+                <div className="cb-header__titles">
+                    <h1>Content Board</h1>
+                    <p>Follow each piece from brief to published.</p>
                 </div>
+                <div className="cb-header__actions">
+                    <div className="cb-select-wrap">
+                        <Filter size={16} />
+                        <select
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            className="cb-select"
+                            aria-label="Filter by content type"
+                        >
+                            <option value="ALL">All types</option>
+                            <option value="MONTHLY_CONTENT">Monthly</option>
+                            <option value="VIDEO_SHOOT">Video shoot</option>
+                            <option value="CONTENT_REQUEST">Request</option>
+                        </select>
+                    </div>
+                    <div className="cb-select-wrap">
+                        <UserIcon size={16} />
+                        <select
+                            value={filterUser}
+                            onChange={(e) => setFilterUser(e.target.value)}
+                            className="cb-select"
+                            aria-label="Filter by person"
+                        >
+                            <option value="ALL">All people</option>
+                            {users.map((u) => (
+                                <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <button type="button" onClick={() => setShowCreateModal(true)} className="cb-btn cb-btn--primary">
+                        <Plus size={16} />
+                        New task
+                    </button>
+                </div>
+            </div>
 
-                {/* Board Container */}
-                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={(e) => setActiveDragId(e.active.id)} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDragId(null)}>
-                <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4 min-h-0">
-                    <div className="flex gap-6 min-w-[1400px] h-full"> {/* Ensure min width for horizontal scroll if needed */}
+            <div className="cb-summary">
+                <div className="cb-chip"><span>On the board</span><strong>{summary.total}</strong></div>
+                <div className="cb-chip"><span>In production</span><strong>{summary.production}</strong></div>
+                <div className="cb-chip"><span>Waiting on review</span><strong>{summary.review}</strong></div>
+                <div className="cb-chip"><span>Ready to schedule</span><strong>{summary.ready}</strong></div>
+            </div>
 
-                        {columns.map(col => {
-                            const colRequests = getColumnRequests(col.id);
-                            const Icon = col.icon;
-                            // Extract color class logic properly
-                            const colorClass = col.color;
-
-                            return (
-                                <div key={col.id} className="flex-1 flex flex-col min-w-[320px] bg-secondary/50 backdrop-blur-md border border-border/60 rounded-3xl p-4 shadow-sm">
-                                    {/* Column Header */}
-                                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-border/50 px-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-3 h-3 rounded-full ${colorClass} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}></div>
-                                            <h2 className="text-lg font-bold text-foreground tracking-tight">{col.title}</h2>
-                                            <span className="bg-foreground/5 text-foreground/70 text-xs font-bold px-2.5 py-1 rounded-full border border-border">
-                                                {colRequests.length}
-                                            </span>
+            <div className="cb-pipeline">
+                {PIPELINE_GROUPS.map((group) => (
+                    <div key={group.id} className="cb-pipeline__group">
+                        <p className="cb-pipeline__group-label">{group.label}</p>
+                        <div className="cb-pipeline__steps">
+                            {group.stageIds.map((stageId) => {
+                                const col = BOARD_COLUMNS.find((c) => c.id === stageId);
+                                return (
+                                    <button
+                                        key={stageId}
+                                        type="button"
+                                        className="cb-step"
+                                        data-stage={stageId}
+                                        onClick={() => scrollToColumn(stageId)}
+                                    >
+                                        <div className="cb-step__top">
+                                            <span className="cb-step__num">{col.number}</span>
+                                            <span className="cb-step__name">{col.title}</span>
+                                            <span className="cb-step__count">{countsByStatus[stageId] || 0}</span>
                                         </div>
-                                    </div>
+                                        <p className="cb-step__meaning">{col.meaning}</p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
 
-                                    {/* Column Content */}
-                                    <DroppableColumn columnId={col.id}>
-                                        {colRequests.length === 0 ? (
-                                            <div className="text-center py-12 opacity-40 flex flex-col items-center">
-                                                <div className="p-4 rounded-full bg-muted mb-3">
-                                                    <Icon className="text-muted-foreground" size={24} />
+            {isLoading ? (
+                <BoardSkeleton />
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCorners}
+                    onDragStart={(e) => setActiveDragId(e.active.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragCancel={() => setActiveDragId(null)}
+                >
+                    <div className="cb-board-wrap">
+                        <div className="cb-board">
+                            {BOARD_COLUMNS.map((col) => {
+                                const colRequests = getColumnRequests(col.id);
+                                const Icon = col.icon;
+                                return (
+                                    <div key={col.id} id={`board-col-${col.id}`} className="cb-column" data-stage={col.id}>
+                                        <div className="cb-column__head">
+                                            <div>
+                                                <div className="cb-column__title-row">
+                                                    <span className="cb-column__icon"><Icon size={15} /></span>
+                                                    <h2 className="cb-column__title">{col.number} · {col.title}</h2>
                                                 </div>
-                                                <p className="text-sm font-bold text-muted-foreground">No tasks</p>
+                                                <p className="cb-column__meaning">{col.meaning}</p>
                                             </div>
-                                        ) : (
-                                            colRequests.map(req => {
+                                            <span className="cb-count">{colRequests.length}</span>
+                                        </div>
+                                        <DroppableColumn columnId={col.id}>
+                                            {colRequests.length === 0 ? (
+                                                <div className="cb-empty">
+                                                    <div className="cb-empty__icon"><Icon size={18} /></div>
+                                                    <strong>Nothing here yet</strong>
+                                                    <p>{col.emptyHint}</p>
+                                                </div>
+                                            ) : colRequests.map((req) => {
                                                 const typeDetails = getRequestTypeDetails(req.request_type);
                                                 const TypeIcon = typeDetails.icon;
+                                                const notes = parseNotes(req.notes);
+                                                const format = notes.contentType ? FORMAT_DETAILS[notes.contentType] : null;
+                                                const FormatIcon = format?.icon;
+                                                const thumbSrc = getCardThumbnail(req);
+                                                const assignee = getPersonName(req.assigned_to_details);
+                                                const dueDate = formatDisplayDate(req.month);
+                                                const postDate = formatDisplayDate(notes.postDate);
+                                                const brief = notes.instructions || req.ai_caption || "No brief yet";
+                                                const pending = isPendingSuggestion(req);
 
                                                 return (
                                                     <DraggableCard key={req.id} req={req}>
-                                                    <div
-                                                        onClick={() => { setSelectedRequest(req); setPreviewCarouselIdx(0); }}
-                                                        className="bg-card hover:bg-accent/40 p-5 rounded-2xl transition-all group hover:-translate-y-1 duration-300 cursor-pointer shadow-sm hover:shadow-xl border border-border hover:border-primary/30 relative overflow-hidden flex flex-col"
-                                                    >
-                                                        {/* Drag handle */}
-                                                        <div className="absolute top-3 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40 cursor-grab active:cursor-grabbing z-10">
-                                                            <GripVertical size={14} />
-                                                        </div>
-                                                        {/* Priority Stripe */}
-                                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeDetails.color.split(' ')[0]}`}></div>
-
-                                                        {/* Card Header */}
-                                                        <div className="flex justify-between items-start mb-3 pl-2 shrink-0">
-                                                            <span className={`px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full flex items-center gap-1.5 ${typeDetails.color} border border-transparent`}>
-                                                                <TypeIcon size={10} />
-                                                                {typeDetails.label}
-                                                            </span>
-                                                            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-all">
-                                                                <MoreHorizontal size={16} />
-                                                            </button>
-                                                        </div>
-
-                                                        {/* Card Title & Content */}
-                                                        <div className="mb-3 pl-2">
-                                                            <div className="flex items-start gap-3">
-                                                                <h3 className="font-bold text-foreground text-sm leading-relaxed">
-                                                                    {req.client_details && (
-                                                                        <span className="block text-xs font-black text-primary mb-1 uppercase tracking-wide">
-                                                                            {req.client_details.client_profile?.practice_name || req.client_details.username}
-                                                                        </span>
+                                                        <div
+                                                            className="cb-card"
+                                                            data-type={req.request_type || "TASK"}
+                                                            onClick={() => { setSelectedRequest(req); setPreviewCarouselIdx(0); }}
+                                                        >
+                                                            <span className="cb-card__stripe" />
+                                                            <span className="cb-card__grip"><GripVertical size={14} /></span>
+                                                            <h3 className="cb-card__client">{getClientName(req)}</h3>
+                                                            <div className="cb-card__badges">
+                                                                <span className="cb-badge" data-kind="type" data-value={req.request_type || "TASK"}>
+                                                                    <TypeIcon size={10} />
+                                                                    {typeDetails.label}
+                                                                </span>
+                                                                {format && (
+                                                                    <span className="cb-badge" data-kind="format" data-value={notes.contentType}>
+                                                                        {FormatIcon ? <FormatIcon size={10} /> : null}
+                                                                        {format.label}
+                                                                    </span>
+                                                                )}
+                                                                {pending && (
+                                                                    <span className="cb-pending">
+                                                                        <UserPlus size={10} />
+                                                                        Needs assignment
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {thumbSrc ? (
+                                                                <div className="cb-thumb">
+                                                                    <img src={thumbSrc} alt="" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="cb-thumb cb-thumb--placeholder">
+                                                                    {FormatIcon ? <FormatIcon size={14} /> : <FileText size={14} />}
+                                                                </div>
+                                                            )}
+                                                            <p className="cb-card__brief">{brief}</p>
+                                                            <div className="cb-card__meta">
+                                                                <div className="cb-card__dates">
+                                                                    {dueDate && (
+                                                                        <span><Clock size={11} /> Due {dueDate}</span>
                                                                     )}
-                                                                    <span className="block text-xs text-foreground/80 line-clamp-2">
-                                                                        {req.ai_caption || parseNotes(req.notes).instructions || "Untitled Request"}
+                                                                    {postDate && (
+                                                                        <span><Calendar size={11} /> Post {postDate}</span>
+                                                                    )}
+                                                                </div>
+                                                                {assignee && (
+                                                                    <span className="cb-assignee">
+                                                                        <span className="cb-avatar">{assignee.charAt(0).toUpperCase()}</span>
+                                                                        <em>{assignee}</em>
                                                                     </span>
-                                                                    <span className="block text-[10px] text-muted-foreground/60 font-mono mt-0.5">
-                                                                        #{req.id}
-                                                                    </span>
-                                                                </h3>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Card Thumbnail Preview */}
-                                                        {(() => {
-                                                            const thumbSrc = getCardThumbnail(req);
-                                                            if (!thumbSrc) return null;
-                                                            return (
-                                                                <div className="mb-3 pl-2">
-                                                                    <div className="aspect-video rounded-lg overflow-hidden border border-border/50 bg-muted/30 group-hover:border-primary/20 transition-colors">
-                                                                        <img
-                                                                            src={thumbSrc}
-                                                                            alt="Content preview"
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    </div>
-                                                            </div>
-                                                );
-                                                        })()}
-
-                                                        {/* Card Footer */}
-                                                        <div className="flex items-center justify-between border-t border-border pt-3 mt-auto shrink-0 pl-2">
-
-                                                            {/* Date */}
-                                                            <div className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
-                                                                <Clock size={12} />
-                                                                {req.month}
-                                                            </div>
-
-                                                            {/* Avatars */}
-                                                            <div className="flex -space-x-2">
-                                                                {req.client_details && (
-                                                                    <div
-                                                                        className="w-7 h-7 rounded-full bg-primary/10 border-2 border-card flex items-center justify-center text-[10px] font-bold text-primary shadow-sm"
-                                                                        title={`Client: ${req.client_details.username}`}
-                                                                    >
-                                                                        {(req.client_details.client_profile?.practice_name?.[0] || req.client_details.username[0]).toUpperCase()}
-                                                                    </div>
-                                                                )}
-                                                                {req.assigned_to_details && (
-                                                                    <div
-                                                                        className="w-7 h-7 rounded-full bg-secondary border-2 border-card flex items-center justify-center text-[10px] font-bold text-secondary-foreground shadow-sm relative"
-                                                                        title={`Assigned: ${req.assigned_to_details.username}`}
-                                                                    >
-                                                                        {req.assigned_to_details.username.charAt(0).toUpperCase()}
-                                                                        <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border border-card"></div>
-                                                                    </div>
-                                                                )}
-                                                                {req.qa_assigned_to_details && (
-                                                                    <div
-                                                                        className="w-7 h-7 rounded-full bg-purple-100 border-2 border-card flex items-center justify-center text-[10px] font-bold text-purple-700 shadow-sm relative -ml-2"
-                                                                        title={`QA: ${req.qa_assigned_to_details.username}`}
-                                                                    >
-                                                                        {req.qa_assigned_to_details.username.charAt(0).toUpperCase()}
-                                                                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-card"></div>
-                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                    </div>
                                                     </DraggableCard>
                                                 );
-                                            })
-                                        )}
-                                    </DroppableColumn>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-                <DragOverlay dropAnimation={null}>
-                    {activeDragId ? (
-                        <div className="bg-card p-3 rounded-xl shadow-2xl border border-primary rotate-2 scale-105 opacity-90 w-64">
-                            {(() => {
-                                const reqId = parseInt(activeDragId.toString().replace('request-', ''));
-                                const req = requests.find(r => r.id === reqId);
-                                if (!req) return <p className="text-xs font-bold">...</p>;
-                                return (
-                                    <>
-                                        <p className="text-xs font-black text-primary mb-1 uppercase tracking-wide">
-                                            {req.client_details?.client_profile?.practice_name || req.client_details?.username || 'Untitled'}
-                                        </p>
-                                        <p className="text-sm font-medium text-foreground line-clamp-2">
-                                            {req.notes || 'No description'}
-                                        </p>
-                                    </>
+                                            })}
+                                        </DroppableColumn>
+                                    </div>
                                 );
-                            })()}
+                            })}
                         </div>
-                    ) : null}
-                </DragOverlay>
+                    </div>
+                    <DragOverlay dropAnimation={null}>
+                        {activeDragId ? (
+                            <div className="cb-overlay-card">
+                                {(() => {
+                                    const reqId = parseInt(activeDragId.toString().replace("request-", ""), 10);
+                                    const req = requests.find((r) => r.id === reqId);
+                                    if (!req) return <p>...</p>;
+                                    return (
+                                        <>
+                                            <strong>{getClientName(req)}</strong>
+                                            <p>{parseNotes(req.notes).instructions || "No brief yet"}</p>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        ) : null}
+                    </DragOverlay>
                 </DndContext>
+            )}
 
-                {/* Detail Modal */}
-                {selectedRequest && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-card w-full max-w-6xl h-[85vh] rounded-3xl shadow-2xl flex overflow-hidden border border-border relative animate-in zoom-in-95 duration-200 text-foreground">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedRequest(null); }}
-                                className="absolute top-4 right-4 z-10 p-2 bg-background/50 hover:bg-destructive/10 backdrop-blur-md rounded-full text-muted-foreground hover:text-destructive transition-colors border border-border"
-                            >
-                                <X size={20} />
+            {selectedRequest && (
+                <div className="cb-overlay">
+                    <div className="cb-detail">
+                        <div className="cb-detail__toolbar">
+                            <div className="cb-mini-steps">
+                                {BOARD_COLUMNS.map((col, idx) => (
+                                    <div
+                                        key={col.id}
+                                        className={`cb-mini-step${idx === selectedIdx ? " is-current" : ""}`}
+                                    >
+                                        <span>{col.number}. {col.title}</span>
+                                        <small>{col.meaning}</small>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="cb-detail__moves">
+                                {selectedIdx > 0 && (
+                                    <button
+                                        type="button"
+                                        className="cb-btn cb-btn--ghost"
+                                        onClick={() => handleMoveWorkflow(-1)}
+                                    >
+                                        Move back to {BOARD_COLUMNS[selectedIdx - 1].title}
+                                    </button>
+                                )}
+                                {selectedIdx >= 0 && selectedIdx < BOARD_COLUMNS.length - 1 && (
+                                    <button
+                                        type="button"
+                                        className="cb-btn cb-btn--primary"
+                                        onClick={() => handleMoveWorkflow(1)}
+                                    >
+                                        Advance to {BOARD_COLUMNS[selectedIdx + 1].title}
+                                    </button>
+                                )}
+                            </div>
+                            <button type="button" className="cb-icon-btn" onClick={() => setSelectedRequest(null)} aria-label="Close">
+                                <X size={18} />
                             </button>
+                        </div>
 
-                            {/* Workflow step navigation */}
-                            {(() => {
-                                const currentIdx = columns.findIndex(c => c.id === selectedRequest.status);
-                                const canGoBack = currentIdx > 0;
-                                const canGoForward = currentIdx >= 0 && currentIdx < columns.length - 1;
-                                return (
-                                    <>
-                                        {canGoBack && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleMoveWorkflow(-1); }}
-                                                className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/70 hover:bg-background hover:scale-110 backdrop-blur-md flex items-center justify-center text-foreground border border-border shadow-lg transition-all"
-                                                title={`Back to ${columns[currentIdx - 1]?.title || ''}`}
-                                            >
-                                                <ChevronLeft size={20} />
-                                            </button>
-                                        )}
-                                        {canGoForward && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleMoveWorkflow(1); }}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/70 hover:bg-background hover:scale-110 backdrop-blur-md flex items-center justify-center text-foreground border border-border shadow-lg transition-all"
-                                                title={`Forward to ${columns[currentIdx + 1]?.title || ''}`}
-                                            >
-                                                <ChevronRight size={20} />
-                                            </button>
-                                        )}
-                                    </>
-                                );
-                            })()}
+                        <div className="cb-detail__body">
+                            <div className="cb-detail__preview">
+                                <div className="cb-preview-card">
+                                    <h2>{getClientName(selectedRequest)}</h2>
+                                    <p>Preview for this piece of content.</p>
 
-                            {/* Left: Content Preview */}
-                            <div className="flex-1 flex flex-col bg-secondary/20 p-6 sm:p-8 lg:p-10 overflow-y-auto">
-                                <div className="max-w-3xl mx-auto w-full">
-                                    <div className="flex items-center gap-4 mb-8">
-                                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                                            <Sparkles size={24} />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-3xl font-black text-foreground tracking-tight">Content Preview</h2>
-                                            <p className="text-muted-foreground font-medium">Visualizing content for <span className="text-foreground font-bold">{selectedRequest.client_details?.username}</span></p>
-                                        </div>
-                                    </div>
+                                    {(() => {
+                                        const items = [...(selectedRequest.content_items || [])];
+                                        if (selectedRequest.linked_image_details && items.length === 0) {
+                                            items.push({ media_type: "IMAGE", gallery_image_details: selectedRequest.linked_image_details });
+                                        }
+                                        const totalItems = items.length;
+                                        const safeIdx = Math.min(previewCarouselIdx, Math.max(0, totalItems - 1));
+                                        const { contentType } = selectedNotes || {};
+                                        const MediaIcon = contentType === "video" ? Video : contentType === "carousel" ? Layers : contentType === "image" ? ImageIcon : FileText;
 
-                                    {/* Content Card */}
-                                    <div className="bg-card rounded-3xl border border-border shadow-xl p-8 mb-6">
-                                        {/* Header */}
-                                        <div className="flex items-center gap-4 mb-6">
-                                            {selectedRequest.client_details?.client_profile?.logo ? (
-                                                <img src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${selectedRequest.client_details.client_profile.logo}`} alt="Client Logo" className="w-12 h-12 rounded-full border border-border object-cover" />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-lg">
-                                                    {(selectedRequest.client_details?.username?.[0] || 'C').toUpperCase()}
+                                        if (totalItems > 0) {
+                                            const ci = items[safeIdx];
+                                            const src = ci.gallery_image_details?.image_url
+                                                || normalizeMediaUrl(ci.gallery_image_details?.image_compressed)
+                                                || normalizeMediaUrl(ci.gallery_image_details?.image)
+                                                || normalizeMediaUrl(ci.file_url);
+                                            const isVideo = ci.media_type === "VIDEO" || (
+                                                typeof src === "string" && (
+                                                    src.toLowerCase().split("?")[0].endsWith(".mp4")
+                                                    || src.toLowerCase().split("?")[0].endsWith(".mov")
+                                                    || src.toLowerCase().split("?")[0].endsWith(".webm")
+                                                    || src.toLowerCase().includes("/videos/")
+                                                )
+                                            );
+                                            return (
+                                                <div className="cb-media">
+                                                    {src ? (
+                                                        isVideo ? <PreviewVideoPlayer src={src} /> : <img src={src} alt={ci.gallery_image_details?.title || "Media"} />
+                                                    ) : (
+                                                        <div className="cb-media__pending">
+                                                            <ImageIcon size={28} />
+                                                            <span>Asset pending upload</span>
+                                                        </div>
+                                                    )}
+                                                    {totalItems > 1 && safeIdx > 0 && (
+                                                        <button type="button" className="cb-media__nav cb-media__nav--left" onClick={() => setPreviewCarouselIdx((i) => Math.max(0, i - 1))}>
+                                                            <ChevronLeft size={18} />
+                                                        </button>
+                                                    )}
+                                                    {totalItems > 1 && safeIdx < totalItems - 1 && (
+                                                        <button type="button" className="cb-media__nav cb-media__nav--right" onClick={() => setPreviewCarouselIdx((i) => Math.min(totalItems - 1, i + 1))}>
+                                                            <ChevronRight size={18} />
+                                                        </button>
+                                                    )}
+                                                    {totalItems > 1 && (
+                                                        <div className="cb-media__dots">
+                                                            {items.map((_, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    className={idx === safeIdx ? "is-active" : ""}
+                                                                    onClick={() => setPreviewCarouselIdx(idx)}
+                                                                    aria-label={`Show item ${idx + 1}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {totalItems > 1 && (
+                                                        <div className="cb-media__count">{safeIdx + 1} / {totalItems}</div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-base font-bold text-foreground">{selectedRequest.client_details?.username || 'Client Name'}</span>
-                                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">Pro</span>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">Just now</p>
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="cb-media cb-media--empty">
+                                                <MediaIcon size={28} />
+                                                <strong>{contentType || "Content"} preview</strong>
+                                                <span>Media pending upload</span>
                                             </div>
-                                        </div>
+                                        );
+                                    })()}
 
-                                        {/* Media Viewer */}
-                                        {(() => {
-                                            const items = [...(selectedRequest.content_items || [])];
-                                            if (selectedRequest.linked_image_details && items.length === 0) {
-                                                items.push({ media_type: 'IMAGE', gallery_image_details: selectedRequest.linked_image_details });
-                                            }
-                                            const totalItems = items.length;
-                                            const safeIdx = Math.min(previewCarouselIdx, Math.max(0, totalItems - 1));
-
-                                            if (totalItems > 0) {
-                                                const ci = items[safeIdx];
-                                                const src = ci.gallery_image_details?.image_url
-                                                    || normalizeMediaUrl(ci.gallery_image_details?.image_compressed)
-                                                    || normalizeMediaUrl(ci.gallery_image_details?.image)
-                                                    || normalizeMediaUrl(ci.file_url);
-                                                const isVideo = ci.media_type === 'VIDEO' ||
-                                                    (typeof src === 'string' && (
-                                                        src.toLowerCase().split('?')[0].endsWith('.mp4') ||
-                                                        src.toLowerCase().split('?')[0].endsWith('.mov') ||
-                                                        src.toLowerCase().split('?')[0].endsWith('.webm') ||
-                                                        src.toLowerCase().includes('/videos/')
-                                                    ));
-                                                return (
-                                                    <div className="aspect-square bg-black/5 rounded-2xl mb-4 relative overflow-hidden group border border-border/50">
-                                                        {src ? (
-                                                            isVideo ? (
-                                                                <PreviewVideoPlayer src={src} />
-                                                            ) : (
-                                                                <img src={src} alt={ci.gallery_image_details?.title || 'Media'} className="w-full h-full object-cover" />
-                                                            )
-                                                        ) : (
-                                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-                                                                <ImageIcon size={36} className="mb-2 opacity-40" />
-                                                                <span className="text-sm font-medium opacity-50">Asset pending upload</span>
-                                                            </div>
-                                                        )}
-                                                        {/* Carousel arrows */}
-                                                        {totalItems > 1 && safeIdx > 0 && (
-                                                            <button
-                                                                onClick={() => setPreviewCarouselIdx(i => Math.max(0, i - 1))}
-                                                                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 flex items-center justify-center text-white transition-all shadow-md"
-                                                            >
-                                                                <ChevronLeft size={18} />
-                                                            </button>
-                                                        )}
-                                                        {totalItems > 1 && safeIdx < totalItems - 1 && (
-                                                            <button
-                                                                onClick={() => setPreviewCarouselIdx(i => Math.min(totalItems - 1, i + 1))}
-                                                                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/75 flex items-center justify-center text-white transition-all shadow-md"
-                                                            >
-                                                                <ChevronRight size={18} />
-                                                            </button>
-                                                        )}
-                                                        {/* Carousel dots */}
-                                                        {totalItems > 1 && (
-                                                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                                                                {items.map((_, idx) => (
-                                                                    <button
-                                                                        key={idx}
-                                                                        onClick={() => setPreviewCarouselIdx(idx)}
-                                                                        className={`rounded-full transition-all duration-200 ${idx === safeIdx ? 'w-4 h-2 bg-white' : 'w-2 h-2 bg-white/50'}`}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {/* Item count badge */}
-                                                        {totalItems > 1 && (
-                                                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-[10px] font-bold">
-                                                                {safeIdx + 1} / {totalItems}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            }
-                                            // No media yet
-                                            const { contentType } = parseNotes(selectedRequest.notes);
-                                            const MediaIcon = contentType === 'video' ? Video : contentType === 'carousel' ? Layers : contentType === 'image' ? ImageIcon : FileText;
-                                            return (
-                                                <div className="aspect-square bg-muted/30 rounded-2xl mb-4 flex items-center justify-center text-muted-foreground relative overflow-hidden border border-border/50 border-dashed">
-                                                    <div className="text-center p-6">
-                                                        <div className="w-20 h-20 bg-background rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                                                            <MediaIcon size={32} className="text-foreground/60" />
-                                                        </div>
-                                                        <span className="text-base font-bold text-foreground capitalize">{contentType || 'Content'} Preview</span>
-                                                        <p className="text-sm text-muted-foreground mt-1">Media pending upload</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* Action Bar Mockup */}
-                                        <div className="flex gap-4 mb-5 text-foreground/20">
-                                            <div className="w-6 h-6 rounded-full bg-current"></div>
-                                            <div className="w-6 h-6 rounded-full bg-current"></div>
-                                            <div className="w-6 h-6 rounded-full bg-current"></div>
-                                            <div className="flex-1"></div>
-                                            <div className="w-6 h-6 rounded-full bg-current"></div>
-                                        </div>
-
-                                        {/* Instructions / Caption */}
-                                        {(() => {
-                                            const { instructions, contentType, postDate } = parseNotes(selectedRequest.notes);
-                                            return (
-                                                <div className="space-y-3">
-                                                    {/* Content Type + Post Date pills */}
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {contentType && (
-                                                            <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20 capitalize">
-                                                                {contentType}
-                                                            </span>
-                                                        )}
-                                                        {postDate && (
-                                                            <span className="px-2.5 py-1 rounded-full bg-secondary text-muted-foreground text-[10px] font-semibold border border-border">
-                                                                📅 {postDate}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {/* Instructions */}
-                                                    {instructions && (
-                                                        <div className="p-4 bg-secondary/50 rounded-xl text-sm text-foreground border border-border/50 leading-relaxed">
-                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
-                                                                <FileText size={10} />
-                                                                Instructions
-                                                            </span>
-                                                            <p className="whitespace-pre-wrap">{instructions}</p>
-                                                        </div>
-                                                    )}
-                                                    {/* AI Caption */}
-                                                    {selectedRequest.ai_caption && (
-                                                        <div className="p-4 bg-secondary/50 rounded-xl text-sm text-muted-foreground border border-border/50">
-                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
-                                                                <Sparkles size={10} />
-                                                                AI Caption
-                                                            </span>
-                                                            <p>{selectedRequest.ai_caption}</p>
-                                                        </div>
-                                                    )}
-                                                    {/* Content Strategy */}
-                                                    {selectedRequest.content_text && (
-                                                        <div className="p-4 bg-secondary/50 rounded-xl text-xs text-muted-foreground border border-border/50">
-                                                            <span className="flex items-center gap-1.5 font-bold text-primary uppercase text-[10px] mb-2">
-                                                                <FileText size={10} />
-                                                                Content Strategy
-                                                            </span>
-                                                            <p>{selectedRequest.content_text}</p>
-                                                        </div>
-                                                    )}
-                                                    {!instructions && !selectedRequest.ai_caption && !selectedRequest.content_text && (
-                                                        <span className="italic text-muted-foreground/60 text-sm">No instructions or caption yet...</span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
+                                    <div className="cb-card__badges">
+                                        {selectedNotes?.contentType && (
+                                            <span className="cb-badge" data-kind="format" data-value={selectedNotes.contentType}>
+                                                {selectedNotes.contentType}
+                                            </span>
+                                        )}
+                                        {selectedNotes?.postDate && (
+                                            <span className="cb-badge">
+                                                Post {formatDisplayDate(selectedNotes.postDate)}
+                                            </span>
+                                        )}
                                     </div>
+
+                                    {selectedNotes?.instructions && (
+                                        <div className="cb-info-block">
+                                            <h3><FileText size={12} /> Instructions</h3>
+                                            <p>{selectedNotes.instructions}</p>
+                                        </div>
+                                    )}
+                                    {selectedRequest.ai_caption && (
+                                        <div className="cb-info-block">
+                                            <h3><Sparkles size={12} /> Caption</h3>
+                                            <p>{selectedRequest.ai_caption}</p>
+                                        </div>
+                                    )}
+                                    {selectedRequest.content_text && (
+                                        <div className="cb-info-block">
+                                            <h3><FileText size={12} /> Content strategy</h3>
+                                            <p>{selectedRequest.content_text}</p>
+                                        </div>
+                                    )}
+                                    {!selectedNotes?.instructions && !selectedRequest.ai_caption && !selectedRequest.content_text && (
+                                        <p className="cb-muted-note">No instructions or caption yet.</p>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Right: History Timeline Sidebar */}
-                            <div className="w-full lg:w-96 bg-card border-l border-border flex flex-col h-full shrink-0">
-                                <div className="p-6 border-b border-border flex items-center justify-between bg-muted/10">
-                                    <h3 className="font-bold text-foreground flex items-center gap-2">
-                                        <Activity size={18} className="text-primary" />
-                                        Activity History
-                                    </h3>
-                                    <span className="text-xs font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full border border-primary/20">
-                                        {selectedRequest.history ? selectedRequest.history.length : 0}
-                                    </span>
+                            <div className="cb-detail__activity">
+                                <div className="cb-detail__activity-head">
+                                    <h3><Activity size={16} /> Activity</h3>
+                                    <span className="cb-count cb-count--plain">{selectedRequest.history ? selectedRequest.history.length : 0}</span>
                                 </div>
-
-                                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                                <div className="cb-timeline">
                                     {selectedRequest.history && selectedRequest.history.length > 0 ? (
                                         selectedRequest.history.map((hist, idx) => {
                                             const actorUsername = hist.changed_by_details?.username || (hist.changed_by ? `user-${hist.changed_by}` : null);
-                                            const actorLabel = actorUsername ? `@${actorUsername}` : 'Sistema';
-                                            const actorInitial = actorUsername ? actorUsername[0].toUpperCase() : 'S';
-
+                                            const actorLabel = actorUsername ? `@${actorUsername}` : "System";
+                                            const actorInitial = actorUsername ? actorUsername[0].toUpperCase() : "S";
+                                            const statusCol = BOARD_COLUMNS.find((c) => c.id === hist.new_status);
                                             return (
-                                            <div key={hist.id || idx} className="relative pl-8 pb-0 border-l-2 border-border/60 last:border-l-0 group">
-                                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-card border-2 border-primary group-hover:scale-125 transition-transform shadow-[0_0_0_4px_var(--color-background)]"></div>
-
-                                                <div className="flex flex-col gap-1.5 -mt-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider flex items-center gap-1">
-                                                            {new Date(hist.timestamp).toLocaleDateString()}
-                                                            <span className="w-1 h-1 rounded-full bg-muted-foreground"></span>
-                                                            {new Date(hist.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
+                                                <div key={hist.id || idx} className="cb-event">
+                                                    <span className="cb-event__dot" />
+                                                    <time>
+                                                        {new Date(hist.timestamp).toLocaleDateString()} · {new Date(hist.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                    </time>
+                                                    <p>Status changed to <strong>{statusCol?.title || String(hist.new_status || "").replaceAll("_", " ")}</strong></p>
+                                                    <div className="cb-event__actor">
+                                                        <span className="cb-avatar">{actorInitial}</span>
+                                                        {actorLabel}
                                                     </div>
-
-                                                    <div className="text-sm font-medium text-foreground">
-                                                        Status changed to <span className="font-black text-primary">{hist.new_status.replace('_', ' ')}</span>
-                                                    </div>
-
-                                                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                                                        <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center font-bold text-[9px] text-foreground border border-border">
-                                                            {actorInitial}
-                                                        </div>
-                                                        <span className="font-semibold">{actorLabel}</span>
-                                                    </div>
-
-                                                    {hist.notes && (
-                                                        <div className="bg-secondary/30 border border-border/50 p-3 rounded-xl mt-2 text-xs text-muted-foreground italic relative">
-                                                            <div className="absolute top-0 left-2 -mt-1 w-2 h-2 bg-secondary/30 rotate-45 border-t border-l border-border/50"></div>
-                                                            &quot;{hist.notes}&quot;
-                                                        </div>
-                                                    )}
+                                                    {hist.notes && <div className="cb-event__note">&quot;{hist.notes}&quot;</div>}
                                                 </div>
-                                            </div>
-                                        );
-                                    })
+                                            );
+                                        })
                                     ) : (
-                                        <div className="text-center py-16 opacity-50 flex flex-col items-center">
-                                            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-3">
-                                                <Activity size={32} className="text-muted-foreground" />
-                                            </div>
-                                            <p className="text-sm font-medium text-muted-foreground">No activity recorded yet.</p>
+                                        <div className="cb-empty">
+                                            <div className="cb-empty__icon"><Activity size={20} /></div>
+                                            <strong>No activity yet</strong>
+                                            <p>Moves through the pipeline will show up here.</p>
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-4 border-t border-border bg-muted/10 flex flex-col gap-2">
-                                    <button className="w-full py-3 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-                                        Add Note <ArrowRight size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => setShowDeleteConfirm(true)}
-                                        className="w-full py-3 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive font-bold text-sm transition-all flex items-center justify-center gap-2 border border-destructive/20 hover:border-destructive/40"
-                                    >
+                                <div className="cb-detail__footer">
+                                    <button type="button" className="cb-btn cb-btn--danger-soft" onClick={() => setShowDeleteConfirm(true)}>
                                         <Trash2 size={15} />
-                                        Delete Post
+                                        Delete post
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* Delete Confirmation Modal */}
-                {showDeleteConfirm && selectedRequest && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-                        <div className="bg-card w-full max-w-md rounded-3xl shadow-2xl border border-border animate-in zoom-in-95 duration-200 overflow-hidden">
-                            {/* Header */}
-                            <div className="p-6 pb-4">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
-                                        <Trash2 size={22} className="text-destructive" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-black text-foreground">Delete Post</h3>
-                                        <p className="text-sm text-muted-foreground">This action cannot be undone</p>
-                                    </div>
-                                </div>
-                                <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl">
-                                    <p className="text-sm text-foreground font-medium leading-relaxed">
-                                        Are you sure you want to delete this post for
-                                        {' '}<span className="font-black text-primary">
-                                            {selectedRequest.client_details?.client_profile?.practice_name || selectedRequest.client_details?.username || 'Client'}
-                                        </span>?
-                                    </p>
-                                    {selectedRequest.notes && (
-                                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                                            {parseNotes(selectedRequest.notes).instructions || selectedRequest.notes}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            {/* Actions */}
-                            <div className="p-4 pt-2 flex gap-3">
-                                <button
-                                    onClick={() => setShowDeleteConfirm(false)}
-                                    disabled={isDeleting}
-                                    className="flex-1 py-3 rounded-xl border border-border bg-secondary/50 hover:bg-secondary font-bold text-sm text-foreground transition-all disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleDeleteRequest}
-                                    disabled={isDeleting}
-                                    className="flex-1 py-3 rounded-xl bg-destructive hover:bg-destructive/90 text-white font-bold text-sm transition-all shadow-lg shadow-destructive/20 flex items-center justify-center gap-2 disabled:opacity-60"
-                                >
-                                    {isDeleting ? (
-                                        <>
-                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                                            </svg>
-                                            Deleting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Trash2 size={15} />
-                                            Yes, delete
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Create Request Modal */}
-                {showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-card w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col border border-border relative animate-in zoom-in-95 duration-200 text-foreground overflow-hidden">
-                            
-                            {/* Modal Header */}
-                            <div className="p-6 border-b border-border flex items-center justify-between bg-muted/10 shrink-0">
+            {showDeleteConfirm && selectedRequest && (
+                <div className="cb-overlay cb-overlay--top">
+                    <div className="cb-dialog">
+                        <div className="cb-dialog__body">
+                            <div className="cb-dialog__intro">
+                                <div className="cb-dialog__icon"><Trash2 size={20} /></div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-foreground tracking-tight">New Request</h2>
-                                    <p className="text-xs text-muted-foreground font-medium">Create a task for the content team</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="p-2 bg-background hover:bg-destructive/10 rounded-full text-muted-foreground hover:text-destructive transition-colors border border-border"
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            {/* Modal Body */}
-                            <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col md:flex-row gap-6">
-                                
-                                {/* Left Side: Content Type & Folio */}
-                                <div className="md:w-1/3 flex flex-col gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Content Type</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {contentTypes.map((type) => {
-                                                const Icon = type.icon;
-                                                const isSelected = createContentType === type.id;
-                                                return (
-                                                    <button
-                                                        key={type.id}
-                                                        onClick={() => setCreateContentType(type.id)}
-                                                        className={`
-                                                            flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all duration-200
-                                                            ${isSelected
-                                                                ? 'border-primary bg-primary text-primary-foreground shadow-lg'
-                                                                : 'border-border bg-card hover:bg-muted/50 text-muted-foreground hover:text-primary'}
-                                                        `}
-                                                    >
-                                                        <div className={`p-2 rounded-xl ${isSelected ? 'bg-white/20 text-white' : type.bg + ' ' + type.color}`}>
-                                                            <Icon size={20} />
-                                                        </div>
-                                                        <span className="font-bold text-xs">{type.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t border-border pt-4 mt-auto">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowCreateFolioSearch(true)}
-                                            className="w-full flex items-center justify-between p-3.5 bg-muted/30 hover:bg-card border border-border hover:border-primary/50 rounded-xl transition-all shadow-sm"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-                                                    {createSearchedImage ? <Check size={16} /> : <Plus size={16} />}
-                                                </div>
-                                                <div className="text-left">
-                                                    <span className="block text-xs font-bold text-foreground">
-                                                        {createSearchedImage ? `Linked: ${createSearchedImage.folio}` : 'Link Photo ID'}
-                                                    </span>
-                                                    <span className="text-[10px] text-muted-foreground block truncate max-w-[150px]">
-                                                        {createSearchedImage ? createSearchedImage.title : 'Search from gallery'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="hidden md:block w-px bg-border my-2"></div>
-
-                                {/* Right Side: Fields */}
-                                <div className="flex-1 flex flex-col gap-5 overflow-y-auto pr-1">
-                                    
-                                    {/* Instructions */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Instructions</label>
-                                        <textarea
-                                            value={createInstructions}
-                                            onChange={(e) => setCreateInstructions(e.target.value)}
-                                            className="w-full h-24 px-4 py-3 bg-secondary/10 border border-input focus:bg-card focus:border-primary rounded-xl text-foreground placeholder-muted-foreground/50 resize-none outline-none transition-all font-medium text-sm"
-                                            placeholder="Describe the requirements for this content piece..."
-                                        />
-                                    </div>
-
-                                    {/* Client Selection */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Client</label>
-                                        <div className="relative">
-                                            <select
-                                                value={createSelectedClient}
-                                                onChange={(e) => setCreateSelectedClient(e.target.value)}
-                                                className="w-full px-4 py-3 pl-10 bg-secondary/10 border border-input rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary focus:bg-card appearance-none transition-all"
-                                            >
-                                                <option value="">Select Client...</option>
-                                                {clients.map(client => {
-                                                    const name = client.first_name && client.last_name ? `${client.first_name} ${client.last_name}` : client.username;
-                                                    return (
-                                                        <option key={client.id} value={client.id}>{name}</option>
-                                                    );
-                                                })}
-                                            </select>
-                                            <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                        </div>
-                                    </div>
-
-                                    {/* Assign To */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Assign To</label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <select
-                                                value={createAssignedUser}
-                                                onChange={(e) => setCreateAssignedUser(e.target.value)}
-                                                className="w-full px-4 py-3 bg-secondary/10 border border-input rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary focus:bg-card appearance-none transition-all"
-                                            >
-                                                <option value="">Select Team Member...</option>
-                                                {contentCreators.map(user => {
-                                                    const name = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username;
-                                                    return (
-                                                        <option key={user.id} value={user.id}>{name} ({user.role})</option>
-                                                    );
-                                                })}
-                                            </select>
-                                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 border border-border rounded-xl">
-                                                {createAssignedUser ? (
-                                                    <>
-                                                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0">
-                                                            {contentCreators.find(u => String(u.id) === String(createAssignedUser))?.username?.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div className="truncate">
-                                                            <p className="text-xs font-bold text-foreground truncate">{contentCreators.find(u => String(u.id) === String(createAssignedUser))?.username}</p>
-                                                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{contentCreators.find(u => String(u.id) === String(createAssignedUser))?.role}</p>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <p className="text-xs text-muted-foreground font-medium">No user selected</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Dates Row */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Due Date</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="date"
-                                                    value={createDueDate}
-                                                    onChange={(e) => setCreateDueDate(e.target.value)}
-                                                    className="w-full pl-9 pr-3 py-2.5 bg-secondary/10 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-xs transition-all"
-                                                />
-                                                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Post Date</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="date"
-                                                    value={createPostDate}
-                                                    onChange={(e) => setCreatePostDate(e.target.value)}
-                                                    className="w-full pl-9 pr-3 py-2.5 bg-secondary/10 border border-input rounded-xl text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 font-bold text-xs transition-all"
-                                                />
-                                                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    <div className="pt-4 shrink-0">
-                                        <button
-                                            onClick={handleCreateRequest}
-                                            className="w-full py-3.5 bg-foreground hover:bg-foreground/90 text-background rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group"
-                                        >
-                                            <span>Create Request</span>
-                                            <Plus size={16} />
-                                        </button>
-                                    </div>
-
+                                    <h3>Delete post</h3>
+                                    <p>This action cannot be undone.</p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Create Folio Search Modal */}
-                {showCreateFolioSearch && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
-                        <div className="bg-card rounded-3xl shadow-2xl p-6 max-w-xl w-full animate-in zoom-in duration-300 border border-border text-foreground">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 className="text-xl font-bold text-foreground">Link Gallery Image</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">Search by folio number (e.g., C5F12-001)</p>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setShowCreateFolioSearch(false);
-                                        setCreateFolioSearchError(null);
-                                    }}
-                                    className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
-                                >
-                                    <X size={16} className="text-muted-foreground" />
-                                </button>
-                            </div>
-
-                            {/* Search Input */}
-                            <div className="mb-4">
-                                <div className="flex gap-2">
-                                    <div className="flex-1 relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                                        <input
-                                            type="text"
-                                            value={createFolioSearch}
-                                            onChange={(e) => setCreateFolioSearch(e.target.value.toUpperCase())}
-                                            onKeyPress={(e) => e.key === 'Enter' && handleSearchByFolio()}
-                                            placeholder="Enter folio number..."
-                                            className="w-full pl-9 pr-3 py-3 border border-border bg-secondary/10 rounded-xl text-foreground font-bold text-sm outline-none focus:border-primary transition-all"
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={handleSearchByFolio}
-                                        disabled={createFolioSearchLoading}
-                                        className="px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-                                    >
-                                        {createFolioSearchLoading ? 'Searching...' : 'Search'}
-                                    </button>
-                                </div>
-
-                                {createFolioSearchError && (
-                                    <div className="mt-2.5 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                        <p className="text-xs text-red-500 font-medium">{createFolioSearchError}</p>
-                                    </div>
+                            <div className="cb-warn">
+                                Are you sure you want to delete this post for <strong>{getClientName(selectedRequest)}</strong>?
+                                {selectedRequest.notes && (
+                                    <small>{parseNotes(selectedRequest.notes).instructions || selectedRequest.notes}</small>
                                 )}
                             </div>
-
-                            {/* Search Result */}
-                            {createSearchedImage && (
-                                <div className="border border-emerald-500/20 bg-emerald-500/5 rounded-xl p-4">
-                                    <div className="flex items-start gap-4">
-                                        <img
-                                            src={createSearchedImage.image_url}
-                                            alt={createSearchedImage.title}
-                                            className="w-24 h-24 object-cover rounded-lg border shadow-sm"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex items-start justify-between mb-1">
-                                                <div>
-                                                    <p className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">{createSearchedImage.folio}</p>
-                                                    <h4 className="text-sm font-bold text-foreground">{createSearchedImage.title}</h4>
-                                                </div>
-                                                <button
-                                                    onClick={handleClearGalleryImage}
-                                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                                >
-                                                    <X size={16} />
-                                                </button>
-                                            </div>
-                                            <button
-                                                onClick={() => setShowCreateFolioSearch(false)}
-                                                className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
-                                            >
-                                                <Check size={14} />
-                                                Confirm & Attach
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Empty State */}
-                            {!createSearchedImage && !createFolioSearchError && (
-                                <div className="text-center py-8 border border-dashed border-border rounded-xl">
-                                    <ImageIcon size={32} className="mx-auto text-muted-foreground mb-2 opacity-50" />
-                                    <p className="text-xs text-muted-foreground font-medium">Enter a folio number to search</p>
-                                </div>
-                            )}
+                        </div>
+                        <div className="cb-dialog__actions">
+                            <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                                Cancel
+                            </button>
+                            <button type="button" className="cb-btn cb-btn--danger" onClick={handleDeleteRequest} disabled={isDeleting}>
+                                {isDeleting ? "Deleting..." : "Yes, delete"}
+                            </button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {showCreateModal && (
+                <div className="cb-overlay">
+                    <div className="cb-create">
+                        <div className="cb-create__head">
+                            <div>
+                                <h2>New task</h2>
+                                <p>Create a piece of content and send it to the board.</p>
+                            </div>
+                            <button type="button" className="cb-icon-btn" onClick={() => setShowCreateModal(false)} aria-label="Close">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="cb-create__body">
+                            <section className="cb-section">
+                                <div className="cb-section__label">
+                                    <span className="cb-section__num">1</span>
+                                    <div>
+                                        <h3>What</h3>
+                                        <p>Choose the format and describe the brief.</p>
+                                    </div>
+                                </div>
+                                <div className="cb-field">
+                                    <label>Content type</label>
+                                    <div className="cb-types">
+                                        {CONTENT_TYPES.map((type) => {
+                                            const Icon = type.icon;
+                                            return (
+                                                <button
+                                                    key={type.id}
+                                                    type="button"
+                                                    data-format={type.id}
+                                                    className={`cb-type${createContentType === type.id ? " is-selected" : ""}`}
+                                                    onClick={() => setCreateContentType(type.id)}
+                                                >
+                                                    <span className="cb-type__icon"><Icon size={18} /></span>
+                                                    <span>{type.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="cb-field">
+                                    <label htmlFor="cb-instructions">Instructions</label>
+                                    <textarea
+                                        id="cb-instructions"
+                                        value={createInstructions}
+                                        onChange={(e) => setCreateInstructions(e.target.value)}
+                                        placeholder="Describe the requirements for this content piece..."
+                                    />
+                                </div>
+                                <button type="button" className="cb-link-asset" onClick={() => setShowCreateFolioSearch(true)}>
+                                    <span className="cb-link-asset__mark">
+                                        {createSearchedImage ? <Check size={16} /> : <Plus size={16} />}
+                                    </span>
+                                    <span>
+                                        <strong>{createSearchedImage ? `Linked: ${createSearchedImage.folio}` : "Link photo ID"}</strong>
+                                        <span>{createSearchedImage ? createSearchedImage.title : "Search from gallery"}</span>
+                                    </span>
+                                </button>
+                            </section>
+
+                            <div className="cb-who-when">
+                                <section className="cb-section">
+                                    <div className="cb-section__label">
+                                        <span className="cb-section__num">2</span>
+                                        <div>
+                                            <h3>Who</h3>
+                                            <p>Client and the person who will create it.</p>
+                                        </div>
+                                    </div>
+                                    <div className="cb-field">
+                                        <label htmlFor="cb-client">Client</label>
+                                        <select
+                                            id="cb-client"
+                                            value={createSelectedClient}
+                                            onChange={(e) => setCreateSelectedClient(e.target.value)}
+                                        >
+                                            <option value="">Select client...</option>
+                                            {clients.map((client) => {
+                                                const name = client.first_name && client.last_name
+                                                    ? `${client.first_name} ${client.last_name}`
+                                                    : client.username;
+                                                return <option key={client.id} value={client.id}>{name}</option>;
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div className="cb-field">
+                                        <label htmlFor="cb-assignee">Assign to</label>
+                                        <select
+                                            id="cb-assignee"
+                                            value={createAssignedUser}
+                                            onChange={(e) => setCreateAssignedUser(e.target.value)}
+                                        >
+                                            <option value="">Select team member...</option>
+                                            {contentCreators.map((user) => {
+                                                const name = user.first_name && user.last_name
+                                                    ? `${user.first_name} ${user.last_name}`
+                                                    : user.username;
+                                                return <option key={user.id} value={user.id}>{name} ({user.role})</option>;
+                                            })}
+                                        </select>
+                                        <div className="cb-assignee-preview">
+                                            {assignedCreator ? (
+                                                <>
+                                                    <span className="cb-avatar">{(assignedCreator.username || "?").charAt(0).toUpperCase()}</span>
+                                                    <div>
+                                                        <p>{getPersonName(assignedCreator)}</p>
+                                                        <small>{assignedCreator.role}</small>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <p>No one selected yet</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section className="cb-section">
+                                    <div className="cb-section__label">
+                                        <span className="cb-section__num">3</span>
+                                        <div>
+                                            <h3>When</h3>
+                                            <p>Internal due date and planned publish date.</p>
+                                        </div>
+                                    </div>
+                                    <div className="cb-dates">
+                                        <div className="cb-field">
+                                            <label htmlFor="cb-due">Due date</label>
+                                            <input
+                                                id="cb-due"
+                                                type="date"
+                                                value={createDueDate}
+                                                onChange={(e) => setCreateDueDate(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="cb-field">
+                                            <label htmlFor="cb-post">Post date</label>
+                                            <input
+                                                id="cb-post"
+                                                type="date"
+                                                value={createPostDate}
+                                                onChange={(e) => setCreatePostDate(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <button type="button" className="cb-btn cb-btn--primary" onClick={handleCreateRequest}>
+                                <Plus size={16} />
+                                Create task
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCreateFolioSearch && (
+                <div className="cb-overlay cb-overlay--top">
+                    <div className="cb-folio">
+                        <div className="cb-folio__head">
+                            <div>
+                                <h3>Link gallery image</h3>
+                                <p>Search by folio number (e.g., C5F12-001)</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="cb-icon-btn"
+                                onClick={() => {
+                                    setShowCreateFolioSearch(false);
+                                    setCreateFolioSearchError(null);
+                                }}
+                                aria-label="Close"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="cb-search">
+                            <div className="cb-search__field">
+                                <Search size={16} />
+                                <input
+                                    type="text"
+                                    value={createFolioSearch}
+                                    onChange={(e) => setCreateFolioSearch(e.target.value.toUpperCase())}
+                                    onKeyDown={(e) => e.key === "Enter" && handleSearchByFolio()}
+                                    placeholder="Enter folio number..."
+                                />
+                            </div>
+                            <button type="button" className="cb-btn cb-btn--primary" onClick={handleSearchByFolio} disabled={createFolioSearchLoading}>
+                                {createFolioSearchLoading ? "Searching..." : "Search"}
+                            </button>
+                        </div>
+                        {createFolioSearchError && <div className="cb-error">{createFolioSearchError}</div>}
+                        {createSearchedImage && (
+                            <div className="cb-folio-result">
+                                <img src={createSearchedImage.image_url} alt={createSearchedImage.title} />
+                                <div>
+                                    <code>{createSearchedImage.folio}</code>
+                                    <h4>{createSearchedImage.title}</h4>
+                                    <div className="cb-folio-result__actions">
+                                        <button type="button" className="cb-btn cb-btn--ghost" onClick={handleClearGalleryImage}>
+                                            Clear
+                                        </button>
+                                        <button type="button" className="cb-btn cb-btn--primary" onClick={() => setShowCreateFolioSearch(false)}>
+                                            <Check size={14} />
+                                            Confirm and attach
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {!createSearchedImage && !createFolioSearchError && (
+                            <div className="cb-folio-empty">
+                                <ImageIcon size={28} />
+                                <p>Enter a folio number to search</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
