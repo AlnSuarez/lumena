@@ -231,6 +231,7 @@ export default function ContentBoardPage() {
     const [currentUserId, setCurrentUserId] = useState("");
 
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [createStep, setCreateStep] = useState("what");
     const [createContentType, setCreateContentType] = useState("story");
     const [createAssignedUser, setCreateAssignedUser] = useState("");
     const [createInstructions, setCreateInstructions] = useState("");
@@ -310,7 +311,7 @@ export default function ContentBoardPage() {
 
             if (response.ok) {
                 toast.success("Task created and assigned.");
-                setShowCreateModal(false);
+                closeCreateModal();
                 setCreateInstructions("");
                 setCreateAssignedUser("");
                 setCreateSelectedClient("");
@@ -368,6 +369,35 @@ export default function ContentBoardPage() {
         setCreateFolioSearch("");
         setCreateFolioSearchError(null);
     };
+
+    const closeCreateModal = () => {
+        setShowCreateModal(false);
+        setCreateStep("what");
+    };
+
+    const closeFolioSearch = () => {
+        setShowCreateFolioSearch(false);
+        setCreateFolioSearchError(null);
+    };
+
+    const openCreateModal = () => {
+        setCreateStep("what");
+        setShowCreateModal(true);
+    };
+
+    useEffect(() => {
+        if (!showCreateModal && !showCreateFolioSearch) return undefined;
+        const onKey = (event) => {
+            if (event.key !== "Escape") return;
+            if (showCreateFolioSearch) {
+                closeFolioSearch();
+                return;
+            }
+            closeCreateModal();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [showCreateModal, showCreateFolioSearch]);
 
     const filteredRequests = requests.filter((req) => {
         const matchesType = filterType === "ALL" || req.request_type === filterType;
@@ -532,6 +562,8 @@ export default function ContentBoardPage() {
     const previousTitle = BOARD_COLUMNS.find((c) => c.id === previousStatus)?.title || previousStatus;
     const selectedNotes = selectedRequest ? parseNotes(selectedRequest.notes) : null;
     const assignedCreator = contentCreators.find((u) => String(u.id) === String(createAssignedUser));
+    const selectedCreateClient = clients.find((c) => String(c.id) === String(createSelectedClient));
+    const createTypeLabel = CONTENT_TYPES.find((type) => type.id === createContentType)?.label || createContentType;
 
     return (
         <div className="content-board">
@@ -571,7 +603,7 @@ export default function ContentBoardPage() {
                             ))}
                         </select>
                     </div>
-                    <button type="button" onClick={() => setShowCreateModal(true)} className="cb-btn cb-btn--primary">
+                    <button type="button" onClick={openCreateModal} className="cb-btn cb-btn--primary">
                         <Plus size={16} />
                         New task
                     </button>
@@ -668,7 +700,6 @@ export default function ContentBoardPage() {
                                                             data-type={req.request_type || "TASK"}
                                                             onClick={() => { setSelectedRequest(req); setPreviewCarouselIdx(0); }}
                                                         >
-                                                            <span className="cb-card__stripe" />
                                                             <span className="cb-card__grip"><GripVertical size={14} /></span>
                                                             <h3 className="cb-card__client">{getClientName(req)}</h3>
                                                             <div className="cb-card__badges">
@@ -727,19 +758,17 @@ export default function ContentBoardPage() {
                     </div>
                     <DragOverlay dropAnimation={null}>
                         {activeDragId ? (
-                            <div className="cb-overlay-card">
-                                {(() => {
-                                    const reqId = parseInt(activeDragId.toString().replace("request-", ""), 10);
-                                    const req = requests.find((r) => r.id === reqId);
-                                    if (!req) return <p>...</p>;
-                                    return (
-                                        <>
-                                            <strong>{getClientName(req)}</strong>
-                                            <p>{parseNotes(req.notes).instructions || "No brief yet"}</p>
-                                        </>
-                                    );
-                                })()}
-                            </div>
+                            (() => {
+                                const reqId = parseInt(activeDragId.toString().replace("request-", ""), 10);
+                                const req = requests.find((r) => r.id === reqId);
+                                if (!req) return <div className="cb-overlay-card"><p>...</p></div>;
+                                return (
+                                    <div className="cb-overlay-card" data-type={req.request_type || "TASK"}>
+                                        <strong>{getClientName(req)}</strong>
+                                        <p>{parseNotes(req.notes).instructions || "No brief yet"}</p>
+                                    </div>
+                                );
+                            })()
                         ) : null}
                     </DragOverlay>
                 </DndContext>
@@ -747,7 +776,7 @@ export default function ContentBoardPage() {
 
             {selectedRequest && (
                 <div className="cb-overlay">
-                    <div className="cb-detail">
+                    <div className="cb-detail" data-type={selectedRequest.request_type || "TASK"}>
                         <div className="cb-detail__toolbar">
                             <div className="cb-mini-steps">
                                 {BOARD_COLUMNS.map((col, idx) => (
@@ -874,19 +903,19 @@ export default function ContentBoardPage() {
                                     </div>
 
                                     {selectedNotes?.instructions && (
-                                        <div className="cb-info-block">
+                                        <div className="cb-info-block cb-info-block--instructions">
                                             <h3><FileText size={12} /> Instructions</h3>
                                             <p>{selectedNotes.instructions}</p>
                                         </div>
                                     )}
                                     {selectedRequest.ai_caption && (
-                                        <div className="cb-info-block">
+                                        <div className="cb-info-block cb-info-block--caption">
                                             <h3><Sparkles size={12} /> Caption</h3>
                                             <p>{selectedRequest.ai_caption}</p>
                                         </div>
                                     )}
                                     {selectedRequest.content_text && (
-                                        <div className="cb-info-block">
+                                        <div className="cb-info-block cb-info-block--strategy">
                                             <h3><FileText size={12} /> Content strategy</h3>
                                             <p>{selectedRequest.content_text}</p>
                                         </div>
@@ -975,29 +1004,34 @@ export default function ContentBoardPage() {
             )}
 
             {showCreateModal && (
-                <div className="cb-overlay">
-                    <div className="cb-create">
+                <div className="cb-overlay" onClick={closeCreateModal}>
+                    <div
+                        className={`cb-create${createStep === "assign" ? " cb-create--assign" : " cb-create--what"}`}
+                        role="dialog"
+                        aria-labelledby="cb-create-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="cb-create__head">
-                            <div>
-                                <h2>New task</h2>
-                                <p>Create a piece of content and send it to the board.</p>
+                            <div className="cb-create__intro">
+                                <span className="cb-create__step">{createStep === "what" ? "1" : "2"}</span>
+                                <div>
+                                    <h2 id="cb-create-title">New task</h2>
+                                    <p>
+                                        {createStep === "what"
+                                            ? "Choose the format and describe the brief."
+                                            : "Client, creator, and dates."}
+                                    </p>
+                                </div>
                             </div>
-                            <button type="button" className="cb-icon-btn" onClick={() => setShowCreateModal(false)} aria-label="Close">
+                            <button type="button" className="cb-icon-btn" onClick={closeCreateModal} aria-label="Close">
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="cb-create__body">
-                            <section className="cb-section">
-                                <div className="cb-section__label">
-                                    <span className="cb-section__num">1</span>
-                                    <div>
-                                        <h3>What</h3>
-                                        <p>Choose the format and describe the brief.</p>
-                                    </div>
-                                </div>
+                        <div className="cb-create__scroll">
+                            <div className={createStep === "what" ? "cb-create-step" : "cb-create-step is-hidden"} aria-hidden={createStep !== "what"}>
                                 <div className="cb-field">
-                                    <label>Content type</label>
-                                    <div className="cb-types">
+                                    <label id="cb-type-label">Content type</label>
+                                    <div className="cb-types" role="radiogroup" aria-labelledby="cb-type-label">
                                         {CONTENT_TYPES.map((type) => {
                                             const Icon = type.icon;
                                             return (
@@ -1006,9 +1040,10 @@ export default function ContentBoardPage() {
                                                     type="button"
                                                     data-format={type.id}
                                                     className={`cb-type${createContentType === type.id ? " is-selected" : ""}`}
+                                                    aria-pressed={createContentType === type.id}
                                                     onClick={() => setCreateContentType(type.id)}
                                                 >
-                                                    <span className="cb-type__icon"><Icon size={18} /></span>
+                                                    <Icon size={15} />
                                                     <span>{type.label}</span>
                                                 </button>
                                             );
@@ -1022,6 +1057,7 @@ export default function ContentBoardPage() {
                                         value={createInstructions}
                                         onChange={(e) => setCreateInstructions(e.target.value)}
                                         placeholder="Describe the requirements for this content piece..."
+                                        autoFocus
                                     />
                                 </div>
                                 <button type="button" className="cb-link-asset" onClick={() => setShowCreateFolioSearch(true)}>
@@ -1033,107 +1069,104 @@ export default function ContentBoardPage() {
                                         <span>{createSearchedImage ? createSearchedImage.title : "Search from gallery"}</span>
                                     </span>
                                 </button>
-                            </section>
-
-                            <div className="cb-who-when">
-                                <section className="cb-section">
-                                    <div className="cb-section__label">
-                                        <span className="cb-section__num">2</span>
-                                        <div>
-                                            <h3>Who</h3>
-                                            <p>Client and the person who will create it.</p>
-                                        </div>
-                                    </div>
-                                    <div className="cb-field">
-                                        <label htmlFor="cb-client">Client</label>
-                                        <select
-                                            id="cb-client"
-                                            value={createSelectedClient}
-                                            onChange={(e) => setCreateSelectedClient(e.target.value)}
-                                        >
-                                            <option value="">Select client...</option>
-                                            {clients.map((client) => {
-                                                const name = client.first_name && client.last_name
-                                                    ? `${client.first_name} ${client.last_name}`
-                                                    : client.username;
-                                                return <option key={client.id} value={client.id}>{name}</option>;
-                                            })}
-                                        </select>
-                                    </div>
-                                    <div className="cb-field">
-                                        <label htmlFor="cb-assignee">Assign to</label>
-                                        <select
-                                            id="cb-assignee"
-                                            value={createAssignedUser}
-                                            onChange={(e) => setCreateAssignedUser(e.target.value)}
-                                        >
-                                            <option value="">Select team member...</option>
-                                            {contentCreators.map((user) => {
-                                                const name = user.first_name && user.last_name
-                                                    ? `${user.first_name} ${user.last_name}`
-                                                    : user.username;
-                                                return <option key={user.id} value={user.id}>{name} ({user.role})</option>;
-                                            })}
-                                        </select>
-                                        <div className="cb-assignee-preview">
-                                            {assignedCreator ? (
-                                                <>
-                                                    <span className="cb-avatar">{(assignedCreator.username || "?").charAt(0).toUpperCase()}</span>
-                                                    <div>
-                                                        <p>{getPersonName(assignedCreator)}</p>
-                                                        <small>{assignedCreator.role}</small>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <p>No one selected yet</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section className="cb-section">
-                                    <div className="cb-section__label">
-                                        <span className="cb-section__num">3</span>
-                                        <div>
-                                            <h3>When</h3>
-                                            <p>Internal due date and planned publish date.</p>
-                                        </div>
-                                    </div>
-                                    <div className="cb-dates">
-                                        <div className="cb-field">
-                                            <label htmlFor="cb-due">Due date</label>
-                                            <input
-                                                id="cb-due"
-                                                type="date"
-                                                value={createDueDate}
-                                                onChange={(e) => setCreateDueDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="cb-field">
-                                            <label htmlFor="cb-post">Post date</label>
-                                            <input
-                                                id="cb-post"
-                                                type="date"
-                                                value={createPostDate}
-                                                onChange={(e) => setCreatePostDate(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
                             </div>
 
-                            <button type="button" className="cb-btn cb-btn--primary" onClick={handleCreateRequest}>
-                                <Plus size={16} />
-                                Create task
-                            </button>
+                            <div className={createStep === "assign" ? "cb-create-step" : "cb-create-step is-hidden"} aria-hidden={createStep !== "assign"}>
+                                <div className="cb-create-banner">
+                                    <Sparkles size={16} />
+                                    <p>
+                                        {selectedCreateClient && assignedCreator
+                                            ? `${createTypeLabel} for ${getPersonName(selectedCreateClient)}, assigned to ${getPersonName(assignedCreator)}.`
+                                            : `A ${createTypeLabel.toLowerCase()} for the board. Pick a client and a creator.`}
+                                    </p>
+                                </div>
+                                <div className="cb-field">
+                                    <label id="cb-client-label">Client</label>
+                                    {clients.length === 0 ? (
+                                        <p className="cb-create-empty">No clients yet.</p>
+                                    ) : (
+                                        <div className="cb-choice-list" role="listbox" aria-labelledby="cb-client-label">
+                                            {clients.map((client) => (
+                                                <button
+                                                    key={client.id}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={String(createSelectedClient) === String(client.id)}
+                                                    className={`cb-choice${String(createSelectedClient) === String(client.id) ? " is-on" : ""}`}
+                                                    onClick={() => setCreateSelectedClient(String(client.id))}
+                                                >
+                                                    {getPersonName(client)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="cb-field">
+                                    <label id="cb-assignee-label">Assign to</label>
+                                    {contentCreators.length === 0 ? (
+                                        <p className="cb-create-empty">No creators yet.</p>
+                                    ) : (
+                                        <div className="cb-choice-list" role="listbox" aria-labelledby="cb-assignee-label">
+                                            {contentCreators.map((user) => (
+                                                <button
+                                                    key={user.id}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={String(createAssignedUser) === String(user.id)}
+                                                    className={`cb-choice${String(createAssignedUser) === String(user.id) ? " is-on" : ""}`}
+                                                    onClick={() => setCreateAssignedUser(String(user.id))}
+                                                >
+                                                    <span className="cb-avatar">{(user.username || "?").charAt(0).toUpperCase()}</span>
+                                                    {getPersonName(user)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="cb-dates">
+                                    <div className="cb-field">
+                                        <label htmlFor="cb-due">Due date</label>
+                                        <input
+                                            id="cb-due"
+                                            type="date"
+                                            value={createDueDate}
+                                            onChange={(e) => setCreateDueDate(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="cb-field">
+                                        <label htmlFor="cb-post">Post date</label>
+                                        <input
+                                            id="cb-post"
+                                            type="date"
+                                            value={createPostDate}
+                                            onChange={(e) => setCreatePostDate(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="cb-dialog__actions">
+                            {createStep === "what" ? (
+                                <>
+                                    <button type="button" className="cb-btn cb-btn--ghost" onClick={closeCreateModal}>Cancel</button>
+                                    <button type="button" className="cb-btn cb-btn--primary" onClick={() => setCreateStep("assign")}>Continue</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setCreateStep("what")}>Back</button>
+                                    <button type="button" className="cb-btn cb-btn--primary" onClick={handleCreateRequest}>
+                                        <Plus size={16} /> Create task
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
 
             {showCreateFolioSearch && (
-                <div className="cb-overlay cb-overlay--top">
-                    <div className="cb-folio">
+                <div className="cb-overlay cb-overlay--top" onClick={closeFolioSearch}>
+                    <div className="cb-folio" onClick={(e) => e.stopPropagation()}>
                         <div className="cb-folio__head">
                             <div>
                                 <h3>Link gallery image</h3>
@@ -1142,10 +1175,7 @@ export default function ContentBoardPage() {
                             <button
                                 type="button"
                                 className="cb-icon-btn"
-                                onClick={() => {
-                                    setShowCreateFolioSearch(false);
-                                    setCreateFolioSearchError(null);
-                                }}
+                                onClick={closeFolioSearch}
                                 aria-label="Close"
                             >
                                 <X size={16} />

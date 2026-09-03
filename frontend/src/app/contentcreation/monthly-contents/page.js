@@ -24,6 +24,10 @@ import {
     Video,
     CircleHelp,
     FileText,
+    Heart,
+    Bookmark,
+    Send,
+    MoreHorizontal,
 } from 'lucide-react';
 import { useTheme } from "../../../context/ThemeContext";
 import ContentMediaPreview, { isPdfMedia, isVideoMedia as isVideoMediaType } from "../../../components/ContentMediaPreview";
@@ -86,6 +90,13 @@ export default function MonthlyContentsPage() {
     const [filterType, setFilterType] = useState('ALL');
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [showLearn, setShowLearn] = useState(false);
+
+    // Quick sidebar filter tabs & live search
+    const [sidebarTab, setSidebarTab] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isBriefExpanded, setIsBriefExpanded] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [draftSaved, setDraftSaved] = useState(false);
 
     const toggleSection = (section) => {
         setExpandedSections(prev => ({
@@ -338,6 +349,22 @@ export default function MonthlyContentsPage() {
 
     const filteredItems = React.useMemo(() => {
         return items.filter(item => {
+            // Quick sidebar tabs
+            if (sidebarTab === "NEW" && item.status !== "TO_DO") return false;
+            if (sidebarTab === "IN_PROGRESS" && item.status !== "IN_PROGRESS") return false;
+            if (sidebarTab === "REVISION" && item.status !== "IN_REVISION") return false;
+            if (sidebarTab === "QA" && (item.status !== "IN_REVISION" || item.returnedByClient)) return false;
+            if (sidebarTab === "CLIENT" && (item.status !== "IN_REVISION" || !item.returnedByClient)) return false;
+
+            // Live search
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const nameMatch = item.name?.toLowerCase().includes(q);
+                const idMatch = String(item.id).includes(q);
+                const typeMatch = item.contentType?.toLowerCase().includes(q);
+                if (!nameMatch && !idMatch && !typeMatch) return false;
+            }
+
             if (filterClient !== 'ALL') {
                 const clientId = item.originalData?.client_details?.id;
                 if (String(clientId) !== String(filterClient)) return false;
@@ -365,7 +392,7 @@ export default function MonthlyContentsPage() {
             }
             return true;
         });
-    }, [items, filterClient, filterContentType, filterStatus, filterType]);
+    }, [items, sidebarTab, searchQuery, filterClient, filterContentType, filterStatus, filterType]);
 
     const activeItem = filteredItems[activeItemIndex] || {};
     const isAdhoc = activeItem.type === 'adhoc_request';
@@ -374,7 +401,7 @@ export default function MonthlyContentsPage() {
         setActiveItemIndex(0);
         setCurrentStepIndex(0);
         setActiveContentIndex(0);
-    }, [filterClient, filterContentType, filterStatus, filterType]);
+    }, [sidebarTab, searchQuery, filterClient, filterContentType, filterStatus, filterType]);
 
     const activeFilterCount = [filterClient, filterContentType, filterStatus, filterType].filter(f => f !== 'ALL').length;
 
@@ -476,6 +503,23 @@ export default function MonthlyContentsPage() {
             console.error("Error updating status:", error);
             alert(`Network error updating request #${id}: ${error.message}`);
             return false;
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        if (!activeItem?.id) return;
+        setIsSavingDraft(true);
+        try {
+            const ok = await updateRequestStatus(activeItem.id, activeItem.status, {
+                content_text: contentText,
+                ai_caption: aiCaption
+            });
+            if (ok) {
+                setDraftSaved(true);
+                setTimeout(() => setDraftSaved(false), 2500);
+            }
+        } finally {
+            setIsSavingDraft(false);
         }
     };
 
@@ -1714,22 +1758,94 @@ export default function MonthlyContentsPage() {
 
             <div className={`mc-workspace${isSidebarCollapsed ? " is-collapsed" : ""}`}>
                 <aside className={`mc-jobs${isSidebarCollapsed ? " is-collapsed" : ""}`} id="mc-jobs">
-                    <div className="mc-jobs__head">
-                        {!isSidebarCollapsed && (
-                            <h2 className="mc-jobs__title">
-                                Jobs
-                                <span className="mc-jobs__badge">{filteredItems.length}</span>
-                            </h2>
+                    <div
+                        className={`mc-jobs__head${isSidebarCollapsed ? " is-collapsed" : ""}`}
+                        onClick={isSidebarCollapsed ? () => setIsSidebarCollapsed(false) : undefined}
+                        title={isSidebarCollapsed ? "Expand Jobs panel" : undefined}
+                    >
+                        {isSidebarCollapsed ? (
+                            <div className="mc-jobs__head-collapsed">
+                                <button
+                                    type="button"
+                                    className="mc-jobs__expand-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsSidebarCollapsed(false);
+                                    }}
+                                    aria-label="Expand job list"
+                                    title="Expand jobs panel"
+                                >
+                                    <ChevronRight size={15} className="mc-expand-icon-desktop" />
+                                    <ChevronDown size={15} className="mc-expand-icon-mobile" />
+                                    <span className="mc-expand-btn-label">Show tasks</span>
+                                </button>
+                                <div className="mc-jobs__collapsed-info">
+                                    <div className="mc-jobs__collapsed-icon">
+                                        <Layers size={14} />
+                                    </div>
+                                    <div className="mc-jobs__collapsed-text">
+                                        <strong>Jobs</strong>
+                                        <span className="mc-jobs__badge">{filteredItems.length}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="mc-jobs__title">
+                                    Jobs
+                                    <span className="mc-jobs__badge">{filteredItems.length}</span>
+                                </h2>
+                                <button
+                                    type="button"
+                                    className="mc-icon-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsSidebarCollapsed(true);
+                                    }}
+                                    aria-label="Collapse job list"
+                                    title="Hide tasks"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                            </>
                         )}
-                        <button
-                            type="button"
-                            className="mc-icon-btn"
-                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                            aria-label={isSidebarCollapsed ? "Expand job list" : "Collapse job list"}
-                        >
-                            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                        </button>
                     </div>
+                    {!isSidebarCollapsed && (
+                        <div className="mc-sidebar-controls">
+                            <div className="mc-sidebar-tabs" role="tablist">
+                                {[
+                                    { id: "ALL", label: "All", count: items.length },
+                                    { id: "NEW", label: "Ready", count: items.filter(i => i.status !== "IN_REVISION").length },
+                                    { id: "QA", label: "QA", count: items.filter(i => i.status === "IN_REVISION" && !i.returnedByClient).length },
+                                    { id: "CLIENT", label: "Client", count: items.filter(i => i.status === "IN_REVISION" && i.returnedByClient).length },
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        className={`mc-sidebar-tab${sidebarTab === tab.id ? " is-active" : ""}`}
+                                        onClick={() => setSidebarTab(tab.id)}
+                                    >
+                                        <span>{tab.label}</span>
+                                        <span className="mc-sidebar-tab__count">{tab.count}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="mc-sidebar-search">
+                                <Search size={14} />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search client or task..."
+                                />
+                                {searchQuery && (
+                                    <button type="button" onClick={() => setSearchQuery("")} className="mc-clear-search" aria-label="Clear search">
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <div className="mc-jobs__list">
                         {renderJobGroup("Ready to create", "newRequests", newRequests, "new")}
                         {renderJobGroup("Returned by QA", "returnedQA", returnedQA, "qa")}
@@ -1745,527 +1861,713 @@ export default function MonthlyContentsPage() {
                     </div>
                 ) : (
                     <div className="mc-stage">
-                        <div className="mc-media-col" id="mc-media">
-                            {isAdhoc ? (
-                                <div className="mc-adhoc-banner">
-                                    <span className="mc-adhoc-banner__icon"><Sparkles size={18} /></span>
-                                    <div>
-                                        <h3>One-off request</h3>
-                                        <p>{activeItem.contentType || "Request"} for {activeItem.name || "this client"}</p>
+                        {/* Studio Toolbar */}
+                        <div className="mc-studio-toolbar">
+                            <div className="mc-studio-toolbar__left">
+                                {isAdhoc ? (
+                                    <div className="mc-adhoc-badge">
+                                        <Sparkles size={14} />
+                                        <span>One-off: {activeItem.contentType || "General"}</span>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="mc-formats" aria-label="Content formats">
-                                    {steps.map((step, index) => {
-                                        const Icon = FORMAT_ICONS[step.id] || ImageIcon;
-                                        const isActive = index === currentStepIndex;
-                                        const isDone = index < currentStepIndex;
-                                        return (
-                                            <button
-                                                key={step.id}
-                                                type="button"
-                                                data-format={step.id}
-                                                className={`mc-format${isActive ? " is-active" : ""}${isDone ? " is-done" : ""}`}
-                                                onClick={() => {
-                                                    setCurrentStepIndex(index);
-                                                    setActiveContentIndex(0);
-                                                }}
-                                            >
-                                                <div className="mc-format__top">
-                                                    <span className="mc-format__icon"><Icon size={14} /></span>
+                                ) : (
+                                    <div className="mc-formats" aria-label="Content formats">
+                                        {steps.map((step, index) => {
+                                            const Icon = FORMAT_ICONS[step.id] || ImageIcon;
+                                            const isActive = index === currentStepIndex;
+                                            const isDone = index < currentStepIndex;
+                                            return (
+                                                <button
+                                                    key={step.id}
+                                                    type="button"
+                                                    data-format={step.id}
+                                                    className={`mc-format${isActive ? " is-active" : ""}${isDone ? " is-done" : ""}`}
+                                                    onClick={() => {
+                                                        setCurrentStepIndex(index);
+                                                        setActiveContentIndex(0);
+                                                    }}
+                                                >
+                                                    <Icon size={14} />
                                                     <span className="mc-format__name">{step.label}</span>
-                                                </div>
-                                                <span className="mc-format__left">
-                                                    {isDone ? "Done" : `${step.count} left`}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            <div className="mc-pager">
-                                <button
-                                    type="button"
-                                    className="mc-btn mc-btn--ghost"
-                                    disabled={activeItemIndex === 0}
-                                    onClick={() => {
-                                        setActiveItemIndex(Math.max(0, activeItemIndex - 1));
-                                        setActiveContentIndex(0);
-                                    }}
-                                >
-                                    <ChevronLeft size={14} />
-                                    Previous
-                                </button>
-                                <div className="mc-pager__label">
-                                    <strong>{activeItem.name || "Job"}</strong>
-                                    <span>{activeItemIndex + 1} of {filteredItems.length}</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="mc-btn mc-btn--ghost"
-                                    disabled={activeItemIndex >= filteredItems.length - 1}
-                                    onClick={() => {
-                                        setActiveItemIndex(Math.min(filteredItems.length - 1, activeItemIndex + 1));
-                                        setActiveContentIndex(0);
-                                    }}
-                                >
-                                    Next
-                                    <ChevronRight size={14} />
-                                </button>
+                                                    <span className="mc-format__badge">
+                                                        {isDone ? <Check size={10} strokeWidth={3} /> : `${step.count}`}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
-                            <div
-                                className={`mc-visual${isDragOver ? " is-drop" : ""}`}
-                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
-                                onDrop={handleDrop}
-                            >
-                                {isDragOver && (
-                                    <div className="mc-drop">
-                                        <Upload size={28} />
-                                        <p>Drop to upload</p>
-                                        <small>{isCarousel ? "Multiple files allowed" : "One file only"}</small>
-                                    </div>
-                                )}
-
-                                {currentSrc ? (
-                                    currentIsPdf ? (
-                                        <ContentMediaPreview src={currentSrc} item={currentCi} alt={currentCi.file_name || "PDF"} />
-                                    ) : currentIsVideo ? (
-                                        <video
-                                            key={currentSrc}
-                                            src={currentSrc}
-                                            controls
-                                            playsInline
-                                            preload="metadata"
-                                        />
-                                    ) : (
-                                        <img
-                                            src={currentSrc}
-                                            alt={currentCi.gallery_image_details?.title || currentCi.file_name || "Media"}
-                                            style={{ transform: `rotate(${currentCi.rotation || 0}deg)` }}
-                                        />
-                                    )
-                                ) : (
-                                    <div className="mc-empty-media">
-                                        <div className="mc-empty-media__icon">
-                                            {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF" ? <FileText size={22} /> : <ImageIcon size={22} />}
-                                        </div>
-                                        <h4>No media yet</h4>
-                                        <p>
-                                            {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF"
-                                                ? "Drop a PDF here or upload one below."
-                                                : "Select from the gallery, search by folio, or drop a file here."}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {isCarousel && stepItems.length > 1 && (
-                                    <>
-                                        {safeIndex > 0 && (
-                                            <button
-                                                type="button"
-                                                className="mc-media-nav is-prev"
-                                                onClick={() => setActiveContentIndex(safeIndex - 1)}
-                                            >
-                                                <ChevronLeft size={18} />
-                                            </button>
-                                        )}
-                                        {safeIndex < stepItems.length - 1 && (
-                                            <button
-                                                type="button"
-                                                className="mc-media-nav is-next"
-                                                onClick={() => setActiveContentIndex(safeIndex + 1)}
-                                            >
-                                                <ChevronRight size={18} />
-                                            </button>
-                                        )}
-                                        <div className="mc-media-count">{safeIndex + 1}/{stepItems.length}</div>
-                                    </>
-                                )}
-
-                                <div className="mc-media-tools">
-                                    {stepItems.length > 0 && (
-                                        <button type="button" className="mc-tool is-icon is-danger" title="Delete this media" onClick={handleDeleteMediaItem}>
-                                            <Trash2 size={13} />
-                                        </button>
-                                    )}
+                            <div className="mc-studio-toolbar__center">
+                                <div className="mc-pager">
                                     <button
                                         type="button"
-                                        className="mc-tool"
+                                        className="mc-btn mc-btn--ghost mc-pager__btn"
+                                        disabled={activeItemIndex === 0}
                                         onClick={() => {
-                                            setSelectionAction(stepItems.length > 0 ? "change" : "add");
-                                            setIsImageSelectionOpen(true);
-                                            fetchClientFolders();
+                                            setActiveItemIndex(Math.max(0, activeItemIndex - 1));
+                                            setActiveContentIndex(0);
                                         }}
+                                        title="Previous job"
                                     >
-                                        <RefreshCw size={12} />
-                                        {stepItems.length > 0 ? "Change" : "Select"}
+                                        <ChevronLeft size={14} />
                                     </button>
-                                    {isCarousel && stepItems.length > 0 && (
-                                        <button
-                                            type="button"
-                                            className="mc-tool is-add"
-                                            onClick={() => {
-                                                setSelectionAction("add");
-                                                setIsImageSelectionOpen(true);
-                                                fetchClientFolders();
-                                            }}
-                                        >
-                                            <Upload size={12} />
-                                            Add slide
-                                        </button>
-                                    )}
-                                    {currentSrc && (
-                                        <button
-                                            type="button"
-                                            className="mc-tool is-icon"
-                                            title="Expand preview"
-                                            onClick={() => {
-                                                setExpandedIndex(safeIndex);
-                                                setIsMediaExpanded(true);
-                                            }}
-                                        >
-                                            <Maximize2 size={13} />
-                                        </button>
-                                    )}
+                                    <div className="mc-pager__label">
+                                        <strong>{activeItem.name || "Job"}</strong>
+                                        <span>{activeItemIndex + 1} of {filteredItems.length}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="mc-btn mc-btn--ghost mc-pager__btn"
+                                        disabled={activeItemIndex >= filteredItems.length - 1}
+                                        onClick={() => {
+                                            setActiveItemIndex(Math.min(filteredItems.length - 1, activeItemIndex + 1));
+                                            setActiveContentIndex(0);
+                                        }}
+                                        title="Next job"
+                                    >
+                                        <ChevronRight size={14} />
+                                    </button>
                                 </div>
+                            </div>
 
-                                {isCarousel && stepItems.length > 1 && (
-                                    <div className="mc-reorder">
-                                        <div className="mc-reorder__head">
-                                            <span>Drag to reorder</span>
-                                            {isSavingOrder && <span>Saving...</span>}
-                                        </div>
-                                        <div className="mc-reorder__row">
-                                            {stepItems.map((ci, idx) => {
-                                                const thumb =
-                                                    ci.gallery_image_details?.image_compressed ||
-                                                    ci.gallery_image_details?.image_url ||
-                                                    ci.gallery_image_details?.image ||
-                                                    normalizeUrl(ci.file_url) ||
-                                                    null;
-                                                const thumbVideo = ci.media_type === "VIDEO" || (ci.file_url && [".mp4", ".mov", ".webm"].some((ext) => ci.file_url.toLowerCase().endsWith(ext)));
-                                                return (
-                                                    <div
-                                                        key={ci.id || idx}
-                                                        draggable
-                                                        className={`mc-thumb${idx === activeContentIndex ? " is-active" : ""}${reorderDragIndex === idx ? " is-dragging" : ""}${reorderOverIndex === idx && reorderDragIndex !== idx ? " is-over" : ""}`}
-                                                        onDragStart={() => setReorderDragIndex(idx)}
-                                                        onDragEnter={() => setReorderOverIndex(idx)}
-                                                        onDragOver={(e) => e.preventDefault()}
-                                                        onDragEnd={() => {
-                                                            if (reorderDragIndex !== null && reorderOverIndex !== null && reorderDragIndex !== reorderOverIndex) {
-                                                                const reordered = [...stepItems];
-                                                                const [moved] = reordered.splice(reorderDragIndex, 1);
-                                                                reordered.splice(reorderOverIndex, 0, moved);
-                                                                setActiveContentIndex(reorderOverIndex);
-                                                                handleReorderCarousel(reordered);
-                                                            }
-                                                            setReorderDragIndex(null);
-                                                            setReorderOverIndex(null);
-                                                        }}
-                                                        onClick={() => setActiveContentIndex(idx)}
-                                                    >
-                                                        {thumb ? (
-                                                            thumbVideo ? (
-                                                                <div className="mc-thumb__play">▶</div>
-                                                            ) : (
-                                                                <img src={thumb} alt={`Slide ${idx + 1}`} style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
-                                                            )
-                                                        ) : (
-                                                            <div className="mc-thumb__play"><ImageIcon size={14} /></div>
-                                                        )}
-                                                        <span className="mc-thumb__n">{idx + 1}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {isImageSelectionOpen && (
-                                    <div className="mc-picker">
-                                        <div className="mc-picker__head">
-                                            <div>
-                                                <h3>{stepItems.length > 0 && selectionAction === "change" ? "Change media" : "Attach media"}</h3>
-                                                <p>Search by folio, browse the client gallery, or upload a new file.</p>
-                                            </div>
-                                            <button type="button" className="mc-icon-btn" onClick={() => setIsImageSelectionOpen(false)} aria-label="Close">
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                        <div className="mc-picker__tabs">
-                                            <button
-                                                type="button"
-                                                className={`mc-picker__tab${imageSearchMode === "search" ? " is-on" : ""}`}
-                                                onClick={() => setImageSearchMode("search")}
-                                            >
-                                                <Search size={14} /> By folio
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`mc-picker__tab${imageSearchMode === "gallery" ? " is-on" : ""}`}
-                                                onClick={() => {
-                                                    setImageSearchMode("gallery");
-                                                    if (clientFolders.length === 0) fetchClientFolders();
-                                                }}
-                                            >
-                                                <Folder size={14} /> Gallery
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`mc-picker__tab${imageSearchMode === "upload" ? " is-on" : ""}`}
-                                                onClick={() => setImageSearchMode("upload")}
-                                            >
-                                                <Upload size={14} /> Upload
-                                            </button>
-                                        </div>
-                                        <div className="mc-picker__body">
-                                            {imageSearchMode === "search" && (
-                                                <>
-                                                    <div className="mc-search">
-                                                        <div className="mc-search__field">
-                                                            <Search size={16} />
-                                                            <input
-                                                                autoFocus
-                                                                type="text"
-                                                                placeholder="Enter folio (e.g. C5F12-001)"
-                                                                value={imageSearchQuery}
-                                                                onChange={(e) => setImageSearchQuery(e.target.value)}
-                                                                onKeyDown={(e) => e.key === "Enter" && handleSearchImage()}
-                                                            />
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            className="mc-btn mc-btn--primary"
-                                                            onClick={handleSearchImage}
-                                                            disabled={isLoadingImages || !imageSearchQuery.trim()}
-                                                        >
-                                                            {isLoadingImages ? "Searching..." : "Search"}
-                                                        </button>
-                                                    </div>
-                                                    {searchError && <div className="mc-error">{searchError}</div>}
-                                                    {foundImage && (
-                                                        <div className="mc-found">
-                                                            <img src={foundImage.image_url} alt={foundImage.title} />
-                                                            <div>
-                                                                <code>{foundImage.folio}</code>
-                                                                <h4>{foundImage.title}</h4>
-                                                                <button type="button" className="mc-btn mc-btn--primary" onClick={() => handleSelectImage(foundImage)}>
-                                                                    <Check size={14} /> Use this image
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-
-                                            {imageSearchMode === "gallery" && (
-                                                selectedFolderId ? (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            className="mc-btn mc-btn--ghost"
-                                                            onClick={() => {
-                                                                setSelectedFolderId(null);
-                                                                setFolderImages([]);
-                                                            }}
-                                                        >
-                                                            <ChevronLeft size={14} /> Back to folders
-                                                        </button>
-                                                        {isLoadingImages ? (
-                                                            <div className="mc-muted">Loading images...</div>
-                                                        ) : folderImages.length === 0 ? (
-                                                            <div className="mc-muted">No images in this folder</div>
-                                                        ) : (
-                                                            <div className="mc-gallery-grid">
-                                                                {folderImages.map((img) => (
-                                                                    <button
-                                                                        key={img.id}
-                                                                        type="button"
-                                                                        className="mc-gallery-item"
-                                                                        onClick={() => handleSelectImage(img)}
-                                                                    >
-                                                                        <img src={img.image_url} alt={img.title} />
-                                                                        <span className="mc-gallery-item__cap">{img.title}</span>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    isLoadingImages && clientFolders.length === 0 ? (
-                                                        <div className="mc-muted">Loading folders...</div>
-                                                    ) : clientFolders.length === 0 ? (
-                                                        <div className="mc-muted">No folders found for this client</div>
-                                                    ) : (
-                                                        clientFolders.map((folder) => (
-                                                            <button
-                                                                key={folder.id}
-                                                                type="button"
-                                                                className="mc-folder"
-                                                                onClick={() => fetchFolderImages(folder.id)}
-                                                            >
-                                                                <span className="mc-folder__icon"><Folder size={18} /></span>
-                                                                <span className="mc-folder__body">
-                                                                    <strong>{folder.folder_name}</strong>
-                                                                    <span>Open folder</span>
-                                                                </span>
-                                                                <ChevronRight size={16} />
-                                                            </button>
-                                                        ))
-                                                    )
-                                                )
-                                            )}
-
-                                            {imageSearchMode === "upload" && (
-                                                <div className="mc-upload">
-                                                    <input
-                                                        id="uploadImageInput"
-                                                        type="file"
-                                                        multiple
-                                                        accept={isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF"
-                                                            ? "application/pdf,.pdf"
-                                                            : "image/*,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,application/pdf,.pdf"}
-                                                        onChange={handleUploadFileSelect}
-                                                    />
-                                                    <label htmlFor="uploadImageInput">
-                                                        <Upload size={28} />
-                                                        <strong>
-                                                            {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF"
-                                                                ? "Click to select a PDF"
-                                                                : "Click to select images, videos, or a PDF"}
-                                                        </strong>
-                                                        <span>
-                                                            {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF"
-                                                                ? "PDF up to 100 MB — published to LinkedIn as a document"
-                                                                : "JPG, PNG, GIF, MP4, MOV, AVI, PDF"}
-                                                        </span>
-                                                    </label>
-                                                    {uploadSelectedFiles.length > 0 && (
-                                                        <div className="mc-file-list">
-                                                            <p>Selected: {uploadSelectedFiles.length} file(s)</p>
-                                                            {uploadSelectedFiles.map((file, idx) => (
-                                                                <div key={idx} className="mc-file">
-                                                                    <span>{file.name}</span>
-                                                                    <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                                                                </div>
-                                                            ))}
-                                                            <button
-                                                                type="button"
-                                                                className="mc-btn mc-btn--primary"
-                                                                onClick={handleUploadNewImage}
-                                                                disabled={isUploading}
-                                                            >
-                                                                {isUploading ? <><Loader2 size={16} className="mc-spin" /> Uploading...</> : "Upload and attach"}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                            <div className="mc-studio-toolbar__right">
+                                <button
+                                    type="button"
+                                    className="mc-btn mc-btn--ghost"
+                                    onClick={handleSaveDraft}
+                                    disabled={isSavingDraft}
+                                    title="Save draft"
+                                >
+                                    {isSavingDraft ? <Loader2 size={13} className="mc-spin" /> : draftSaved ? <Check size={13} /> : null}
+                                    <span>{draftSaved ? "Saved!" : "Save draft"}</span>
+                                </button>
+                                <button
+                                    id="mc-send"
+                                    type="button"
+                                    className={`mc-btn mc-btn--primary${canSend ? " is-ready" : ""}`}
+                                    onClick={handleNext}
+                                    disabled={isFinalSend && !canSend}
+                                >
+                                    <Check size={15} />
+                                    <span>{sendLabel}</span>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="mc-copy-col" id="mc-copy">
-                            <div className="mc-section-label">
-                                <span className="mc-section-label__num">3</span>
-                                <div>
-                                    <span className={`mc-tag${activeItem.status === "IN_REVISION" ? " is-revision" : ""}`}>
-                                        {activeItem.returnedByClient
-                                            ? "Client revision"
-                                            : activeItem.status === "IN_REVISION"
-                                                ? "QA revision"
-                                                : isAdhoc
-                                                    ? "One-off request"
-                                                    : `Editing ${singular.toLowerCase()}`}
-                                    </span>
-                                    <h3>Copy</h3>
-                                    <p>Use the brief, then write the caption that goes with this piece.</p>
-                                </div>
-                            </div>
-
-                            {isAdhoc && (
-                                <div className="mc-meta-row">
-                                    <div className="mc-meta">
-                                        <label>Type</label>
-                                        <p>{activeItem.contentType || "General"}</p>
+                        {/* Revision Feedback Banner */}
+                        {activeItem.clientFeedback && (
+                            <div className="mc-feedback-banner mc-feedback-banner--client">
+                                <MessageSquare size={16} className="mc-feedback-icon" />
+                                <div className="mc-feedback-text">
+                                    <div className="mc-feedback-head">
+                                        <strong>Client Revision Feedback</strong>
+                                        <span className="mc-feedback-badge">Action Required</span>
                                     </div>
-                                    <div className="mc-meta">
-                                        <label>Status</label>
-                                        <p>{activeItem.status === "IN_REVISION" ? "Needs changes" : "In production"}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="mc-brief">
-                                <label>Brief</label>
-                                <p>{activeItem.instructions || "No specific instructions provided."}</p>
-                            </div>
-
-                            {activeItem.clientFeedback && (
-                                <div className="mc-banner mc-banner--client">
-                                    <label><MessageSquare size={12} /> {activeItem.name} · Client feedback</label>
                                     <p>{activeItem.clientFeedback}</p>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {activeItem.feedback && !activeItem.clientFeedback && (
-                                <div className="mc-banner mc-banner--qa">
-                                    <label>QA feedback</label>
+                        {activeItem.feedback && !activeItem.clientFeedback && (
+                            <div className="mc-feedback-banner mc-feedback-banner--qa">
+                                <AlertTriangle size={16} className="mc-feedback-icon" />
+                                <div className="mc-feedback-text">
+                                    <div className="mc-feedback-head">
+                                        <strong>QA Review Notes</strong>
+                                        <span className="mc-feedback-badge">Correction</span>
+                                    </div>
                                     <p>{activeItem.feedback}</p>
                                 </div>
-                            )}
-
-                            <div className="mc-field">
-                                <div className="mc-field__head">
-                                    <label htmlFor="mc-caption">Caption</label>
-                                </div>
-                                <textarea
-                                    id="mc-caption"
-                                    value={contentText}
-                                    onChange={(e) => setContentText(e.target.value)}
-                                    placeholder="Write the caption for this piece..."
-                                />
                             </div>
+                        )}
 
-                            <div className="mc-field">
-                                <div className="mc-field__head">
-                                    <label htmlFor="mc-ai-caption">AI caption</label>
-                                    <button
-                                        type="button"
-                                        className="mc-gen"
-                                        onClick={handleGenerateCaption}
-                                        disabled={isGeneratingCaption}
+                        {/* Studio Main Body: Brief Panel + Social Mockup */}
+                        <div className="mc-studio-layout">
+                            {/* Brief Card */}
+                            <aside className="mc-brief-panel">
+                                <div className="mc-brief-card">
+                                    <div className="mc-brief-card__head" onClick={() => setIsBriefExpanded(!isBriefExpanded)}>
+                                        <div className="mc-brief-card__title">
+                                            <FileText size={15} />
+                                            <h4>Creative Brief</h4>
+                                        </div>
+                                        <button type="button" className="mc-brief-card__toggle" aria-label="Toggle brief">
+                                            <ChevronDown size={14} className={isBriefExpanded ? "" : "is-closed"} />
+                                        </button>
+                                    </div>
+                                    {isBriefExpanded && (
+                                        <div className="mc-brief-card__body">
+                                            <div className="mc-brief-section">
+                                                <label>Instructions & Notes</label>
+                                                <p>{activeItem.instructions || "No custom instructions provided."}</p>
+                                            </div>
+                                            {activeItem.originalData?.month && (
+                                                <div className="mc-brief-meta-row">
+                                                    <span className="mc-brief-meta-label">Plan Month</span>
+                                                    <span className="mc-brief-meta-val">{activeItem.originalData.month}</span>
+                                                </div>
+                                            )}
+                                            {isAdhoc && activeItem.contentType && (
+                                                <div className="mc-brief-meta-row">
+                                                    <span className="mc-brief-meta-label">Format</span>
+                                                    <span className="mc-brief-meta-val">{activeItem.contentType}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </aside>
+
+                            {/* Center Social Media Post Mockup */}
+                            <div className="mc-mockup-wrapper">
+                                <div className="mc-post-mockup">
+                                    {/* 1. Instagram / LinkedIn Post Header */}
+                                    <div className="mc-post-header">
+                                        <div className="mc-post-author">
+                                            <div className="mc-post-avatar-ring">
+                                                <div className="mc-post-avatar">
+                                                    {(activeItem.name || "C").charAt(0).toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div className="mc-post-author-info">
+                                                <div className="mc-post-author-row">
+                                                    <span className="mc-post-author-name">
+                                                        {activeItem.name?.toLowerCase().replace(/\s+/g, '') || "client"}
+                                                    </span>
+                                                    <span className="mc-post-verified-badge" title="Verified client">✓</span>
+                                                </div>
+                                                <span className="mc-post-author-handle">
+                                                    {isAdhoc ? (activeItem.contentType || "Post") : steps[currentStepIndex]?.label} • Original audio
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="mc-post-header-tools">
+                                            {isCarousel && stepItems.length > 1 && (
+                                                <span className="mc-post-pill">
+                                                    {safeIndex + 1}/{stepItems.length}
+                                                </span>
+                                            )}
+                                            {currentSrc && (
+                                                <button
+                                                    type="button"
+                                                    className="mc-icon-btn mc-icon-btn--sm"
+                                                    title="Expand fullscreen"
+                                                    onClick={() => {
+                                                        setExpandedIndex(safeIndex);
+                                                        setIsMediaExpanded(true);
+                                                    }}
+                                                >
+                                                    <Maximize2 size={13} />
+                                                </button>
+                                            )}
+                                            <button type="button" className="mc-icon-btn mc-icon-btn--sm" title="More options">
+                                                <MoreHorizontal size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Mockup Media Frame */}
+                                    <div
+                                        className={`mc-visual mc-post-media${isDragOver ? " is-drop" : ""}`}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                                        onDrop={handleDrop}
                                     >
-                                        {isGeneratingCaption ? <Loader2 size={12} className="mc-spin" /> : <Sparkles size={12} />}
-                                        {isGeneratingCaption ? "Generating..." : "Generate"}
-                                    </button>
-                                </div>
-                                <textarea
-                                    id="mc-ai-caption"
-                                    className="is-short"
-                                    value={aiCaption}
-                                    onChange={(e) => setAiCaption(e.target.value)}
-                                    placeholder="Optional generated caption..."
-                                />
-                            </div>
+                                        {isDragOver && (
+                                            <div className="mc-drop">
+                                                <Upload size={28} />
+                                                <p>Drop to upload</p>
+                                                <small>{isCarousel ? "Multiple files allowed" : "One file only"}</small>
+                                            </div>
+                                        )}
 
-                            <button
-                                id="mc-send"
-                                type="button"
-                                className={`mc-btn mc-btn--primary mc-send${canSend ? " is-ready" : ""}`}
-                                onClick={handleNext}
-                                disabled={isFinalSend && !canSend}
-                            >
-                                <Check size={16} />
-                                {sendLabel}
-                            </button>
+                                        {currentSrc ? (
+                                            currentIsPdf ? (
+                                                <ContentMediaPreview src={currentSrc} item={currentCi} alt={currentCi.file_name || "PDF"} />
+                                            ) : currentIsVideo ? (
+                                                <video
+                                                    key={currentSrc}
+                                                    src={currentSrc}
+                                                    controls
+                                                    playsInline
+                                                    preload="metadata"
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={currentSrc}
+                                                    alt={currentCi.gallery_image_details?.title || currentCi.file_name || "Media"}
+                                                    style={{ transform: `rotate(${currentCi.rotation || 0}deg)` }}
+                                                />
+                                            )
+                                        ) : (
+                                            <div className="mc-empty-media">
+                                                <div className="mc-empty-media__icon">
+                                                    {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF" ? <FileText size={22} /> : <ImageIcon size={22} />}
+                                                </div>
+                                                <h4>No media attached yet</h4>
+                                                <p>
+                                                    {isAdhoc && activeItem?.contentType?.toUpperCase() === "PDF"
+                                                        ? "Drop a PDF here or click Select to browse."
+                                                        : "Browse gallery, search by folio, or drop files here."}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {isCarousel && stepItems.length > 1 && (
+                                            <>
+                                                {safeIndex > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="mc-media-nav is-prev"
+                                                        onClick={() => setActiveContentIndex(safeIndex - 1)}
+                                                        title="Previous slide"
+                                                    >
+                                                        <ChevronLeft size={18} />
+                                                    </button>
+                                                )}
+                                                {safeIndex < stepItems.length - 1 && (
+                                                    <button
+                                                        type="button"
+                                                        className="mc-media-nav is-next"
+                                                        onClick={() => setActiveContentIndex(safeIndex + 1)}
+                                                        title="Next slide"
+                                                    >
+                                                        <ChevronRight size={18} />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+
+                                        <div className="mc-media-tools">
+                                            {stepItems.length > 0 && (
+                                                <button type="button" className="mc-tool is-icon is-danger" title="Delete this media" onClick={handleDeleteMediaItem}>
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="mc-tool"
+                                                onClick={() => {
+                                                    setSelectionAction(stepItems.length > 0 ? "change" : "add");
+                                                    setIsImageSelectionOpen(true);
+                                                    fetchClientFolders();
+                                                }}
+                                            >
+                                                <RefreshCw size={12} />
+                                                {stepItems.length > 0 ? "Change" : "Select"}
+                                            </button>
+                                            {isCarousel && stepItems.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    className="mc-tool is-add"
+                                                    onClick={() => {
+                                                        setSelectionAction("add");
+                                                        setIsImageSelectionOpen(true);
+                                                        fetchClientFolders();
+                                                    }}
+                                                >
+                                                    <Upload size={12} />
+                                                    Add slide
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Picker Overlay */}
+                                        {isImageSelectionOpen && (
+                                            <div className="mc-picker">
+                                                <div className="mc-picker__head">
+                                                    <div>
+                                                        <h3>{stepItems.length > 0 && selectionAction === "change" ? "Change media" : "Attach media"}</h3>
+                                                        <p>Browse gallery folders, search by folio, or upload new files.</p>
+                                                    </div>
+                                                    <button type="button" className="mc-icon-btn" onClick={() => setIsImageSelectionOpen(false)} aria-label="Close">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                                <div className="mc-picker__tabs">
+                                                    <button
+                                                        type="button"
+                                                        className={`mc-picker__tab${imageSearchMode === "search" ? " is-on" : ""}`}
+                                                        onClick={() => setImageSearchMode("search")}
+                                                    >
+                                                        <Search size={14} /> By Folio
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`mc-picker__tab${imageSearchMode === "gallery" ? " is-on" : ""}`}
+                                                        onClick={() => {
+                                                            setImageSearchMode("gallery");
+                                                            if (clientFolders.length === 0) fetchClientFolders();
+                                                        }}
+                                                    >
+                                                        <Folder size={14} /> Client Gallery
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`mc-picker__tab${imageSearchMode === "upload" ? " is-on" : ""}`}
+                                                        onClick={() => setImageSearchMode("upload")}
+                                                    >
+                                                        <Upload size={14} /> Upload File
+                                                    </button>
+                                                </div>
+                                                <div className="mc-picker__body">
+                                                    {imageSearchMode === "search" && (
+                                                        <>
+                                                            <div className="mc-search">
+                                                                <div className="mc-search__field">
+                                                                    <Search size={16} />
+                                                                    <input
+                                                                        autoFocus
+                                                                        type="text"
+                                                                        placeholder="Enter folio (e.g. C5F12-001)"
+                                                                        value={imageSearchQuery}
+                                                                        onChange={(e) => setImageSearchQuery(e.target.value)}
+                                                                        onKeyDown={(e) => e.key === "Enter" && handleSearchImage()}
+                                                                    />
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="mc-btn mc-btn--primary"
+                                                                    onClick={handleSearchImage}
+                                                                    disabled={isLoadingImages || !imageSearchQuery.trim()}
+                                                                >
+                                                                    {isLoadingImages ? "Searching..." : "Search"}
+                                                                </button>
+                                                            </div>
+                                                            {searchError && <div className="mc-error">{searchError}</div>}
+                                                            {foundImage && (
+                                                                <div className="mc-found">
+                                                                    <img src={foundImage.image_url} alt={foundImage.title} />
+                                                                    <div className="mc-found__body">
+                                                                        <code>{foundImage.folio}</code>
+                                                                        <h4>{foundImage.title}</h4>
+                                                                        {foundImage.uploaded_at && (
+                                                                            <p>Uploaded {new Date(foundImage.uploaded_at).toLocaleDateString()}</p>
+                                                                        )}
+                                                                        <div className="mc-found__actions">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="mc-btn mc-btn--primary"
+                                                                                onClick={() => handleSelectImage(foundImage)}
+                                                                            >
+                                                                                <Check size={14} /> Attach this asset
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+
+                                                    {imageSearchMode === "gallery" && (
+                                                        <div className="mc-gallery-flow">
+                                                            {isLoadingImages ? (
+                                                                <div className="mc-gallery-loading">
+                                                                    <Loader2 size={24} className="mc-spin" />
+                                                                    <p>Loading gallery folders...</p>
+                                                                </div>
+                                                            ) : selectedFolderId ? (
+                                                                <div className="mc-folder-view">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="mc-btn mc-btn--ghost mc-folder-back"
+                                                                        onClick={() => setSelectedFolderId(null)}
+                                                                    >
+                                                                        <ChevronLeft size={14} /> Back to folders
+                                                                    </button>
+                                                                    <div className="mc-folder-grid">
+                                                                        {folderImages.map((img) => (
+                                                                            <div
+                                                                                key={img.id}
+                                                                                className="mc-folder-item"
+                                                                                onClick={() => handleSelectImage(img)}
+                                                                            >
+                                                                                <img src={img.image_url} alt={img.title} />
+                                                                                <span>{img.folio || img.title}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                        {folderImages.length === 0 && (
+                                                                            <p className="mc-muted">No images in this folder</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="mc-folders-list">
+                                                                    {clientFolders.map((f) => (
+                                                                        <button
+                                                                            key={f.id}
+                                                                            type="button"
+                                                                            className="mc-folder-btn"
+                                                                            onClick={() => fetchFolderImages(f.id)}
+                                                                        >
+                                                                            <Folder size={16} />
+                                                                            <span>{f.name}</span>
+                                                                            <small>{f.image_count || 0} items</small>
+                                                                        </button>
+                                                                    ))}
+                                                                    {clientFolders.length === 0 && (
+                                                                        <p className="mc-muted">No folders found for this client</p>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {imageSearchMode === "upload" && (
+                                                        <div className="mc-upload-flow">
+                                                            <label
+                                                                className="mc-upload-dropzone"
+                                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                                onDrop={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    if (e.dataTransfer.files?.length) {
+                                                                        const files = Array.from(e.dataTransfer.files);
+                                                                        setUploadSelectedFiles(files);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <div className="mc-upload-icon-bubble">
+                                                                    <Upload size={26} />
+                                                                </div>
+                                                                <div className="mc-upload-text">
+                                                                    <strong>Choose files or drag & drop here</strong>
+                                                                    <p>
+                                                                        {isCarousel
+                                                                            ? "Attach multiple photos or videos for this carousel"
+                                                                            : "Upload an image, video, or PDF document"}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="mc-upload-pills">
+                                                                    <span className="mc-upload-pill">JPG, PNG, WEBP</span>
+                                                                    <span className="mc-upload-pill">MP4, MOV</span>
+                                                                    <span className="mc-upload-pill">PDF</span>
+                                                                    <span className="mc-upload-pill is-limit">Max 50MB</span>
+                                                                </div>
+                                                                <span className="mc-upload-browse-btn">
+                                                                    Browse from device
+                                                                </span>
+                                                                <input
+                                                                    type="file"
+                                                                    multiple={isCarousel}
+                                                                    accept="image/*,video/*,application/pdf"
+                                                                    className="mc-upload-native-input"
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files?.length) {
+                                                                            setUploadSelectedFiles(Array.from(e.target.files));
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </label>
+
+                                                            {uploadSelectedFiles.length > 0 && !isUploading && (
+                                                                <div className="mc-upload-staging">
+                                                                    <div className="mc-upload-staging-head">
+                                                                        <span>Selected files ({uploadSelectedFiles.length})</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="mc-btn-clear-staging"
+                                                                            onClick={() => setUploadSelectedFiles([])}
+                                                                        >
+                                                                            Clear all
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="mc-upload-staging-list">
+                                                                        {uploadSelectedFiles.map((file, idx) => (
+                                                                            <div key={idx} className="mc-upload-file-chip">
+                                                                                <FileText size={14} className="mc-file-chip-icon" />
+                                                                                <span className="mc-file-chip-name">{file.name}</span>
+                                                                                <span className="mc-file-chip-size">
+                                                                                    {(file.size / (1024 * 1024)).toFixed(1)} MB
+                                                                                </span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="mc-file-chip-remove"
+                                                                                    title="Remove file"
+                                                                                    onClick={(e) => {
+                                                                                        e.preventDefault();
+                                                                                        setUploadSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                                                                                    }}
+                                                                                >
+                                                                                    <X size={12} />
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="mc-btn mc-btn--primary mc-upload-commit-btn"
+                                                                        onClick={() => handleUploadNewImage(uploadSelectedFiles)}
+                                                                    >
+                                                                        <Upload size={14} />
+                                                                        <span>Upload and Attach {uploadSelectedFiles.length > 1 ? `(${uploadSelectedFiles.length} files)` : ""}</span>
+                                                                    </button>
+                                                                </div>
+                                                            )}
+
+                                                            {isUploading && (
+                                                                <div className="mc-uploading-indicator">
+                                                                    <div className="mc-upload-spinner-box">
+                                                                        <Loader2 size={22} className="mc-spin" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <strong>Uploading to Client Gallery...</strong>
+                                                                        <p>Saving and attaching assets to this request</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Carousel Strip */}
+                                    {isCarousel && stepItems.length > 1 && (
+                                        <div className="mc-post-carousel-strip">
+                                            <div className="mc-strip-label">
+                                                <span>Slides ({stepItems.length})</span>
+                                                <small>Drag to reorder</small>
+                                            </div>
+                                            <div className="mc-strip-items">
+                                                {stepItems.map((ci, idx) => {
+                                                    const thumb =
+                                                        ci.gallery_image_details?.image_compressed ||
+                                                        ci.gallery_image_details?.image_url ||
+                                                        ci.gallery_image_details?.image ||
+                                                        normalizeUrl(ci.file_url) ||
+                                                        null;
+                                                    const thumbVideo = ci.media_type === "VIDEO" || (ci.file_url && [".mp4", ".mov", ".webm"].some((ext) => ci.file_url.toLowerCase().endsWith(ext)));
+                                                    return (
+                                                        <div
+                                                            key={ci.id || idx}
+                                                            draggable
+                                                            className={`mc-thumb${idx === activeContentIndex ? " is-active" : ""}${reorderDragIndex === idx ? " is-dragging" : ""}${reorderOverIndex === idx && reorderDragIndex !== idx ? " is-over" : ""}`}
+                                                            onDragStart={() => setReorderDragIndex(idx)}
+                                                            onDragEnter={() => setReorderOverIndex(idx)}
+                                                            onDragOver={(e) => e.preventDefault()}
+                                                            onDragEnd={() => {
+                                                                if (reorderDragIndex !== null && reorderOverIndex !== null && reorderDragIndex !== reorderOverIndex) {
+                                                                    const reordered = [...stepItems];
+                                                                    const [moved] = reordered.splice(reorderDragIndex, 1);
+                                                                    reordered.splice(reorderOverIndex, 0, moved);
+                                                                    setActiveContentIndex(reorderOverIndex);
+                                                                    handleReorderCarousel(reordered);
+                                                                }
+                                                                setReorderDragIndex(null);
+                                                                setReorderOverIndex(null);
+                                                            }}
+                                                            onClick={() => setActiveContentIndex(idx)}
+                                                        >
+                                                            {thumb ? (
+                                                                thumbVideo ? (
+                                                                    <div className="mc-thumb__play">▶</div>
+                                                                ) : (
+                                                                    <img src={thumb} alt={`Slide ${idx + 1}`} style={{ transform: `rotate(${ci.rotation || 0}deg)` }} />
+                                                                )
+                                                            ) : (
+                                                                <div className="mc-thumb__play"><ImageIcon size={14} /></div>
+                                                            )}
+                                                            <span className="mc-thumb__n">{idx + 1}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 4. Social Action Bar (Like, Comment, Share, Bookmark) */}
+                                    <div className="mc-post-action-bar">
+                                        <div className="mc-post-action-left">
+                                            <button type="button" className="mc-social-btn" title="Like">
+                                                <Heart size={20} />
+                                            </button>
+                                            <button type="button" className="mc-social-btn" title="Comment">
+                                                <MessageSquare size={20} />
+                                            </button>
+                                            <button type="button" className="mc-social-btn" title="Share">
+                                                <Send size={19} />
+                                            </button>
+                                        </div>
+                                        {isCarousel && stepItems.length > 1 && (
+                                            <div className="mc-post-dots">
+                                                {stepItems.map((_, i) => (
+                                                    <span key={i} className={`mc-post-dot${i === safeIndex ? " is-active" : ""}`} />
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="mc-post-action-right">
+                                            <button type="button" className="mc-social-btn" title="Bookmark">
+                                                <Bookmark size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. Likes and Caption Box */}
+                                    <div className="mc-post-caption-box">
+                                        <div className="mc-post-likes">
+                                            Liked by <strong>lumena_team</strong> and <strong>others</strong>
+                                        </div>
+
+                                        <div className="mc-post-caption-editor">
+                                            <div className="mc-caption-toolbar">
+                                                <div className="mc-caption-author-line">
+                                                    <span className="mc-caption-username">
+                                                        {activeItem.name?.toLowerCase().replace(/\s+/g, '') || "client"}
+                                                    </span>
+                                                    <span className="mc-caption-hint">post caption</span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="mc-gen-btn"
+                                                    onClick={handleGenerateCaption}
+                                                    disabled={isGeneratingCaption}
+                                                >
+                                                    {isGeneratingCaption ? <Loader2 size={12} className="mc-spin" /> : <Sparkles size={12} />}
+                                                    <span>{isGeneratingCaption ? "Writing..." : "AI Caption"}</span>
+                                                </button>
+                                            </div>
+
+                                            <textarea
+                                                id="mc-caption"
+                                                className="mc-post-caption-input"
+                                                value={contentText}
+                                                onChange={(e) => setContentText(e.target.value)}
+                                                placeholder={`Write a caption for @${activeItem.name?.toLowerCase().replace(/\s+/g, '') || "client"}...`}
+                                                rows={3}
+                                            />
+
+                                            <div className="mc-caption-footer">
+                                                <span className="mc-char-counter">{contentText.length} / 2,200</span>
+                                            </div>
+
+                                            {/* AI Suggestion Box */}
+                                            {aiCaption && (
+                                                <div className="mc-ai-suggestion-box">
+                                                    <div className="mc-ai-suggestion-head">
+                                                        <span><Sparkles size={12} /> AI Suggestion</span>
+                                                        <button
+                                                            type="button"
+                                                            className="mc-btn-use-ai"
+                                                            onClick={() => setContentText(aiCaption)}
+                                                        >
+                                                            Use Suggestion
+                                                        </button>
+                                                    </div>
+                                                    <p>{aiCaption}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="mc-post-meta-footer">
+                                            <span>2 HOURS AGO • SEE TRANSLATION</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -35,7 +35,7 @@ const DEFAULT_INSIGHTS = {
 };
 
 const ROLES = [
-    { value: "CONTENT_CREATOR", label: "Content Creator" },
+    { value: "CONTENT_CREATOR", label: "Creator" },
     { value: "EDITOR", label: "Editor" },
     { value: "QA", label: "QA" },
     { value: "CLIENT", label: "Client" },
@@ -130,6 +130,7 @@ export default function ManageUsersPage() {
     const [deletingUser, setDeletingUser] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [formData, setFormData] = useState(emptyUserForm());
+    const [dialogStep, setDialogStep] = useState("account");
     const [insightsFormData, setInsightsFormData] = useState(normalizeInsightsMetrics({}));
 
     useEffect(() => {
@@ -166,10 +167,17 @@ export default function ManageUsersPage() {
         }
     };
 
+    const closeUserModal = () => {
+        setIsModalOpen(false);
+        setDialogStep("account");
+        setEditingUser(null);
+    };
+
     const handleAddClick = () => {
         setModalMode("add");
         setEditingUser(null);
         setFormData(emptyUserForm());
+        setDialogStep("account");
         setIsModalOpen(true);
     };
 
@@ -185,6 +193,7 @@ export default function ManageUsersPage() {
             password: "",
             access_permissions: user.access_permissions || {},
         });
+        setDialogStep("account");
         setIsModalOpen(true);
     };
 
@@ -313,6 +322,11 @@ export default function ManageUsersPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (dialogStep === "account") {
+            setDialogStep("access");
+            return;
+        }
+
         const url = modalMode === "add"
             ? `${API_BASE}/api/users/manage/add/`
             : `${API_BASE}/api/users/manage/${editingUser.id}/update/`;
@@ -328,7 +342,7 @@ export default function ManageUsersPage() {
 
             if (response.ok) {
                 await fetchUsers();
-                setIsModalOpen(false);
+                closeUserModal();
                 toast.success(modalMode === "add" ? "User added." : "User updated.");
             } else {
                 toast.error("Could not save this user.");
@@ -338,6 +352,26 @@ export default function ManageUsersPage() {
             toast.error("Network error.");
         }
     };
+
+    useEffect(() => {
+        if (!isModalOpen && !isInsightsModalOpen && !isSocialModalOpen) return undefined;
+        const onKey = (event) => {
+            if (event.key !== "Escape") return;
+            if (isSocialModalOpen) {
+                setIsSocialModalOpen(false);
+                setSocialModalUser(null);
+                return;
+            }
+            if (isInsightsModalOpen) {
+                setIsInsightsModalOpen(false);
+                setEditingInsightsUser(null);
+                return;
+            }
+            closeUserModal();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [isModalOpen, isInsightsModalOpen, isSocialModalOpen]);
 
     const counts = useMemo(() => ({
         total: users.length,
@@ -366,6 +400,9 @@ export default function ManageUsersPage() {
         QA: counts.qa,
         CLIENT: counts.clients,
     };
+
+    const hasAccessOverrides = Object.keys(formData.access_permissions || {}).length > 0;
+    const roleLabel = ROLE_LABELS[formData.role] || formData.role;
 
     return (
         <div className="content-board manage-users">
@@ -495,23 +532,35 @@ export default function ManageUsersPage() {
             </div>
 
             {isModalOpen && (
-                <div className="cb-overlay">
-                    <div className="mu-dialog">
+                <div className="cb-overlay" onClick={closeUserModal}>
+                    <div
+                        className={`mu-dialog${dialogStep === "access" ? " mu-dialog--access" : " mu-dialog--account"}`}
+                        role="dialog"
+                        aria-labelledby="mu-user-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="mu-dialog__head">
-                            <div>
-                                <h2>{modalMode === "add" ? "Add user" : "Edit user"}</h2>
-                                <p>{modalMode === "add" ? "Create an account and set access." : `Update @${editingUser?.username}.`}</p>
+                            <div className="mu-dialog__intro">
+                                <span className="mu-step-num">{dialogStep === "account" ? "1" : "2"}</span>
+                                <div>
+                                    <h2 id="mu-user-title">{modalMode === "add" ? "Add user" : "Edit user"}</h2>
+                                    <p>
+                                        {dialogStep === "account"
+                                            ? (modalMode === "add" ? "Who is this person, and what is their role?" : `Update @${editingUser?.username}.`)
+                                            : "Leave inherit unless this person needs an exception."}
+                                    </p>
+                                </div>
                             </div>
-                            <button type="button" className="cb-icon-btn" onClick={() => setIsModalOpen(false)} aria-label="Close">
+                            <button type="button" className="cb-icon-btn" onClick={closeUserModal} aria-label="Close">
                                 <X size={18} />
                             </button>
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="mu-dialog__scroll">
-                                <div className="mu-form-grid">
+                                <div className={dialogStep === "account" ? "mu-form-grid" : "mu-form-grid is-hidden"} aria-hidden={dialogStep !== "account"}>
                                     <div className="cb-field">
                                         <label htmlFor="mu-first">First name</label>
-                                        <input id="mu-first" type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="John" />
+                                        <input id="mu-first" type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="John" autoFocus />
                                     </div>
                                     <div className="cb-field">
                                         <label htmlFor="mu-last">Last name</label>
@@ -519,21 +568,13 @@ export default function ManageUsersPage() {
                                     </div>
                                     <div className="cb-field">
                                         <label htmlFor="mu-username">Username</label>
-                                        <input id="mu-username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="johndoe" required />
+                                        <input id="mu-username" type="text" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="johndoe" required={dialogStep === "account"} />
                                     </div>
                                     <div className="cb-field">
                                         <label htmlFor="mu-email">Email</label>
                                         <input id="mu-email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="john@example.com" />
                                     </div>
-                                    <div className="cb-field">
-                                        <label htmlFor="mu-role">Role</label>
-                                        <select id="mu-role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
-                                            {ROLES.map((role) => (
-                                                <option key={role.value} value={role.value}>{role.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="cb-field">
+                                    <div className="cb-field mu-span-2">
                                         <label htmlFor="mu-password">{modalMode === "add" ? "Password" : "New password"}</label>
                                         <input
                                             id="mu-password"
@@ -541,30 +582,78 @@ export default function ManageUsersPage() {
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             placeholder={modalMode === "add" ? "Required" : "Leave blank to keep"}
-                                            required={modalMode === "add"}
+                                            required={modalMode === "add" && dialogStep === "account"}
                                         />
                                     </div>
                                     <div className="cb-field mu-span-2">
-                                        <label><Shield size={12} /> Sidebar access</label>
-                                        <p className="mu-hint">Override the default access for this role. Leave inherit unless you need an exception.</p>
-                                        <div className="mu-perm-list">
-                                            {PERMISSION_SECTIONS.map((section) => (
-                                                <div key={section.key} className="mu-perm">
-                                                    <span>{section.label}</span>
-                                                    <select value={getPermissionValue(section.key)} onChange={(e) => handlePermissionChange(section.key, e.target.value)}>
-                                                        <option value="default">Inherit</option>
-                                                        <option value="grant">Grant</option>
-                                                        <option value="revoke">Revoke</option>
-                                                    </select>
-                                                </div>
+                                        <label id="mu-role-label">Role</label>
+                                        <div className="mu-role-pills" role="radiogroup" aria-labelledby="mu-role-label">
+                                            {ROLES.map((role) => (
+                                                <button
+                                                    key={role.value}
+                                                    type="button"
+                                                    className={`mu-role-pill${formData.role === role.value ? " is-on" : ""}`}
+                                                    data-role={role.value}
+                                                    aria-pressed={formData.role === role.value}
+                                                    onClick={() => setFormData({ ...formData, role: role.value })}
+                                                >
+                                                    {role.label}
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
                                 </div>
+
+                                <div className={dialogStep === "access" ? "mu-access" : "mu-access is-hidden"} aria-hidden={dialogStep !== "access"}>
+                                    <div className="mu-access__banner">
+                                        <Shield size={16} />
+                                        <p>
+                                            {hasAccessOverrides
+                                                ? "Custom sidebar overrides are set for this person."
+                                                : `Uses the default sidebar for ${roleLabel}.`}
+                                        </p>
+                                    </div>
+                                    <div className="mu-perm-list">
+                                        {PERMISSION_SECTIONS.map((section) => {
+                                            const current = getPermissionValue(section.key);
+                                            return (
+                                                <div key={section.key} className="mu-perm">
+                                                    <span>{section.label}</span>
+                                                    <div className="mu-perm-pills" role="group" aria-label={`${section.label} access`}>
+                                                        {[
+                                                            { value: "default", label: "Inherit" },
+                                                            { value: "grant", label: "Grant" },
+                                                            { value: "revoke", label: "Revoke" },
+                                                        ].map((option) => (
+                                                            <button
+                                                                key={option.value}
+                                                                type="button"
+                                                                className={current === option.value ? "is-on" : ""}
+                                                                aria-pressed={current === option.value}
+                                                                onClick={() => handlePermissionChange(section.key, option.value)}
+                                                            >
+                                                                {option.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                             <div className="cb-dialog__actions">
-                                <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                                <button type="submit" className="cb-btn cb-btn--primary"><Save size={15} /> Save user</button>
+                                {dialogStep === "account" ? (
+                                    <>
+                                        <button type="button" className="cb-btn cb-btn--ghost" onClick={closeUserModal}>Cancel</button>
+                                        <button type="submit" className="cb-btn cb-btn--primary">Continue</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button type="button" className="cb-btn cb-btn--ghost" onClick={() => setDialogStep("account")}>Back</button>
+                                        <button type="submit" className="cb-btn cb-btn--primary"><Save size={15} /> Save user</button>
+                                    </>
+                                )}
                             </div>
                         </form>
                     </div>
@@ -572,8 +661,8 @@ export default function ManageUsersPage() {
             )}
 
             {isInsightsModalOpen && editingInsightsUser && (
-                <div className="cb-overlay">
-                    <div className="mu-dialog mu-dialog--wide">
+                <div className="cb-overlay" onClick={() => { setIsInsightsModalOpen(false); setEditingInsightsUser(null); }}>
+                    <div className="mu-dialog mu-dialog--wide" onClick={(e) => e.stopPropagation()}>
                         <div className="mu-dialog__head">
                             <div>
                                 <h2>Edit insights</h2>
@@ -632,8 +721,8 @@ export default function ManageUsersPage() {
             )}
 
             {isSocialModalOpen && socialModalUser && (
-                <div className="cb-overlay">
-                    <div className="mu-dialog mu-dialog--narrow">
+                <div className="cb-overlay" onClick={() => { setIsSocialModalOpen(false); setSocialModalUser(null); }}>
+                    <div className="mu-dialog mu-dialog--narrow" onClick={(e) => e.stopPropagation()}>
                         <div className="mu-dialog__head">
                             <div>
                                 <h2>Social networks</h2>
