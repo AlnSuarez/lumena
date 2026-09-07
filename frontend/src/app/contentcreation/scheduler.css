@@ -68,7 +68,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 1.4rem 1.5rem 1.1rem;
   color: var(--sch-fg);
   background: transparent;
@@ -422,6 +423,137 @@
   padding-bottom: 0.5rem;
 }
 
+.sch-wizard__step.is-when {
+  height: 100%;
+  min-height: 0;
+  gap: 0.7rem;
+  padding-bottom: 0;
+}
+
+.sch-wizard__step.is-when .sch-step-head h2 {
+  font-size: 1.28rem;
+}
+
+.sch-wizard__step.is-when .sch-step-head p {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+}
+
+.sch-when {
+  display: grid;
+  grid-template-columns: minmax(248px, 300px) minmax(0, 1fr);
+  gap: 0.85rem 1.15rem;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.sch-when__date,
+.sch-when__meta {
+  min-height: 0;
+}
+
+.sch-when__date .sch-field {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sch-when__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sch-when .sch-field {
+  gap: 0.45rem;
+}
+
+.sch-when .sch-field--grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.sch-when .sch-field--grow textarea {
+  min-height: 0;
+  flex: 1;
+  height: 100%;
+  resize: none;
+}
+
+.sch-when .sch-time-container {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.7rem;
+}
+
+.sch-when .sch-time-presets {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.sch-when .sch-cal {
+  max-width: none;
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  padding: 0.75rem 0.8rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sch-when .sch-cal__quick {
+  margin-bottom: 0.55rem;
+}
+
+.sch-when .sch-cal__header {
+  margin-bottom: 0.45rem;
+}
+
+.sch-when .sch-cal__day {
+  height: 1.9rem;
+  font-size: 0.78rem;
+}
+
+.sch-when .sch-cal__footnote {
+  margin-top: auto;
+  padding: 0.5rem 0.7rem;
+}
+
+.sch-wizard__step.is-when .sch-wizard__nav {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.scheduler.is-when-step {
+  padding: 0.95rem 1.25rem 0.75rem;
+}
+
+.scheduler.is-when-step .sch-header {
+  margin-bottom: 0.75rem;
+}
+
+.scheduler.is-when-step .sch-header__titles h1 {
+  font-size: 1.45rem;
+}
+
+.scheduler.is-when-step .sch-header__titles p {
+  display: none;
+}
+
+.scheduler.is-when-step .sch-stepper {
+  margin-bottom: 0.75rem;
+}
+
+.scheduler.is-when-step .sch-step {
+  padding: 0.7rem 0.9rem;
+}
+
+.scheduler.is-when-step .sch-step__meaning {
+  -webkit-line-clamp: 1;
+}
+
 .sch-step-head {
   display: flex;
   flex-direction: column;
@@ -481,6 +613,17 @@
 
 .sch-wizard__nav > .sch-btn--primary {
   flex: 0 1 auto;
+}
+
+.scheduler.is-when-step .sch-wizard__main {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scheduler.is-when-step .sch-wizard__step.is-when {
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 /* ---------- Client filters ---------- */
@@ -2533,6 +2676,18 @@
 @media (max-width: 1080px) {
   .sch-stepper {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sch-when {
+    grid-template-columns: 1fr;
+  }
+
+  .sch-wizard__step.is-when {
+    height: auto;
+  }
+
+  .scheduler.is-when-step {
+    overflow: auto;
   }
   .sch-wizard {
     flex-direction: column;

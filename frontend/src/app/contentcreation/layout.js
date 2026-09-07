@@ -9,7 +9,7 @@ export default function ContentCreationLayout({ children }) {
                 <Sidebar />
                 <div className="flex-1 flex flex-col min-w-0 bg-background">
                     <Navbar />
-                    <main className="flex-1 overflow-y-auto bg-transparent">
+                    <main className="flex-1 min-h-0 overflow-y-auto bg-transparent">
                         {children}
                     </main>
                 </div>

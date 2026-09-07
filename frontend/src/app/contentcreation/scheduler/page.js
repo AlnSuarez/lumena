@@ -1158,7 +1158,7 @@ export default function SchedulerPage() {
        Render
     ────────────────────────────────────────────── */
     return (
-        <div className="scheduler">
+        <div className={`scheduler${viewMode === "wizard" && step === 3 ? " is-when-step" : ""}`}>
             {/* ── Header ── */}
             <header className="sch-header">
                 <div className="sch-header__titles">
@@ -1619,7 +1619,7 @@ export default function SchedulerPage() {
 
                             {/* ── Step 3: When & How ── */}
                             {step === 3 && (
-                                <section className="sch-wizard__step" aria-labelledby="sch-step3-title">
+                                <section className="sch-wizard__step is-when" aria-labelledby="sch-step3-title">
                                     <div className="sch-step-head">
                                         <h2 id="sch-step3-title">When & How</h2>
                                         <p>
@@ -1628,6 +1628,19 @@ export default function SchedulerPage() {
                                         </p>
                                     </div>
 
+                                    <div className="sch-when">
+                                    <div className="sch-when__date">
+                                    <div className="sch-field">
+                                        <label>Publish Date</label>
+                                        <VisualCalendar
+                                            value={scheduleDate}
+                                            onChange={setScheduleDate}
+                                            scheduledDates={scheduledDatesMap}
+                                        />
+                                    </div>
+                                    </div>
+
+                                    <div className="sch-when__meta">
                                     {/* Platforms */}
                                     <div className="sch-field">
                                         <label>Channels & Platforms</label>
@@ -1676,16 +1689,6 @@ export default function SchedulerPage() {
                                         )}
                                     </div>
 
-                                    {/* Visual Calendar */}
-                                    <div className="sch-field">
-                                        <label>Publish Date</label>
-                                        <VisualCalendar
-                                            value={scheduleDate}
-                                            onChange={setScheduleDate}
-                                            scheduledDates={scheduledDatesMap}
-                                        />
-                                    </div>
-
                                     {/* Time with Quick Peak-Hour Recommendations */}
                                     <div className="sch-field">
                                         <div className="sch-field__label-row">
@@ -1720,7 +1723,7 @@ export default function SchedulerPage() {
                                     </div>
 
                                     {/* Caption with character counts */}
-                                    <div className="sch-field">
+                                    <div className="sch-field sch-field--grow">
                                         <div className="sch-field__label-row">
                                             <label htmlFor="post-caption">Post Caption</label>
                                             <span className="sch-field__counter">
@@ -1781,6 +1784,8 @@ export default function SchedulerPage() {
                                                 </button>
                                             </div>
                                         </div>
+                                    </div>
+                                    </div>
                                     </div>
 
                                     <div className="sch-wizard__nav">
