@@ -45,10 +45,10 @@ import "../scheduler.css";
    Constants
 ────────────────────────────────────────────────────────── */
 const WIZARD_STEPS = [
-    { id: 1, name: "Client" },
-    { id: 2, name: "Piece" },
-    { id: 3, name: "When & How" },
-    { id: 4, name: "Publish" },
+    { id: 1, name: "Client", meaning: "Whose approved content you are publishing" },
+    { id: 2, name: "Piece", meaning: "Pick a photo, carousel, video, story, or PDF" },
+    { id: 3, name: "When & How", meaning: "Platform, date, time, and caption" },
+    { id: 4, name: "Publish", meaning: "Schedule it, save a draft, or go live" },
 ];
 
 const FLOW_STEPS = [
@@ -1312,7 +1312,7 @@ export default function SchedulerPage() {
                 <>
                     {/* ── Stepper ── */}
                     <nav className="sch-stepper" aria-label="Scheduling steps">
-                        {WIZARD_STEPS.map((s, i) => {
+                        {WIZARD_STEPS.map((s) => {
                             const isDone = step > s.id;
                             const isActive = step === s.id;
                             const canClick = isDone || (s.id === 2 && hasClient) || (s.id === 3 && hasClient && hasPiece) || (s.id === 4 && canSend);
@@ -1324,11 +1324,13 @@ export default function SchedulerPage() {
                                     onClick={() => canClick && setStep(s.id)}
                                     className={`sch-step${isActive ? " is-active" : ""}${isDone ? " is-done" : ""}${canClick ? " is-navigable" : ""}`}
                                 >
-                                    <span className="sch-step__num">
-                                        {isDone ? <Check size={13} /> : s.id}
-                                    </span>
-                                    <span className="sch-step__name">{s.name}</span>
-                                    {i < WIZARD_STEPS.length - 1 && <span className="sch-step__line" />}
+                                    <div className="sch-step__top">
+                                        <span className="sch-step__num">
+                                            {isDone ? <Check size={13} /> : s.id}
+                                        </span>
+                                        <span className="sch-step__name">{s.name}</span>
+                                    </div>
+                                    <p className="sch-step__meaning">{s.meaning}</p>
                                 </button>
                             );
                         })}
